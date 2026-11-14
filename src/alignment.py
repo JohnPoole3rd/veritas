@@ -1,0 +1,116 @@
+"""Closed-form Procrustes alignment."""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from src.config import ensure_parent
+
+
+def l2_normalize(array: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    array = np.asarray(array, dtype=np.float32)
+    norms = np.linalg.norm(array, axis=-1, keepdims=True)
+    return array / np.maximum(norms, eps)
+
+
+def center_embeddings(
+    X: np.ndarray,
+    Y: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Center image and text embeddings using their training means."""
+    X = np.asarray(X, dtype=np.float32)
+    Y = np.asarray(Y, dtype=np.float32)
+    if X.shape[0] != Y.shape[0]:
+        raise ValueError(f"Pair count mismatch: {X.shape[0]} images vs {Y.shape[0]} texts")
+    mu_x = X.mean(axis=0)
+    mu_y = Y.mean(axis=0)
+    return X - mu_x, Y - mu_y, mu_x, mu_y
+
+
+def fit_procrustes(
+    X: np.ndarray,
+    Y: np.ndarray,
+    *,
+    center: bool = True,
+    shuffle_y: bool = False,
+    seed: int = 42,
+) -> dict[str, Any]:
+    """Fit the orthogonal/semi-orthogonal map X -> Y.
+
+    Returns a dict with W, mu_x, mu_y, scale, and method.
+    """
+    X = np.asarray(X, dtype=np.float32)
+    Y = np.asarray(Y, dtype=np.float32)
+    if shuffle_y:
+        rng = np.random.default_rng(seed)
+        Y = Y[rng.permutation(Y.shape[0])]
+    if center:
+        Xc, Yc, mu_x, mu_y = center_embeddings(X, Y)
+    else:
+        Xc, Yc = X, Y
+        mu_x = np.zeros(X.shape[1], dtype=np.float32)
+        mu_y = np.zeros(Y.shape[1], dtype=np.float32)
+    cross = Xc.T @ Yc
+    U, singular_values, Vt = np.linalg.svd(cross, full_matrices=False)
+    W = (U @ Vt).astype(np.float32)
+    scale = float(singular_values.sum())
+    return {
+        "W": W,
+        "mu_x": np.asarray(mu_x, dtype=np.float32),
+        "mu_y": np.asarray(mu_y, dtype=np.float32),
+        "scale": scale,
+        "method": "orthogonal_procrustes",
+        "shuffle_y": bool(shuffle_y),
+        "center": bool(center),
+    }
+
+
+def transform_images(X: np.ndarray, params: dict[str, Any], normalize: bool = True) -> np.ndarray:
+    X = np.asarray(X, dtype=np.float32) - np.asarray(params["mu_x"], dtype=np.float32)
+    transformed = X @ np.asarray(params["W"], dtype=np.float32)
+    return l2_normalize(transformed) if normalize else transformed.astype(np.float32)
+
+
+def transform_texts(Y: np.ndarray, params: dict[str, Any], normalize: bool = True) -> np.ndarray:
+    Y = np.asarray(Y, dtype=np.float32) - np.asarray(params["mu_y"], dtype=np.float32)
+    return l2_normalize(Y) if normalize else Y.astype(np.float32)
+
+
+def orthogonality_error(params: dict[str, Any]) -> float:
+    W = np.asarray(params["W"], dtype=np.float32)
+    gram = W.T @ W
+    identity = np.eye(gram.shape[0], dtype=np.float32)
+    return float(np.linalg.norm(gram - identity, ord="fro"))
+
+
+def save_procrustes(path: str | os.PathLike[str], params: dict[str, Any]) -> None:
+    target = ensure_parent(path)
+    metadata = {
+        key: value
+        for key, value in params.items()
+        if key not in {"W", "mu_x", "mu_y"}
+    }
+    np.savez(
+        target,
+        W=np.asarray(params["W"], dtype=np.float32),
+        mu_x=np.asarray(params["mu_x"], dtype=np.float32),
+        mu_y=np.asarray(params["mu_y"], dtype=np.float32),
+        metadata=json.dumps(metadata),
+    )
+
+
+def load_procrustes(path: str | os.PathLike[str]) -> dict[str, Any]:
+    data = np.load(Path(path), allow_pickle=False)
+    metadata = json.loads(str(data["metadata"])) if "metadata" in data else {}
+    params: dict[str, Any] = {
+        "W": data["W"].astype(np.float32),
+        "mu_x": data["mu_x"].astype(np.float32),
+        "mu_y": data["mu_y"].astype(np.float32),
+    }
+    params.update(metadata)
+    return params

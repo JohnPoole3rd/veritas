@@ -1,0 +1,51 @@
+{
+  "n_images": 512,
+  "n_captions": 50,
+  "top1": 0.94,
+  "top5": 0.98,
+  "per_class": {
+    "AnnualCrop": {
+      "top1": 1.0,
+      "top5": 1.0
+    },
+    "Forest": {
+      "top1": 1.0,
+      "top5": 1.0
+    },
+    "HerbaceousVegetation": {
+      "top1": 0.8,
+      "top5": 1.0
+    },
+    "Highway": {
+      "top1": 1.0,
+      "top5": 1.0
+    },
+    "Industrial": {
+      "top1": 1.0,
+      "top5": 1.0
+    },
+    "Pasture": {
+      "top1": 1.0,
+      "top5": 1.0
+    },
+    "PermanentCrop": {
+      "top1": 0.8,
+      "top5": 1.0
+    },
+    "Residential": {
+      "top1": 1.0,
+      "top5": 1.0
+    },
+    "River": {
+      "top1": 0.8,
+      "top5": 0.8
+    },
+    "SeaLake": {
+      "top1": 1.0,
+      "top5": 1.0
+    }
+  },
+  "method": "procrustes",
+  "split": "val",
+  "orthogonality_error": 8.274188985524233e-06
+}

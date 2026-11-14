@@ -1,0 +1,12 @@
+data/raw/
+artifacts/embeddings/
+artifacts/alignment/
+*.npy
+*.npz
+*.pt
+*.pth
+*.log
+__pycache__/
+.ipynb_checkpoints/
+.env
+.venv/
