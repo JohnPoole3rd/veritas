@@ -27,6 +27,14 @@ What A did:
   `python -m src.baselines resnet18`. There is one ResNet implementation, not two.
 - Your `tests/test_core.py` passes (7/7) on A's branches.
 
+**Update (after `15a1873`):** this happened again. `0d0cdd4` edited `src/local_tiles.py`,
+`tests/test_local_tiles.py`, `artifacts/metrics/majority.csv` and `scripts/train_resnet.py` while A's
+branches were open. A resolved it in `a/final` by **adopting your new contracts**: the INTERFACES §5
+`evaluate_local(manifest, image_embeddings, procrustes_params, caption_embeddings, caption_labels)`
+signature, per-tile `local.csv`, `local_by_category.csv`, `local.json`, and your runbook commands in
+`plan/agents/A.md`. Your unittest cases are kept and pass. Your `scripts/evaluate_local.py` is now a
+thin wrapper over the same implementation. T12 re-run through those commands gives identical predictions.
+
 **Request:** for a shared file, add a stub with a `TODO(owner)` comment, or tell the owner in
 `results/Txx.md`, instead of implementing another agent's module.
 
