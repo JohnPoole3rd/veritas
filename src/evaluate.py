@@ -306,3 +306,79 @@ def save_confusion_matrix_png(cm, class_names: list[str], path, title: str = "")
     fig.savefig(path, dpi=150)
     plt.close(fig)
     return path
+
+
+# ---------------------------------------------------------------- A: per-image comparison CLI
+def run_caption_classification(split: str = "test", agg: str = "max", seed: int = 42) -> list[dict]:
+    """Per-image accuracy / macro-F1 for Procrustes, random rotation and unaligned cosine on a
+    EuroSAT split. This is the metric comparable with ResNet-18 (N = images, not caption queries).
+
+    Uses J's artifacts as-is: artifacts/embeddings/dinov2_{train,<split>}.npy,
+    minilm_captions.npy (+ index) and artifacts/alignment/procrustes.npz. The random-rotation
+    baseline is J's definition (Procrustes on shuffled train pairs, `fit_procrustes(shuffle_y=True)`),
+    rebuilt with the same caption sampling as scripts/fit_alignment.py.
+    `agg` (max over a class's captions) is fixed in advance, never chosen on test.
+    """
+    import json
+    import random
+
+    from src.alignment import fit_procrustes, load_procrustes, transform_images, transform_texts
+    from src.captions import captions_by_label, load_captions, sample_caption
+    from src.config import load_config, resolve_path
+    from src.data import load_split
+
+    cfg = load_config()
+    emb = resolve_path("artifacts/embeddings", cfg)
+    split_payload = load_split(resolve_path(cfg["data"]["splits_dir"], cfg) / f"{split}.json")
+    train_payload = load_split(resolve_path(cfg["data"]["splits_dir"], cfg) / "train.json")
+    class_names = split_payload["class_names"]
+    X = np.load(emb / f"dinov2_{split}.npy")
+    labels = [it["label"] for it in split_payload["items"]]
+    if len(X) != len(labels):
+        raise ValueError(f"dinov2_{split}.npy {X.shape} != {split} split ({len(labels)})")
+    Y = np.load(emb / "minilm_captions.npy")
+    index = json.loads((emb / "minilm_caption_index.json").read_text())
+    cap_labels = [index[str(i)]["label"] for i in range(len(index))]
+
+    params = load_procrustes(resolve_path("artifacts/alignment/procrustes.npz", cfg))
+
+    # Random rotation, exactly as J's T07 null baseline.
+    captions = load_captions(resolve_path(cfg["data"]["captions_path"], cfg))
+    text_to_idx = {c["text"]: i for i, c in enumerate(captions)}
+    rng = random.Random(seed)
+    grouped = captions_by_label(captions)
+    sampled = [text_to_idx[sample_caption(grouped, it["label"], rng)] for it in train_payload["items"]]
+    X_train = np.load(emb / "dinov2_train.npy")
+    rand = fit_procrustes(X_train, Y[sampled], center=True, shuffle_y=True, seed=seed)
+
+    variants = {
+        "procrustes": (transform_images(X, params), transform_texts(Y, params)),
+        "random_rotation": (transform_images(X, rand), transform_texts(Y, rand)),
+        "unaligned": (X, Y),
+    }
+    rows = []
+    for name, (Xi, Yi) in variants.items():
+        r = evaluate_caption_classification(Xi, Yi, labels, cap_labels, class_names=class_names, agg=agg)
+        rows.append({"method": name, "split": split, "accuracy": round(r["accuracy"], 4),
+                     "top5": round(r["top5"], 4), "macro_f1": round(r["macro_f1"], 4),
+                     "n_images": r["n"], "n_captions": len(cap_labels),
+                     "notes": f"image->class, agg={agg}"})
+        if name == "procrustes":
+            save_confusion_matrix_png(r["confusion_matrix"], class_names,
+                                      resolve_path(f"artifacts/figures/procrustes_{split}_confusion_matrix.png", cfg),
+                                      title=f"Procrustes image->class, {split} (acc {r['accuracy']:.3f})")
+            per = [{"class": c, "recall": round(r["per_class"][c], 4)} for c in class_names]
+            save_metrics_csv(resolve_path(f"artifacts/metrics/procrustes_{split}_per_class.csv", cfg), per)
+    save_metrics_csv(resolve_path(f"artifacts/metrics/caption_classification_{split}.csv", cfg), rows)
+    return rows
+
+
+if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(prog="python -m src.evaluate")
+    ap.add_argument("command", choices=["caption-classification"])
+    ap.add_argument("--split", default="test", choices=["val", "test"])
+    args = ap.parse_args()
+    for row in run_caption_classification(args.split):
+        print(row)

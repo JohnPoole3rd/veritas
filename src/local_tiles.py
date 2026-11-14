@@ -76,6 +76,160 @@ def load_local_manifest(path: str | Path = DEFAULT_MANIFEST, check_files: bool =
     return df
 
 
+# --------------------------------------------------------------------------- T12 evaluation
+QA_PATH = "data/local_tiles/labels_qa.csv"
+
+
+def load_tile_images(df: pd.DataFrame) -> list:
+    from PIL import Image
+
+    return [Image.open(ROOT / p).convert("RGB") for p in df.path]
+
+
+def _embed_images(image_model, manifest: pd.DataFrame, input_size: int = 224, device=None):
+    """Return (N, D) DINOv2 embeddings for the manifest tiles. image_model may be:
+    - an (N, D) array of precomputed embeddings (J's original evaluate_local API),
+    - a callable list[PIL] -> (N, D) array (tests / custom encoders),
+    - the frozen DINOv2 model from J's `src.encoders.load_dinov2` (uses J's eval transforms,
+      i.e. the same 64->224 upscale as EuroSAT, so local and EuroSAT embeddings match)."""
+    import numpy as np
+
+    if isinstance(image_model, np.ndarray):
+        return image_model
+    if callable(image_model) and not hasattr(image_model, "parameters"):
+        return image_model(load_tile_images(manifest))
+    from src.data import get_transforms
+    from src.encoders import extract_image_embeddings
+
+    ds = LocalTileDataset(manifest, ROOT, transform=get_transforms(input_size, train=False))
+    return extract_image_embeddings(image_model, ds, batch_size=32, device=device)
+
+
+def load_caption_artifacts(emb_path="artifacts/embeddings/minilm_captions.npy",
+                           index_path="artifacts/embeddings/minilm_caption_index.json"):
+    """Caption embeddings (T05) and their labels, in index order."""
+    import json
+
+    import numpy as np
+
+    emb_path, index_path = ROOT / emb_path, ROOT / index_path
+    for p in (emb_path, index_path):
+        if not p.exists():
+            raise FileNotFoundError(f"Caption artifact not found: {p} (run T05 first)")
+    Y = np.load(emb_path)
+    idx = json.loads(index_path.read_text())
+    labels = [idx[str(i)]["label"] for i in range(len(idx))]
+    if len(labels) != len(Y):
+        raise ValueError(f"caption index ({len(labels)}) != embeddings {Y.shape}")
+    return Y, labels
+
+
+def evaluate_local(manifest: pd.DataFrame, image_model, text_model=None, params: dict | None = None,
+                   caption_embeddings=None, caption_labels=None, resnet_checkpoint=None,
+                   agg: str = "max", device=None) -> pd.DataFrame:
+    """Predict every local tile with Procrustes caption retrieval (and ResNet-18 if a checkpoint
+    is given). Returns one row per tile. Nothing here is fitted on the local tiles.
+
+    text_model is accepted for the INTERFACES contract; captions are taken from the T05
+    artifacts (caption_embeddings/caption_labels) so they match exactly what T06 was fitted on.
+    """
+    import numpy as np
+
+    from src.alignment import transform_images, transform_texts
+    from src.evaluate import evaluate_caption_classification
+
+    if caption_embeddings is None:
+        caption_embeddings, caption_labels = load_caption_artifacts()
+    X = np.asarray(_embed_images(image_model, manifest, device=device), np.float32)
+    if len(X) != len(manifest):
+        raise ValueError(f"image embeddings {X.shape} != manifest rows {len(manifest)}")
+    Xa = transform_images(X, params)
+    Ya = transform_texts(caption_embeddings, params)
+
+    # 'Other' tiles cannot be scored against EuroSAT classes; keep them, mark as not scorable.
+    scorable = manifest.label.isin(EUROSAT_CLASSES).to_numpy()
+    true = manifest.label.where(scorable, EUROSAT_CLASSES[0]).tolist()
+    r = evaluate_caption_classification(Xa, Ya, true, caption_labels, class_names=EUROSAT_CLASSES, agg=agg)
+    scores = r["class_scores"]
+    order = np.argsort(-scores, axis=1)
+
+    out = manifest[["tile_id", "label", "local_category"]].copy()
+    out["scorable"] = scorable
+    out["procrustes_pred"] = [EUROSAT_CLASSES[i] for i in order[:, 0]]
+    out["procrustes_score"] = scores[np.arange(len(out)), order[:, 0]].round(4)
+    out["procrustes_top3"] = ["|".join(EUROSAT_CLASSES[j] for j in row[:3]) for row in order]
+    out["procrustes_correct"] = (out.procrustes_pred == out.label) & out.scorable
+    if resnet_checkpoint is not None:
+        from src.baselines import predict_resnet18
+
+        preds = predict_resnet18(resnet_checkpoint, load_tile_images(manifest))
+        out["resnet18_pred"] = [p for p, _ in preds]
+        out["resnet18_prob"] = [round(c, 4) for _, c in preds]
+        out["resnet18_correct"] = (out.resnet18_pred == out.label) & out.scorable
+    return out
+
+
+def local_metrics(preds: pd.DataFrame, qa_path: str | Path = QA_PATH) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Summary rows for artifacts/metrics/local.csv plus a per-category table.
+
+    Includes the LOCAL majority baseline (most common local label; T11: Residential, 31/50) and
+    accuracy on non-ambiguous tiles (labels_qa.csv `ambiguous` flag)."""
+    p = preds[preds.scorable].copy()
+    qa = ROOT / qa_path if not Path(qa_path).is_absolute() else Path(qa_path)
+    if qa.exists():
+        amb = pd.read_csv(qa).set_index("tile_id")["ambiguous"]
+        p["ambiguous"] = p.tile_id.map(amb).fillna(False).astype(bool)
+    else:
+        p["ambiguous"] = False
+    maj = p.label.mode().iloc[0]
+    p["majority_correct"] = p.label == maj
+    methods = [m for m in ("procrustes", "resnet18") if f"{m}_correct" in p] + ["majority"]
+    rows = []
+    for m in methods:
+        c = p[f"{m}_correct"]
+        clear = c[~p.ambiguous]
+        note = f"Upper Arlington OOD; constant '{maj}'" if m == "majority" else "Upper Arlington OOD"
+        rows.append({"method": m if m != "majority" else "majority_local", "accuracy": round(c.mean(), 4),
+                     "n": int(len(c)), "accuracy_unambiguous": round(clear.mean(), 4) if len(clear) else None,
+                     "n_unambiguous": int(len(clear)), "notes": note})
+    summary = pd.DataFrame(rows)
+    per_cat = p.groupby("local_category").agg(
+        n=("tile_id", "size"),
+        **{f"{m}_acc": (f"{m}_correct", "mean") for m in methods},
+    ).round(3).reset_index()
+    return summary, per_cat
+
+
+def run_local_eval(out_dir: str | Path = "artifacts", resnet_checkpoint="artifacts/checkpoints/resnet18.pt",
+                   procrustes_path="artifacts/alignment/procrustes.npz"):
+    """T12 entry point: needs J's T05/T06 artifacts (caption embeddings, procrustes.npz) and
+    T08's ResNet-18 checkpoint (optional)."""
+    out_dir = ROOT / out_dir
+    pz = ROOT / procrustes_path
+    if not pz.exists():
+        raise FileNotFoundError(f"Procrustes artifact not found: {pz} (run T06 first)")
+    from src.alignment import load_procrustes
+    from src.config import load_config
+    from src.encoders import get_device, load_dinov2
+
+    params = load_procrustes(pz)
+    cfg = load_config()
+    device = get_device()
+    image_model = load_dinov2(cfg["image"]["model_name"], device=device)
+    ck = ROOT / resnet_checkpoint
+    df = load_local_manifest()
+    preds = evaluate_local(df, image_model, None, params, resnet_checkpoint=ck if ck.exists() else None,
+                           device=device)
+    summary, per_cat = local_metrics(preds)
+    (out_dir / "metrics").mkdir(parents=True, exist_ok=True)
+    summary.to_csv(out_dir / "metrics" / "local.csv", index=False)
+    per_cat.to_csv(out_dir / "metrics" / "local_per_category.csv", index=False)
+    preds.to_csv(out_dir / "metrics" / "local_predictions.csv", index=False)
+    print(summary.to_string(index=False))
+    print(per_cat.to_string(index=False))
+    return preds, summary, per_cat
+
+
 def summarize(df: pd.DataFrame) -> str:
     lines = [f"{len(df)} tiles", "", pd.crosstab(df.local_category, df.label, margins=True).to_string()]
     return "\n".join(lines)
@@ -133,7 +287,11 @@ def _main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     v = sub.add_parser("validate")
     v.add_argument("--manifest", default=DEFAULT_MANIFEST)
+    sub.add_parser("evaluate", help="T12: Procrustes + ResNet-18 on the 50 local tiles")
     args = ap.parse_args(argv)
+    if args.cmd == "evaluate":
+        run_local_eval()
+        return
     if args.cmd == "validate":
         df = load_local_manifest(args.manifest)
         print("manifest OK")
