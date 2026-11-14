@@ -5,6 +5,9 @@ Owner: D · Source: `plan/09-demo-writeup-submission.md` §2 · Status: DRAFT (m
 Every number in brackets must come from a logged run in `plan/11-experiment-log.md`
 before recording. Do not say a number that is not in `artifacts/metrics/`.
 
+Numbers already filled in come from J's T07 (`artifacts/metrics/retrieval.csv`, 512-tile test
+subset, 50 caption queries). Re-check them if J reruns on the full test split.
+
 ## Setup (before recording)
 
 - [ ] `python app.py` loads with Wi-Fi off (no internet needed).
@@ -33,7 +36,8 @@ before recording. Do not say a number that is not in `artifacts/metrics/`.
    > outside the training distribution."
 4. **Results & limits tab.**
    > "We compare with a supervised ResNet-18 classifier, which scored [Y] on the held-out test
-   > split. Our rotation scored [X] top-1, against [R] for a random rotation. ResNet is stronger
+   > split. When we searched with each of our 50 class captions, the right kind of tile came up
+   > first [X = 47 of 50 (94%)] of the time, against [R = 10%] for a random rotation. ResNet is stronger
    > at fixed classes, but it cannot answer a new text query without retraining. Our method can."
 
 ## 1:15–1:45 — How it works
@@ -45,11 +49,13 @@ before recording. Do not say a number that is not in `artifacts/metrics/`.
 
 ## 1:45–2:00 — Failure and next steps
 
-**Screen:** failure example on the Results tab.
+**Screen:** "Where it fails" on the Results tab (computed live; read what it actually shows).
 
-> "It fails on annual versus permanent crop, because the difference is crop lifecycle, not
-> appearance. On local Upper Arlington tiles, accuracy dropped to [L] on N=50. Next, we would
-> add local labels and temporal change detection."
+> "Ask it something abstract, like 'climate change', and it still returns tiles, with very low
+> scores and unrelated classes. It has no way to say 'I don't know.' It also mixes up permanent
+> and annual crops, because the difference is the crop lifecycle, not how one image looks.
+> On local Upper Arlington tiles, accuracy dropped to [L] on N=50. Next, we would add local
+> labels and temporal change detection."
 
 ## Claims to avoid
 
