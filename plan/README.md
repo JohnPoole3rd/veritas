@@ -125,12 +125,15 @@ No clock times. Start when the human gives the signal.
 - [x] Subagent rules defined.
 - [x] Continuous planning and learnings defined.
 - [x] Plain Git workflow defined.
-- [ ] Implementation started.
+- [x] Implementation started.
+- [x] J T01–T07 complete on a 512-tile stratified subset.
+- [ ] A baselines/local tiles.
+- [ ] D demo.
+- [ ] Final integration and submission.
 
 ## Next actions
 
-1. Wait for the human start signal.
-2. J starts T01 and T02.
-3. A starts T10.
-4. D builds the mock UI.
-5. J merges at the first phase boundary.
+1. J merges the J branch into `main`.
+2. A runs T08/T09 and collects T10/T11.
+3. D wires T14 after J's metrics.
+4. J coordinates the final evaluation and submission.

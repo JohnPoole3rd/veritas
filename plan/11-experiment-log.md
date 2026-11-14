@@ -12,10 +12,11 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 | R002 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Random rotation | 64 | 64 | 64 | 0.14 | 0.36 | | smoke subset; test retrieval |
 | R003 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Unaligned cosine | 64 | 64 | 64 | 0.26 | 0.48 | | smoke subset; test retrieval |
 | R004 | | | | | ResNet-18 | | | | | | | supervised |
-| R005 | | | | | Majority | | | | | | | required baseline |
-| R006 | | | | | CLIP | | | | | | | optional |
-| R007 | | | | | Procrustes | | | | | | | full test |
-| R008 | | | | | Procrustes | | | | | | | Upper Arlington local |
+| R005 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Majority | 18900 | 4050 | 4050 | 0.1111 | | 0.0200 | scaffold run; A owns T09 |
+| R006 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 512 | 512 | 512 | 0.94 | 0.98 | | 512 subset; val retrieval |
+| R007 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Random rotation | 512 | 512 | 512 | 0.10 | 0.32 | | 512 subset; test null baseline |
+| R008 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Unaligned cosine | 512 | 512 | 512 | 0.16 | 0.36 | | 512 subset; test baseline |
+| R009 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 512 | 512 | 512 | 0.94 | 0.96 | | 512 subset; test retrieval |
 
 ## 2. Data inventory
 
@@ -133,10 +134,10 @@ Every claim in the write-up must trace to a run.
 
 | Phase | Planned outcome | Actual | Status | Notes |
 |---|---|---|---|---|
-| Phase 0 — Setup | T01 scaffold; A starts T10; D mock UI | | | |
-| Phase 1 — Data | T02 splits; T03 captions; T10/T11 tiles | | | |
-| Phase 2 — Alignment | T04/T05 embeddings; T06 Procrustes; T08/T09 baselines | | | |
-| Phase 3 — Retrieval | T07 retrieval; T12 local eval; T13 failures; T14 demo | | | |
+| Phase 0 — Setup | T01 scaffold; A starts T10; D mock UI | J T01 done; A/D in progress | J done | J |
+| Phase 1 — Data | T02 splits; T03 captions; T10/T11 tiles | J T02/T03 done; A tiles in progress | J done | J |
+| Phase 2 — Alignment | T04/T05 embeddings; T06 Procrustes; T08/T09 baselines | J T04-T06 done on 512 subset; A baselines pending | J done | J |
+| Phase 3 — Retrieval | T07 retrieval; T12 local eval; T13 failures; T14 demo | J T07 done on 512 subset; A/D pending | J done | J |
 | Phase 4 — Integration | Merge branches; final eval; T15 draft | | | |
 | Phase 5 — Docs | T15 write-up; T16 video | | | |
 | Phase 6 — Submit | T17 checklist; submit | | | |
