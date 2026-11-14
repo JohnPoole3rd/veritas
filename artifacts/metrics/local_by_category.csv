@@ -1,4 +1,4 @@
-local_category,n,procrustes_acc,resnet18_acc,majority_acc
+local_category,n,accuracy,resnet18_acc,majority_acc
 commercial_industrial,10,0.9,1.0,0.7
 park_forest_herbaceous,10,0.4,0.3,0.5
 residential,10,1.0,1.0,1.0

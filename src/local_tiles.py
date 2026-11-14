@@ -124,14 +124,18 @@ def load_caption_artifacts(emb_path="artifacts/embeddings/minilm_captions.npy",
     return Y, labels
 
 
-def evaluate_local(manifest: pd.DataFrame, image_model, text_model=None, params: dict | None = None,
-                   caption_embeddings=None, caption_labels=None, resnet_checkpoint=None,
+def evaluate_local(manifest: pd.DataFrame, image_embeddings, procrustes_params: dict,
+                   caption_embeddings=None, caption_labels=None, *, resnet_checkpoint=None,
                    agg: str = "max", device=None) -> pd.DataFrame:
     """Predict every local tile with Procrustes caption retrieval (and ResNet-18 if a checkpoint
     is given). Returns one row per tile. Nothing here is fitted on the local tiles.
 
-    text_model is accepted for the INTERFACES contract; captions are taken from the T05
-    artifacts (caption_embeddings/caption_labels) so they match exactly what T06 was fitted on.
+    Signature follows INTERFACES §5 (manifest, image_embeddings, procrustes_params,
+    caption_embeddings, caption_labels). `image_embeddings` may also be a DINOv2 model or a
+    callable (see `_embed_images`). Captions default to the T05 artifacts, so they match T06.
+
+    Columns: the INTERFACES local.csv contract (tile_id, true_label, local_category,
+    predicted_label, score, correct) first, then A's extras (top-3, ResNet-18, scorable).
     """
     import numpy as np
 
@@ -140,7 +144,8 @@ def evaluate_local(manifest: pd.DataFrame, image_model, text_model=None, params:
 
     if caption_embeddings is None:
         caption_embeddings, caption_labels = load_caption_artifacts()
-    X = np.asarray(_embed_images(image_model, manifest, device=device), np.float32)
+    params = procrustes_params
+    X = np.asarray(_embed_images(image_embeddings, manifest, device=device), np.float32)
     if len(X) != len(manifest):
         raise ValueError(f"image embeddings {X.shape} != manifest rows {len(manifest)}")
     Xa = transform_images(X, params)
@@ -166,11 +171,16 @@ def evaluate_local(manifest: pd.DataFrame, image_model, text_model=None, params:
         out["resnet18_pred"] = [p for p, _ in preds]
         out["resnet18_prob"] = [round(c, 4) for _, c in preds]
         out["resnet18_correct"] = (out.resnet18_pred == out.label) & out.scorable
-    return out
+    contract = pd.DataFrame({
+        "tile_id": out.tile_id, "true_label": out.label, "local_category": out.local_category,
+        "predicted_label": out.procrustes_pred, "score": out.procrustes_score,
+        "correct": out.procrustes_correct,
+    })
+    return pd.concat([contract, out.drop(columns=["tile_id", "local_category"])], axis=1)
 
 
 def local_metrics(preds: pd.DataFrame, qa_path: str | Path = QA_PATH) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Summary rows for artifacts/metrics/local.csv plus a per-category table.
+    """Method comparison (artifacts/metrics/local_summary.csv) plus a per-category table.
 
     Includes the LOCAL majority baseline (most common local label; T11: Residential, 31/50) and
     accuracy on non-ambiguous tiles (labels_qa.csv `ambiguous` flag)."""
@@ -201,9 +211,14 @@ def local_metrics(preds: pd.DataFrame, qa_path: str | Path = QA_PATH) -> tuple[p
 
 
 def run_local_eval(out_dir: str | Path = "artifacts", resnet_checkpoint="artifacts/checkpoints/resnet18.pt",
-                   procrustes_path="artifacts/alignment/procrustes.npz"):
+                   procrustes_path="artifacts/alignment/procrustes.npz", local_embeddings="auto"):
     """T12 entry point: needs J's T05/T06 artifacts (caption embeddings, procrustes.npz) and
-    T08's ResNet-18 checkpoint (optional)."""
+    T08's ResNet-18 checkpoint (optional). Uses artifacts/embeddings/dinov2_local.npy if present,
+    else embeds the tiles with DINOv2 directly (identical transforms)."""
+    import json
+
+    import numpy as np
+
     out_dir = ROOT / out_dir
     pz = ROOT / procrustes_path
     if not pz.exists():
@@ -215,18 +230,36 @@ def run_local_eval(out_dir: str | Path = "artifacts", resnet_checkpoint="artifac
     params = load_procrustes(pz)
     cfg = load_config()
     device = get_device()
-    image_model = load_dinov2(cfg["image"]["model_name"], device=device)
     ck = ROOT / resnet_checkpoint
     df = load_local_manifest()
-    preds = evaluate_local(df, image_model, None, params, resnet_checkpoint=ck if ck.exists() else None,
+    emb_path = ROOT / "artifacts/embeddings/dinov2_local.npy"
+    if local_embeddings == "auto":
+        local_embeddings = emb_path.exists()
+    if local_embeddings:  # from scripts/extract_local_embeddings.py (same transforms)
+        image_input = np.load(emb_path)
+    else:
+        image_input = load_dinov2(cfg["image"]["model_name"], device=device)
+    preds = evaluate_local(df, image_input, params, resnet_checkpoint=ck if ck.exists() else None,
                            device=device)
     summary, per_cat = local_metrics(preds)
-    (out_dir / "metrics").mkdir(parents=True, exist_ok=True)
-    summary.to_csv(out_dir / "metrics" / "local.csv", index=False)
-    per_cat.to_csv(out_dir / "metrics" / "local_per_category.csv", index=False)
-    preds.to_csv(out_dir / "metrics" / "local_predictions.csv", index=False)
+    m = out_dir / "metrics"
+    m.mkdir(parents=True, exist_ok=True)
+    contract_cols = ["tile_id", "true_label", "local_category", "predicted_label", "score", "correct"]
+    preds[contract_cols].to_csv(m / "local.csv", index=False)               # INTERFACES contract
+    preds.to_csv(m / "local_predictions.csv", index=False)                  # + top-3, ResNet-18
+    by_cat = per_cat.rename(columns={"procrustes_acc": "accuracy"})
+    by_cat.to_csv(m / "local_by_category.csv", index=False)                 # INTERFACES name
+    summary.to_csv(m / "local_summary.csv", index=False)                    # method comparison
+    payload = {
+        "n": int(len(preds)),
+        "accuracy": float(preds["correct"].mean()),
+        "per_category": by_cat[["local_category", "n", "accuracy"]].to_dict("records"),
+        "manifest": DEFAULT_MANIFEST,
+        "methods": summary.to_dict("records"),
+    }
+    (m / "local.json").write_text(json.dumps(payload, indent=2))
     print(summary.to_string(index=False))
-    print(per_cat.to_string(index=False))
+    print(by_cat.to_string(index=False))
     return preds, summary, per_cat
 
 

@@ -2,13 +2,15 @@
 
 This file defines what each primary agent does, what they own, and how subagents are used.
 
+**Per-agent runbooks with exact commands:** [`agents/J.md`](agents/J.md), [`agents/A.md`](agents/A.md), [`agents/D.md`](agents/D.md). Read yours first.
+
 ## 1. Primary agents
 
 | Agent | Role | Owns | Tasks |
 |---|---|---|---|
 | **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07 |
 | **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
-| **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T17 |
+| **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T16 |
 
 J is the only agent who merges to `main` and pushes `main`.
 
@@ -32,7 +34,7 @@ J is the only agent who merges to `main` and pushes `main`.
 
 - Build mock Gradio UI with placeholder tiles and scores.
 - Write the demo script.
-- Start `results/T14.md` with status `IN PROGRESS`; do not mark T14 done until real data is wired.
+- Start `results/T14.md` with status `IN PROGRESS`; real backend is verified in Phase 3.
 
 **Exit:** J has scaffold and EuroSAT loading; A has tiles underway; D has a clickable mock UI.
 
@@ -98,9 +100,10 @@ J is the only agent who merges to `main` and pushes `main`.
 
 **D**
 
-- T14 wire real artifacts into Gradio.
+- T14 real backend is verified by J (`REAL mode`, N=512).
+- Replace failure-gallery placeholders after A's T13.
 - Add baseline comparison and failure example.
-- Write `results/T14.md`.
+- Keep `results/T14.md` current.
 
 **Exit:** retrieval metrics; local N=50 metrics; failure example; real demo.
 

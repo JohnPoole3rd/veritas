@@ -217,15 +217,28 @@ class RealBackend:
         art = root / "artifacts"
         p = np.load(art / "alignment" / "procrustes.npz", allow_pickle=False)
         self.params = {"W": p["W"], "mu_x": p["mu_x"], "mu_y": p["mu_y"]}
-        cfg = json.loads(str(p["config"])) if "config" in p.files else {}
+        raw_cfg = None
+        if "metadata" in p.files:
+            raw_cfg = p["metadata"]
+        elif "config" in p.files:
+            raw_cfg = p["config"]
+        cfg = json.loads(str(raw_cfg)) if raw_cfg is not None else {}
         self.t_img, self.t_txt, self.transform_src = _transforms()
 
         split = json.loads((root / "data" / "splits" / "test.json").read_text())
         self.items = split["items"]
         self.eurosat_root = root / cfg.get("eurosat_root", "data/raw/eurosat")
         X = np.load(art / "embeddings" / "dinov2_test.npy")
+        self.subset_note = None
         if len(X) != len(self.items):
-            raise ValueError(f"dinov2_test.npy has {len(X)} rows but test.json has {len(self.items)} items")
+            if len(X) > len(self.items):
+                raise ValueError(
+                    f"dinov2_test.npy has {len(X)} rows but test.json has only {len(self.items)} items"
+                )
+            # J may have produced a stratified subset. The extraction order matches
+            # the split order, so the first N test items are the matching gallery.
+            self.items = self.items[: len(X)]
+            self.subset_note = f"{len(X)}-tile stratified subset"
         self.gallery = self.t_img(X, self.params)
 
         caps = np.load(art / "embeddings" / "minilm_captions.npy")
@@ -302,8 +315,14 @@ def load_backend(root: Path = REPO_ROOT, force_mock: bool = False):
         if missing and not force_mock:
             print(f"[demo] MOCK mode — missing artifacts: {', '.join(missing)}")
         return MockBackend()
-    backend = RealBackend(root)
+    try:
+        backend = RealBackend(root)
+    except Exception as exc:
+        print(f"[demo] MOCK mode — real artifacts failed to load: {type(exc).__name__}: {exc}")
+        return MockBackend()
     print(f"[demo] REAL mode — gallery N={len(backend.items)}, transforms from {backend.transform_src}")
+    if backend.subset_note:
+        print(f"[demo] NOTE — using {backend.subset_note}")
     return backend
 
 
@@ -331,6 +350,7 @@ def _fmt(v: str | None) -> str:
 def metrics_table(root: Path = REPO_ROOT) -> tuple[list[list[str]], str]:
     rows: list[list[str]] = []
     sources = []
+    subset_ns: list[int] = []
 
     majority = _read_csv("majority.csv", root)
     resnet = _read_csv("resnet18.csv", root)
@@ -340,6 +360,11 @@ def metrics_table(root: Path = REPO_ROOT) -> tuple[list[list[str]], str]:
         rows.append([method, _fmt(top1), _fmt(top5), _fmt(f1), n or "—"])
         if src:
             sources.append(src)
+        if n:
+            try:
+                subset_ns.append(int(float(n)))
+            except ValueError:
+                pass
 
     m = majority[0] if majority else {}
     add("Majority class", m.get("accuracy"), None, m.get("macro_f1"), m.get("test_n"), "majority.csv" if m else None)
@@ -347,10 +372,13 @@ def metrics_table(root: Path = REPO_ROOT) -> tuple[list[list[str]], str]:
     add("ResNet-18 (supervised)", r.get("accuracy"), None, r.get("macro_f1"), r.get("test_n"), "resnet18.csv" if r else None)
     for key, label in [("unaligned", "Unaligned cosine"), ("random_rotation", "Random rotation"), ("procrustes", "Procrustes (ours)")]:
         x = retrieval.get(key, {})
-        add(label, x.get("top1"), x.get("top5"), x.get("macro_f1"), x.get("test_n"), "retrieval.csv" if x else None)
+        n = x.get("test_n") or x.get("n_images")
+        add(label, x.get("top1"), x.get("top5"), x.get("macro_f1"), n, "retrieval.csv" if x else None)
 
     if sources:
         note = f"Loaded from `artifacts/metrics/` ({', '.join(sorted(set(sources)))}). Held-out EuroSAT test split."
+        if subset_ns and min(subset_ns) < 4050:
+            note += f" The smallest reported N is {min(subset_ns)}; this is a stratified subset, not the full 4,050-tile test split."
     else:
         note = "**No metrics yet.** Waiting on T07 (J) and T08/T09 (A). Do not quote numbers from this screen."
     return rows, note

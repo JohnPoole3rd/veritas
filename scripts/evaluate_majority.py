@@ -14,7 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.config import load_config, resolve_path, save_json
 from src.data import load_split, split_labels
-from src.evaluate import majority_baseline
+from src.evaluate import majority_baseline, save_metrics_csv
 
 
 def main() -> None:
@@ -27,6 +27,18 @@ def main() -> None:
     test = load_split(split_dir / "test.json")
     metrics = majority_baseline(split_labels(train), split_labels(test))
     save_json(resolve_path("artifacts/metrics/majority.json", config), metrics)
+    save_metrics_csv(
+        resolve_path("artifacts/metrics/majority.csv", config),
+        [
+            {
+                "method": "majority",
+                "accuracy": metrics["accuracy"],
+                "macro_f1": metrics["macro_f1"],
+                "test_n": metrics["test_n"],
+                "notes": f"majority_class={metrics['majority_class']}",
+            }
+        ],
+    )
     print(json.dumps(metrics, indent=2))
 
 

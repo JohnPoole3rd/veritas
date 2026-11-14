@@ -224,7 +224,37 @@ Required columns:
 - `source`
 - `notes`
 
-## 8. QA
+## 8. Run the local pipeline
+
+After the manifest exists:
+
+```sh
+python scripts/extract_local_embeddings.py
+python scripts/evaluate_local.py
+```
+
+If you have fewer than 50 tiles:
+
+```sh
+python scripts/extract_local_embeddings.py --allow-partial
+python scripts/evaluate_local.py --allow-partial
+```
+
+The scripts use the **repo root** as the image root, so the manifest `path` column must be repo-relative:
+
+```csv
+ua_001,data/raw/local_tiles/ua_001.png,Residential,residential,40.02,-83.06,2026-06-01,Copernicus,Old Arlington
+```
+
+Outputs:
+
+- `artifacts/embeddings/dinov2_local.npy`
+- `artifacts/embeddings/dinov2_local_meta.json`
+- `artifacts/metrics/local.csv`
+- `artifacts/metrics/local_by_category.csv`
+- `artifacts/metrics/local.json`
+
+## 9. QA
 
 - [ ] 50 tiles total.
 - [ ] 10 per category.
@@ -239,7 +269,7 @@ Required columns:
 - [ ] No personal data.
 - [ ] Tiles never used for fitting.
 
-## 9. Common pitfalls
+## 10. Common pitfalls
 
 | Pitfall | Fix |
 |---|---|
@@ -254,7 +284,7 @@ Required columns:
 | Same location used twice | Keep a map of tile centers; avoid overlap |
 | Local tile used in fitting | Never fit on local; keep separate |
 
-## 10. 50-tile tracking table
+## 11. 50-tile tracking table
 
 Fill this in as you collect. Use the manifest as the source of truth.
 
@@ -311,7 +341,7 @@ Fill this in as you collect. Use the manifest as the source of truth.
 | ua_049 | lake/pond | | | | | | | |
 | ua_050 | lake/pond | | | | | | | |
 
-## 11. Acceptance
+## 12. Acceptance
 
 The local dataset is ready when:
 

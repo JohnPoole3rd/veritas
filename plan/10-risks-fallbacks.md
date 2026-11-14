@@ -22,6 +22,8 @@
 | R16 | Teammate unavailable | Medium | Medium | Cross-train; reduce scope | Human |
 | R17 | Subagents collide on files | Medium | Medium | No fixed cap; bounded task/file scope; parent accountable; monitor | J/A/D |
 | R18 | Plan files diverge from reality | Medium | Medium | Update plans when beneficial; create `plan/learnings/`; J reconciles at merge | J |
+| R19 | Artifact schema mismatch between agents | Medium | High | `plan/INTERFACES.md` is the contract; integration test with real artifacts; J fixes app fallback | J/D |
+| R20 | Subset artifacts break demo | Medium | High | App slices test items to embedding count; display subset N; do not claim full N | J/D |
 
 ## 2. Kill criteria
 
