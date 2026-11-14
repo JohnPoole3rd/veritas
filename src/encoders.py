@@ -125,7 +125,7 @@ def check_split_embeddings(
             "Re-run scripts/extract_embeddings.py with the same --limit."
         )
     ids = ((meta or {}).get("tile_ids") or {}).get(split)
-    if ids is not None and ids != [item["tile_id"] for item in items]:
+    if ids is not None and ids[: len(items)] != [item["tile_id"] for item in items]:  # --limit uses a prefix
         raise ValueError(
             f"{split}: dinov2_meta.json tile_ids do not match data/splits/{split}.json; "
             "the splits changed after extraction. Re-run scripts/extract_embeddings.py."

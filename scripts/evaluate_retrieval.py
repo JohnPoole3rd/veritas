@@ -8,6 +8,7 @@ most similar test tiles. N(queries) = 50, N(tiles searched) = test split size.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
@@ -27,7 +28,7 @@ from src.alignment import (  # noqa: E402
     transform_texts,
 )
 from src.captions import load_captions  # noqa: E402
-from src.config import load_config, load_json, resolve_path, save_json, set_seed  # noqa: E402
+from src.config import load_config, load_json, refuse_subset_overwrite, resolve_path, save_json, set_seed  # noqa: E402
 from src.data import load_split  # noqa: E402
 from src.encoders import check_split_embeddings, load_embeddings  # noqa: E402
 from src.evaluate import evaluate_retrieval, save_metrics_csv  # noqa: E402
@@ -39,6 +40,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--limit", type=int, default=None, help="Optional per-split limit (first N items)")
+    parser.add_argument("--force", action="store_true", help="Allow a --limit run to overwrite full-split retrieval.csv")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -100,8 +102,14 @@ def main() -> None:
             "macro_f1": "", "n_images": r["n_images"], "test_n": r["n_images"], "n_captions": r["n_captions"],
             "notes": "; ".join(notes),
         })
+    existing = metrics_dir / "retrieval.csv"
+    existing_full = existing.exists() and any(
+        int(float(r.get("n_images") or 0)) >= full_test_n for r in csv.DictReader(existing.open(newline=""))
+    )
+    refuse_subset_overwrite(args.limit, args.force, existing_full, "retrieval.csv")
     save_metrics_csv(metrics_dir / "retrieval.csv", rows)
-    save_json(metrics_dir / "retrieval_test.json",
+    out_name = "retrieval_test_full.json" if args.limit is None else f"retrieval_test_{args.limit}.json"
+    save_json(metrics_dir / out_name,
               {**{k: {**v, "method": k, "split": "test"} for k, v in results.items()},
                "orthogonality_error": orthogonality_error(params), "limit": args.limit})
     print(json.dumps(rows, indent=2))

@@ -2,7 +2,7 @@
 
 **Track:** AI + Climate
 **Test site:** Upper Arlington, Ohio
-**Status:** Implementation in progress. J T01–T07 and D T14 are done; A T08–T13 are pending.
+**Status:** Core implementation done through T14. A T08–T13 are merged; D T14 is merged, including the Upper Arlington search gallery. T15 (write-up), T16 (video, optional), T17 (submission), and T18 (final review) remain.
 **Team:** J (integrator + data/alignment), A (baselines + local validation), D (demo + docs)
 **Deadline:** Sunday, November 15, 2026, 11:59 PM ET
 
@@ -52,7 +52,7 @@ python scripts/evaluate_retrieval.py
 pytest -q
 ```
 
-For a quick smoke test, add `--limit 64` to the embedding/alignment/evaluation scripts.
+For a quick smoke test, add `--limit 64` to the embedding/alignment/evaluation scripts. **Warning:** these commands overwrite `artifacts/alignment/procrustes.npz` and `artifacts/metrics/retrieval.csv`. Do not run them on `main` after adopting the full-split metrics; use a scratch worktree or restore the committed CSVs afterward.
 
 ## A quick start
 
@@ -122,6 +122,10 @@ nix-shell -p python3Packages.torch python3Packages.torchvision \
 12. `T12` — A: local OOD evaluation. **DONE** (0.64)
 13. `T13` — A: failure taxonomy + figures. **DONE**
 14. `T14` — D/D1: Gradio demo. **DONE** (real backend verified)
+15. `T15` — D: one-page write-up.
+16. `T16` — D/D2: demo video (optional).
+17. `T17` — J: submission checklist.
+18. `T18` — J + Human: final review.
 
 ## Run the demo
 
@@ -132,7 +136,7 @@ python app.py
 Expected with current artifacts:
 
 ```text
-[demo] REAL mode — gallery N=512 of 4050, transforms from src.alignment
+[demo] REAL mode — Upper Arlington N=50; EuroSAT test N=512 of 4050; transforms from src.alignment
 [demo] NOTE — using 512-tile stratified subset
 ```
 

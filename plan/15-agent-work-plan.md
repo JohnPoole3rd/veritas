@@ -8,9 +8,9 @@ This file defines what each primary agent does, what they own, and how subagents
 
 | Agent | Role | Owns | Tasks |
 |---|---|---|---|
-| **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07 |
+| **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07, T17, T18 |
 | **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, `src/failures.py`, `src/local_collect.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
-| **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T16 |
+| **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T16 (T16 optional) |
 
 J is the only agent who merges to `main` and pushes `main`.
 
@@ -100,7 +100,7 @@ J is the only agent who merges to `main` and pushes `main`.
 
 **D**
 
-- T14 real backend is verified by J (`REAL mode`, N=512).
+- T14 real backend is verified by J (`REAL mode`, Upper Arlington N=50 + EuroSAT N=512).
 - Replace failure-gallery placeholders after A's T13.
 - Add baseline comparison and failure example.
 - Keep `results/T14.md` current.
@@ -145,7 +145,7 @@ J is the only agent who merges to `main` and pushes `main`.
 **D**
 
 - T15 write-up.
-- T16 video.
+- T16 video (optional).
 - Write `results/T15.md`, `results/T16.md`.
 
 **Exit:** write-up complete; video recorded; links work.
@@ -156,6 +156,7 @@ J is the only agent who merges to `main` and pushes `main`.
 
 - T17 checklist.
 - Submit.
+- T18 final review: links, metrics, credits, leakage check.
 
 **A / D**
 
@@ -211,9 +212,9 @@ A keeps T12/T13 and metrics.
 **D**
 
 - `D1` — Gradio UI components (T14).
-- `D2` — visuals and demo script (T15/T16).
+- `D2` — video and visuals (T16).
 
-D keeps T15/T16.
+D keeps T15; D2 supports T16.
 
 These are starting suggestions. Create more subagents whenever they improve speed.
 
@@ -272,8 +273,8 @@ Branch: j/t06-procrustes
 Artifacts:
 - artifacts/alignment/procrustes.npz
 Metrics:
-- top1=0.42
-- random=0.10
+- top1=0.96
+- random=0.18
 How to run: notebooks/03_alignment.ipynb
 Known issues: ViT-S only
 Next: T07

@@ -21,7 +21,7 @@ from src.alignment import (  # noqa: E402
     transform_texts,
 )
 from src.captions import load_captions  # noqa: E402
-from src.config import load_config, load_json, resolve_path, save_json, set_seed  # noqa: E402
+from src.config import load_config, load_json, refuse_subset_overwrite, resolve_path, save_json, set_seed  # noqa: E402
 from src.data import load_split  # noqa: E402
 from src.encoders import (  # noqa: E402
     check_split_embeddings,
@@ -40,10 +40,16 @@ def main() -> None:
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--device", default=None, help="device for MiniLM caption encoding")
     parser.add_argument("--limit", type=int, default=None, help="Optional per-split limit (first N items)")
+    parser.add_argument("--force", action="store_true", help="Allow a --limit run to overwrite a full-split procrustes.npz")
     args = parser.parse_args()
 
     config = load_config(args.config)
     set_seed(int(config.get("seed", 42)))
+    npz = resolve_path("artifacts/alignment/procrustes.npz", config)
+    if npz.exists():
+        from src.alignment import load_procrustes
+
+        refuse_subset_overwrite(args.limit, args.force, load_procrustes(npz).get("limit") is None, "procrustes.npz")
     split_dir = resolve_path(config["data"]["splits_dir"], config)
     embedding_dir = resolve_path("artifacts/embeddings", config)
     metrics_dir = resolve_path("artifacts/metrics", config)
@@ -75,7 +81,7 @@ def main() -> None:
     print(f"W shape: {params['W'].shape}; orthogonality error: {error:.2e}")
     if error > MAX_ORTHOGONALITY_ERROR:
         raise ValueError(f"W.T @ W is not close to identity (error {error:.2e}); not saving")
-    save_procrustes(resolve_path("artifacts/alignment/procrustes.npz", config), params)
+    save_procrustes(npz, params)
 
     # Validation retrieval (reporting only; nothing is tuned on it).
     val_items = load_split(split_dir / "val.json")["items"][: args.limit]

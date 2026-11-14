@@ -40,9 +40,9 @@ A sustainability or urban-forestry staff member who wants to find candidate area
 
 **Output:**
 
-- Top-3 matching tiles with EuroSAT labels and confidence scores.
-- For an uploaded tile: nearest label and confidence.
-- Coordinates so the user can inspect the location.
+- Top-3 matching tiles with EuroSAT labels and similarity scores.
+- For an uploaded tile: nearest label and cosine similarity.
+- Tile IDs so the user can look up the location in the local manifest.
 
 ## Core AI
 
@@ -72,7 +72,7 @@ This is a direct test of the **Platonic Representation Hypothesis**:
 - 10 park/forest/herbaceous.
 - 10 water/river.
 
-Collected from Copernicus Browser, hand-labeled, never used for fitting.
+Collected from Copernicus Sentinel-2 L2A via AWS Earth Search (scene `S2C_17TLE_20250801_0_L2A`), hand-labeled, never used for fitting.
 
 ## Baselines
 
@@ -99,7 +99,7 @@ For the alignment claim:
 A Gradio app:
 
 1. Type `dense forest` → top-3 Upper Arlington or EuroSAT tiles.
-2. Upload a local tile → nearest label and confidence.
+2. Upload a local tile → nearest label and cosine similarity.
 3. Show the baseline comparison: majority, ResNet-18, Procrustes.
 4. Show one failure and explain it.
 

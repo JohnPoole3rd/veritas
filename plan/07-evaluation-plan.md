@@ -19,7 +19,7 @@
 - **H2:** ResNet-18 outperforms Procrustes on fixed-class classification.
 - **H3:** Procrustes supports text queries that ResNet-18 cannot, which is the unique capability.
 - **H4:** Upper Arlington tiles show a domain-shift drop.
-- **H5:** Similar classes (annual vs. permanent crop, forest vs. herbaceous vegetation) are the main confusions.
+- **H5:** Water/linear features (River→Highway) and similar vegetation classes (annual vs. permanent crop, forest vs. herbaceous) are the main confusions; water is the largest.
 
 H2 is not a failure. The value is text search, not beating a supervised classifier at its own task.
 
@@ -95,17 +95,17 @@ Rules:
 
 | ID | Experiment | Data | Method | Metric | Status |
 |---|---|---|---|---|---|
-| E0 | Data sanity | EuroSAT | counts, duplicates | counts | TODO |
-| E1 | Embedding sanity | 1k tiles | DINOv2 + MiniLM | shapes, norms | TODO |
-| E2 | Alignment sanity | train/val | Procrustes | top-1 vs random | TODO |
-| E3 | Full retrieval | test | Procrustes | top-1, top-5, per-class | TODO |
-| E4 | Majority baseline | test | majority | accuracy, macro-F1 | TODO |
-| E5 | ResNet-18 baseline | test | supervised | accuracy, macro-F1 | TODO |
-| E6 | Random rotation | test | shuffled Procrustes | top-1, top-5 | TODO |
-| E7 | Unaligned cosine | test | raw cosine | top-1, top-5 | TODO |
-| E8 | CLIP zero-shot | test | CLIP | top-1, top-5 | optional |
-| E9 | Upper Arlington local | local | Procrustes + ResNet | accuracy, examples | TODO |
-| E10 | Failure taxonomy | test/local | manual review | table | TODO |
+| E0 | Data sanity | EuroSAT | counts, duplicates | counts | DONE |
+| E1 | Embedding sanity | 1k tiles | DINOv2 + MiniLM | shapes, norms | DONE |
+| E2 | Alignment sanity | train/val | Procrustes | top-1 vs random | DONE |
+| E3 | Full retrieval | test | Procrustes | top-1, top-5, per-class | DONE |
+| E4 | Majority baseline | test | majority | accuracy, macro-F1 | DONE |
+| E5 | ResNet-18 baseline | test | supervised | accuracy, macro-F1 | DONE |
+| E6 | Random rotation | test | shuffled Procrustes | top-1, top-5 | DONE |
+| E7 | Unaligned cosine | test | raw cosine | top-1, top-5 | DONE |
+| E8 | CLIP zero-shot | test | CLIP | top-1, top-5 | OPTIONAL — not run |
+| E9 | Upper Arlington local | local | Procrustes + ResNet | accuracy, examples | DONE |
+| E10 | Failure taxonomy | test/local | manual review | table | DONE |
 
 ## 7. Metric file contract
 
@@ -129,7 +129,9 @@ resnet18,0.9817,0.9812,4050,10,best_epoch=10
 
 ```csv
 method,split,top1,top5,macro_f1,n_images,test_n,n_captions,notes
-procrustes,test,0.94,0.96,,512,512,50,512-tile subset
+procrustes,test,0.96,1.0,,4050,4050,50,full test; A MPS rerun of J scripts
+random_rotation,test,0.18,0.34,,4050,4050,50,full test
+unaligned,test,0.10,0.34,,4050,4050,50,full test
 ```
 
 `artifacts/metrics/caption_classification_test.csv`:
@@ -145,8 +147,19 @@ unaligned,test,0.0827,0.5326,0.0720,4050,50,"image->class, agg=max"
 
 ```csv
 tile_id,true_label,local_category,predicted_label,score,correct
-ua_001,Residential,residential,Residential,0.74,True
+ua_001,Residential,residential,Residential,0.3834,True
 ```
+
+`artifacts/metrics/local_summary.csv` (demo table):
+
+```csv
+method,accuracy,n,accuracy_unambiguous,n_unambiguous,notes
+procrustes,0.64,50,0.8108,37,Upper Arlington OOD
+resnet18,0.64,50,0.8108,37,Upper Arlington OOD
+majority_local,0.62,50,0.7838,37,constant Residential
+```
+
+`artifacts/metrics/local_predictions.csv` supplies the demo's success/failure tiles.
 
 If a file is missing, the demo shows `—`; do not invent a number.
 
@@ -220,7 +233,7 @@ Filled from real predictions (T13, `artifacts/metrics/failure_taxonomy.csv`; fig
 |---|---|---:|---|---|
 | Water read as road (linear feature) | ua_049, ua_041 | local 6/10 water → Highway (Procrustes); EuroSAT River→Highway 122 (32 % of River) | thin dark channel at 10 m; "river"/"road" captions close | NIR/NDWI band; water captions not tied to shape |
 | Managed turf → forest/pasture | ua_036–ua_038 (golf) | ResNet Forest on 3/4 Herbaceous, mean p = 1.00 | saturated irrigated turf matches no EuroSAT class | local labels; calibration |
-| Canopy vs residential | ua_032–ua_035 | ResNet Forest on 4/31 Residential; labellers split 2/2 | 34 % canopy hides houses at 10 m | fractional canopy cover output |
+| Canopy vs residential | ua_030, ua_032–ua_034 | ResNet Forest on 4/31 Residential; labellers split on ua_034 and ua_035 | 34 % canopy hides houses at 10 m | fractional canopy cover output |
 | Commercial strip vs residential | ua_013 | Procrustes 1/3 Industrial missed; EuroSAT Residential→Industrial 40 | small US strip centres vs large EU industrial | larger tiles / local examples |
 | Annual vs permanent crop (in-distribution) | EuroSAT test | PermanentCrop→AnnualCrop 45 (12 %) | phenology, not texture | multi-date imagery |
 | Uninformative confidence | all local | Procrustes score 0.377 right vs 0.371 wrong; ResNet p 0.82 when wrong | OOD, uncalibrated | no score threshold; show top-3 + disclaimer |
@@ -255,17 +268,17 @@ This is a legitimate finding and satisfies the brief’s honest-results rule.
 
 ## 12. Evaluation checklist
 
-- [ ] Split created before fitting.
-- [ ] Test split untouched until final evaluation.
-- [ ] Majority baseline reported.
-- [ ] ResNet-18 baseline reported.
-- [ ] Random rotation reported.
-- [ ] Unaligned cosine reported.
-- [ ] Top-1 and top-5 reported.
-- [ ] Per-class results reported.
-- [ ] Confusion matrix saved.
-- [ ] Upper Arlington N = 50 reported.
-- [ ] Local category table reported.
-- [ ] One failure example explained.
-- [ ] Results CSV saved.
-- [ ] Model names and versions recorded.
+- [x] Split created before fitting.
+- [x] Test split untouched until final evaluation.
+- [x] Majority baseline reported.
+- [x] ResNet-18 baseline reported.
+- [x] Random rotation reported.
+- [x] Unaligned cosine reported.
+- [x] Top-1 and top-5 reported.
+- [x] Per-class results reported.
+- [x] Confusion matrix saved.
+- [x] Upper Arlington N = 50 reported.
+- [x] Local category table reported.
+- [x] One failure example explained.
+- [x] Results CSV saved.
+- [x] Model names and versions recorded.

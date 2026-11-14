@@ -31,14 +31,16 @@ Read `plan/AGENTS.md`, `plan/DECISIONS.md`, and `plan/INTERFACES.md` first.
 | T07 retrieval | `python scripts/evaluate_retrieval.py --limit 512` | `results/T07.md` |
 | Majority | `python scripts/evaluate_majority.py` | A owns `results/T09.md` |
 
+**Do not run `--limit` commands on `main` after adopting A's full-split metrics.** They overwrite `procrustes.npz` and `retrieval.csv`. Use a scratch worktree or restore the committed files afterward.
+
 ## Current status
 
 - T01–T07 are done. A's full-split rerun provides the headline numbers:
   - text→image search: **0.96 top-1 / 1.00 top-5** over 50 caption queries;
   - image→class: **0.8121 accuracy / 0.7948 macro-F1** over 4,050 test images.
 - J's CPU run used a 512-tile stratified subset and is retained as a smoke test.
-- A's `a/final` and D's `d/t14-gradio` are merged.
-- D's `app.py` RealBackend is verified against J's artifacts with N=512 and A's metrics.
+- A's `a/final`, D's `d/t14-gradio`, and D's `d/review-for-j` are merged.
+- D's `app.py` RealBackend is verified with Upper Arlington N=50 and EuroSAT N=512; A's full-split metrics are in the Results tables.
 
 ## Integration
 
@@ -61,7 +63,7 @@ python -c 'import sys, types; sys.modules["gradio"] = types.ModuleType("gradio")
 Expected with current artifacts:
 
 ```text
-[demo] REAL mode — gallery N=512 of 4050
+[demo] REAL mode — Upper Arlington N=50; EuroSAT test N=512 of 4050; transforms from src.alignment
 backend REAL 512 4050 512-tile stratified subset
 ```
 
@@ -77,4 +79,4 @@ backend REAL 512 4050 512-tile stratified subset
 
 ## Current blocker
 
-None for J. A's T08–T13 are merged; D's T14 is verified. D still needs T15/T16 after reviewing A's local results.
+Implementation is clear. J still owns T17/T18 after D finishes T15/T16: verify links, metrics against logged runs, and credits.

@@ -19,7 +19,7 @@ Reviewers for this pass: A, plus three independent read-only subagent reviews (J
 | ID | By | Severity | File | Finding | Fix |
 |---|---|---|---|---|---|
 | CR-01 | A | inconsistency | artifacts/metrics/retrieval_test.json, retrieval_val.{csv,json} | Still the 512-subset run (test top-1 0.94, val 0.94/0.98, N=512). `retrieval.csv` and every other metric are full split (test 0.96/1.00, val 0.98/1.00, N=4050). Mixed N in one folder. | Fixed: full pipeline re-run; val 0.98/1.00, test 0.96/1.00, N=4050 |
-| CR-02 | A | simplification | artifacts/metrics/retrieval_test_full.json | Hand-written duplicate of the full-split test numbers; becomes redundant once CR-01 regenerates `retrieval_test.json`. | Fixed: removed |
+| CR-02 | A | simplification | artifacts/metrics/retrieval_test.json vs retrieval_test_full.json | Two files for the same full-split test numbers (one stale). | Fixed: J's naming adopted in the merge with ea8e575: `retrieval_test_full.json` (full) or `retrieval_test_<N>.json` (--limit), written by `evaluate_retrieval.py`; stale `retrieval_test.json` removed |
 | CR-03 | A | inconsistency | artifacts/metrics/majority.json vs majority.csv | Two majority implementations break the 5-way class tie differently: `majority.json` says SeaLake (`Counter.most_common`), `majority.csv` says AnnualCrop (`class_names` order). Same accuracy, contradictory "majority class". | Fixed: see CR-07 |
 | CR-04 | A | simplification | requirements.txt | `scipy` and `tqdm` are required but never imported anywhere in src/, scripts/, app.py or tests/. | Fixed: removed |
 | CR-05 | A | inconsistency | scripts/evaluate_local.py | `--config` is parsed and used for validation, but `run_local_eval()` ignores it and always uses the default config/paths. | Fixed: `run_local_eval(config_path)` |
@@ -55,6 +55,8 @@ Reviewers for this pass: A, plus three independent read-only subagent reviews (J
 | CR-35 | A | inconsistency | app.py | No tests for the demo. | tests/test_app.py: mock UI builds, results tables from committed metrics, logged examples, missing-tile fallback. |
 | CR-36 | A | note | src/data.py `get_transforms` | Resize(256)+CenterCrop(224) crops ~12.5 % of each 64×64 tile's border. | **Kept by design** (applies identically to EuroSAT and local tiles; changing it would invalidate all logged embeddings). Documented; candidate ablation. |
 | CR-37 | A | note | data | Local L2A TCI tiles are darker and much less blue than EuroSAT (mean RGB ≈ [71, 82, 65] vs [90, 98, 105]). | Not a code bug; a likely contributor to the OOD drop. Mention in the write-up (D). |
+| CR-38 | A | inconsistency | merge with main ea8e575 (J, “Cohere code…”) | J changed the same files on main in parallel. | Kept J's improvements on top of the review fixes: `--limit` overwrite guards (now one helper, `src.config.refuse_subset_overwrite`, also applied to `fit_alignment.py`), `retrieval_test_full.json` / `retrieval_test_<N>.json` naming, legacy `config` key in `load_procrustes`, table-1 wording, `metrics_table` alias, data-derived canopy examples (J's correction of ua_030/032–034). Dropped J text that still quoted 512-tile galleries, random 15.9 % or an unlabelled “local majority”. |
+| CR-39 | A | bug | src/encoders.py `check_split_embeddings` (added in this review) | With `--limit`, compared the full recorded tile_id list with the truncated split, so every smoke run failed. | Compare the recorded prefix. Verified: `--limit 64` refused without `--force`; with `--force` writes `retrieval_test_64.json`; full rerun restores `retrieval.csv` identically. |
 
 ## Verification log
 
@@ -68,6 +70,8 @@ Reviewers for this pass: A, plus three independent read-only subagent reviews (J
 | after fixes | A | metrics | ResNet-18 0.9817 (unchanged checkpoint); Procrustes per-image test 0.8121 / val 0.8114; text→image test 0.96/1.00, val 0.98/1.00; random rotation 0.152±0.043 (search), 0.1551 (per-image); unaligned 0.10 / 0.0827; majority 0.1111 (AnnualCrop); local Procrustes 0.64, ResNet 0.64, EuroSAT-majority 0.00, oracle 0.62 |
 | after fixes | A | `HF_HUB_OFFLINE=1` REAL app: uploads of all 50 local tiles vs logged T12 predictions | 50/50 identical; 3 tables populated; REAL + MOCK UIs build |
 | after fixes | A | `unittest tests.test_core tests.test_local_tiles tests.test_app` + `tests/test_baselines.py` | 18 + 4 pass (also from outside the repo for local tiles) |
+
+| after merge | A | tests + REAL app after merging main ea8e575 | 18 + 4 tests pass; uploads 50/50 match logged T12; guards verified (CR-39) |
 
 ## Open (owner decides)
 

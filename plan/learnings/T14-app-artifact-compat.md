@@ -13,7 +13,7 @@ D's `app.py` initially assumed `procrustes.npz` had a `config` key and that `din
 
 - `src/alignment.save_procrustes` writes `W`, `mu_x`, `mu_y`, `metadata`.
 - J's `dinov2_test.npy` has 512 rows; `data/splits/test.json` has 4,050 items.
-- After the fix, `load_backend()` reports `REAL mode — gallery N=512`.
+- After the fix, `load_backend()` reports `REAL mode — Upper Arlington N=50; EuroSAT test N=512 of 4050`.
 
 ## Impact
 

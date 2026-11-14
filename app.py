@@ -394,8 +394,8 @@ def results_tables(root: Path = REPO_ROOT) -> list[dict]:
         "headers": ["Method", "Accuracy", "Macro-F1", "Test N"],
         "rows": rows,
         "note": "Held-out EuroSAT test split. ResNet-18 is trained on these exact labels; ours never trains "
-                "either model. It only fits one rotation. Sources: majority.csv, resnet18.csv, "
-                "caption_classification_test.csv (T08, T09, T12).",
+                "either encoder. It fits one rotation on labelled EuroSAT image–caption pairs. "
+                "Sources: majority.csv, resnet18.csv, caption_classification_test.csv (T08, T09, T12).",
     })
 
     # 2) Text search: what only the rotation can do.
@@ -403,7 +403,7 @@ def results_tables(root: Path = REPO_ROOT) -> list[dict]:
     n_q = ret[0].get("n_captions", "?") if ret else "?"
     tables.append({
         "title": "2 · Text search (ResNet-18 can't do this)",
-        "headers": ["Method", "Top-1", "Top-5", "Caption queries", "Tiles searched"],
+        "headers": ["Method", "Top-1", "Top-5", "Caption queries", "Benchmark tiles searched"],
         "rows": [[{"procrustes": "Procrustes rotation (ours)", "random_rotation": "Random rotation (control)",
                    "unaligned": "No rotation (control)"}.get(r["method"], r["method"]), _fmt(r.get("top1")), _fmt(r.get("top5")), r.get("n_captions", "—"),
                   r.get("n_images", "—")] for r in ret],
@@ -435,6 +435,11 @@ def results_tables(root: Path = REPO_ROOT) -> list[dict]:
         "note": note,
     })
     return [t for t in tables if t["rows"]]
+
+
+def metrics_table(root: Path = REPO_ROOT) -> list[dict]:
+    """Compatibility alias (older runbooks/integration checks); same as results_tables."""
+    return results_tables(root)
 
 
 def local_examples(root: Path = REPO_ROOT) -> list[dict]:

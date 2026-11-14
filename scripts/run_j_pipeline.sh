@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Full pipeline, in dependency order. Run from the repository root.
 # Verified end to end on the full split in the code review (plan/learnings/general-code-review.md).
+# WARNING (J): this overwrites artifacts/alignment/procrustes.npz and the committed metrics in
+# artifacts/metrics/. Use a scratch worktree unless you intend to regenerate them.
 set -euo pipefail
 PY=${PYTHON:-python}
 

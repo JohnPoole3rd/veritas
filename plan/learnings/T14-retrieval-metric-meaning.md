@@ -1,45 +1,39 @@
-# Learning: "94% top-1" means 47 of 50 caption searches, not 94% of tiles
+# Learning: "96% top-1" means 48 of 50 caption searches, not 96% of tiles
 
 **Date:** 2026-11-14
-**Author:** D
+**Author:** D (updated by J after the full split)
 **Task:** T14 (affects T07, T15, T16)
 **Status:** confirmed
 
 ## What we learned
 
-`src/evaluate.evaluate_retrieval` scores **text→image**. Each of the 50 captions is one query, and a hit means
-the best-matching test tile has the caption's class. So T07's top-1 = 0.94 means 47 of 50 caption queries,
-measured over a 512-tile gallery. The demo's upload feature goes the other way (**image→text**: tile → nearest
-class-caption centroid), and that direction is right about **77%** of the time on the same 512 tiles.
-Also, `permanent crop` returns a PermanentCrop tile first (2nd and 3rd are AnnualCrop), so the planned
-"permanent crop → AnnualCrop" failure claim is false as stated.
+`src/evaluate.evaluate_retrieval` scores **text→image**. Each of the 50 captions is one query, and a hit means the best-matching test tile has the caption's class. The full-split top-1 is **0.96 = 48 of 50 caption queries**; N is 50 queries, not 4,050 images.
+
+The comparable **image→class** metric is **0.8121** over 4,050 test images (`caption_classification_test.csv`). ResNet-18 is 0.9817. Do not compare 0.96 (50 queries) with 0.9817 (4,050 images).
+
+A live `permanent crop` query returns PermanentCrop first; the crop failure is image→class confusion (PermanentCrop→AnnualCrop 45/375), not a text-search failure. The clean demo failure is `ua_049` (River→Highway) and the abstract query `climate change`.
 
 ## Evidence
 
-- I reproduced J's pipeline locally with `--limit 512` and got identical metrics (0.94 / 0.96; random 0.10 / 0.32;
-  unaligned 0.16 / 0.36).
-- The demo's fresh DINOv2 encoding of a test tile matches `dinov2_test.npy` (cosine 1.0), so the demo is faithful.
-- Image→text, using precomputed test embeddings vs. the 10 caption centroids: 0.768 (393/512). This is NOT a logged run.
-- Live queries: `permanent crop` → PermanentCrop 0.47, AnnualCrop 0.45, AnnualCrop 0.44.
-  `climate change` → SeaLake 0.16, AnnualCrop 0.15, Forest 0.15.
+- `artifacts/metrics/retrieval.csv`: Procrustes 0.96 / 1.00 over 50 queries, 4,050 test tiles.
+- `artifacts/metrics/caption_classification_test.csv`: Procrustes image→class 0.8121 / macro-F1 0.7948, N=4,050.
+- `artifacts/metrics/procrustes_test_top_confusions.csv`: River→Highway 122; PermanentCrop→AnnualCrop 45.
+- Live demo probes: `permanent crop` → PermanentCrop first; `climate change` → low scores around 0.05.
 
 ## Impact
 
-- Evaluation: the "Test N = 512" next to 94% invites misreading. Write-up/video should say "50 caption queries".
-  Majority (N=4,050, classification) and retrieval (N=512, search) are not the same metric or the same N.
-- Evaluation: image→text accuracy is a planned secondary metric (plan/03 §10). It should be logged by J/A before
-  anyone quotes it.
-- Demo: the Results tab now runs failure probes live instead of hardcoding a failure.
-- Write-up: use "abstract query" (`climate change`) as the clean failure; describe crop confusion as partial.
+- Write-up/video: say “50 caption queries” for the 0.96 number.
+- Main classification table: use image→class Procrustes 0.8121 next to ResNet 0.9817.
+- Demo: use ua_049/abstention as the failure case; crop confusion is secondary.
+- Do not quote the old 512-subset 0.94/0.96 or the unlogged 77% image→text number.
 
 ## Plan changes
 
-- [ ] Updated `plan/TASKS.md` (J: consider adding image→text accuracy to T07 outputs)
-- [ ] Updated `plan/DECISIONS.md` (J only)
-- [ ] Updated runbook
-- [ ] Updated data/model/eval plan
-- [x] Demo script updated (`assets/demo_script.md`); no locked decision changes
+- [x] Updated `plan/TASKS.md` and `plan/07-evaluation-plan.md` for the two metric families.
+- [x] Updated `plan/09-demo-writeup-submission.md` failure example.
+- [x] Updated `assets/demo_script.md`.
+- [x] Updated `results/T06.md`, `T07.md`, `T14.md`.
 
 ## Follow-up
 
-J logs the image→text accuracy as a run in `11-experiment-log.md`, or tells D to keep it out of the demo/write-up.
+D uses the full-split tables in `results/T07.md` for T15/T16.

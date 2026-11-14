@@ -30,9 +30,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--allow-partial", action="store_true")
+    parser.add_argument("--force", action="store_true",
+                        help="Allow evaluating with a procrustes.npz fitted on a --limit subset")
     args = parser.parse_args()
 
     config = load_config(args.config)
+    from src.alignment import load_procrustes
+
+    limit = load_procrustes(resolve_path("artifacts/alignment/procrustes.npz", config)).get("limit")
+    if limit is not None and not args.force:  # guard (J): don't overwrite full-split local metrics
+        raise SystemExit(f"procrustes.npz was fitted with --limit {limit}; rerun the full split or pass --force.")
     manifest = load_manifest(resolve_path(config["data"]["local_manifest"], config))
     summary = validate_manifest(manifest)
     if not summary["ok"] and not args.allow_partial:

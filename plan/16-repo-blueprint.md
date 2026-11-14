@@ -1,6 +1,6 @@
 # Repository Blueprint
 
-This is the concrete implementation blueprint for `/home/john/veritas`. J's pipeline exists; A and D are still filling their sections.
+This is the concrete implementation blueprint for `/home/john/veritas`. J/A/D implementation is merged through T14; T15–T18 remain.
 
 ## 1. Directory tree
 
@@ -35,7 +35,7 @@ veritas/
       resnet18.pt
     metrics/
       retrieval.csv
-      retrieval_test.json
+      retrieval_test_full.json
       retrieval_val.csv
       procrustes_test_confusion.csv
       caption_classification_test.csv
@@ -50,15 +50,17 @@ veritas/
       procrustes_test_per_class.csv
       procrustes_test_top_confusions.csv
     figures/
-      confusion_matrix.png
-      retrieval_examples.png
       failure_gallery.png
       local_confusion.png
+      procrustes_test_confusion_matrix.png
+      procrustes_val_confusion_matrix.png
+      resnet18_confusion_matrix.png
   results/
     T01.md
     T02.md
     ...
     T18.md
+  WRITEUP.md
   plan/
     agents/
       README.md
@@ -96,8 +98,7 @@ veritas/
     01_data.ipynb
     02_embeddings.ipynb
     03_alignment.ipynb
-    04_evaluation.ipynb
-    05_local_tiles.ipynb
+    # 04/05 not used; A implemented T08-T13 as scripts
   tests/
     test_core.py
     test_baselines.py
@@ -236,26 +237,15 @@ veritas/
 
 **Checkpoint:** Procrustes beats random.
 
-### `04_evaluation.ipynb`
+### `04_evaluation.ipynb` — not used
 
-- Load `W`.
-- Evaluate test top-1/top-5/per-class.
-- Train/evaluate ResNet-18.
-- Majority baseline.
-- Confusion matrix.
-- Save metrics/figures.
+A implemented T08–T13 as scripts (`python -m src.baselines`, `python -m src.evaluate`, `python -m src.failures`). Do not create this notebook unless you need a Colab walkthrough.
 
-**Checkpoint:** all baselines reported.
+### `05_local_tiles.ipynb` — not used
 
-### `05_local_tiles.ipynb`
+Use `scripts/extract_local_embeddings.py` and `scripts/evaluate_local.py` instead.
 
-- Load manifest.
-- Validate 50 tiles.
-- Evaluate Procrustes/ResNet.
-- Save local CSV.
-- Select success/failure examples.
-
-**Checkpoint:** 10 per category, N=50.
+**Checkpoint:** 10 per sampling category, N=50.
 
 ## 4. Config
 
@@ -279,6 +269,14 @@ gradio
 pyyaml
 tqdm
 Pillow
+pytest
+
+# optional tile collection
+rasterio
+shapely
+pyproj
+pystac-client
+requests
 ```
 
 Pin versions after the first successful run.
@@ -286,19 +284,22 @@ Pin versions after the first successful run.
 ## 6. `.gitignore`
 
 ```text
-data/
+data/raw/
 artifacts/embeddings/
 artifacts/alignment/
+artifacts/checkpoints/
 *.npy
 *.npz
 *.pt
 *.pth
+*.log
 __pycache__/
 .ipynb_checkpoints/
 .env
+.venv/
 ```
 
-Commit small CSVs, figures, notebooks, and code. Do not commit large binaries.
+The 50 local tiles are force-added under `data/raw/local_tiles/`; new tiles will be ignored unless force-added. Commit small CSVs, figures, notebooks, and code. Do not commit large binaries.
 
 ## 7. README requirements
 
@@ -312,6 +313,7 @@ The implementation README must include:
 - Where artifacts go.
 - Where task reports go (`results/Txx.md`).
 - Where learnings go (`plan/learnings/`).
+- Where the write-up goes (`WRITEUP.md`) and the optional video link (`results/T16.md`).
 - Known limitations.
 - Credits.
 
@@ -344,24 +346,29 @@ The implementation README must include:
 - [ ] `python app.py --mock` builds.
 - [ ] Real backend prints `[demo] REAL mode` with J's artifacts.
 - [ ] Real backend slices `test.json` when `dinov2_test.npy` is a subset.
-- [ ] `metrics_table` reads `majority.csv`, `resnet18.csv`, and `retrieval.csv`.
+- [ ] `results_tables()` (and the legacy `metrics_table()` wrapper) reads majority, ResNet-18, image→class, and text-search metrics.
 - [ ] Demo works offline after the models are cached.
 
 ### Evaluation checks
 
 - [ ] Test split untouched.
-- [ ] Majority baseline reported.
-- [ ] ResNet-18 reported.
-- [ ] Random rotation reported.
-- [ ] Procrustes reported.
-- [ ] Local N=50 reported.
-- [ ] One failure explained.
+- [ ] Majority baseline reported (AnnualCrop, N=4050).
+- [ ] ResNet-18 reported (0.9817/0.9812).
+- [ ] Procrustes image→class reported (0.8121/0.7948, N=4050).
+- [ ] Procrustes text search reported separately (0.96/1.00, 50 queries).
+- [ ] Random rotation/unaligned reported for image→class and search.
+- [ ] Local N=50 and 37-unambiguous reported.
+- [ ] One failure explained (ua_049 + abstract query).
+- [ ] No zero-shot claim.
+- [ ] Live gallery N=50/512 vs full-split metrics clearly distinguished.
 
 ## 9. Run order
 
 ```text
-01_data → 02_embeddings → 03_alignment → 04_evaluation → 05_local_tiles → app.py
+01_data → 02_embeddings → 03_alignment → app.py
 ```
+
+`04_evaluation.ipynb` and `05_local_tiles.ipynb` are not used; A implemented T08–T13 as scripts (`scripts/train_resnet.py`, `evaluate_local.py`, etc.).
 
 Do not skip a notebook; each saves artifacts the next one needs.
 

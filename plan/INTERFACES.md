@@ -298,7 +298,7 @@ def load_eurosat(root: str, download: bool = True):
 def make_splits(config: dict, download: bool | None = None) -> dict:
     """Create and save stratified train/val/test splits (shares from config["split"])."""
 
-class SplitDataset:  # (items, root, class_names, transform=None, return_id=False)
+class SplitDataset:  # (items, root, class_names, transform=None)
     """Torch dataset over split items; paths are relative to data.eurosat_root."""
 
 def load_split(path: str) -> dict:

@@ -106,7 +106,12 @@ def save_procrustes(path: str | os.PathLike[str], params: dict[str, Any]) -> Non
 
 def load_procrustes(path: str | os.PathLike[str]) -> dict[str, Any]:
     data = np.load(Path(path), allow_pickle=False)
-    metadata = json.loads(str(data["metadata"])) if "metadata" in data else {}
+    if "metadata" in data:
+        metadata = json.loads(str(data["metadata"]))
+    elif "config" in data:
+        metadata = json.loads(str(data["config"]))
+    else:
+        metadata = {}
     params: dict[str, Any] = {
         "W": data["W"].astype(np.float32),
         "mu_x": data["mu_x"].astype(np.float32),

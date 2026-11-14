@@ -125,7 +125,7 @@ Rules:
 
 ### D
 
-- [x] T14: real backend verified with J's artifacts (N=512).
+- [x] T14: real mode verified (Upper Arlington N=50 + EuroSAT N=512).
 - [x] Failure probes are live; no placeholder failure gallery.
 - [x] Baseline comparison and failure example added.
 - [x] Post `results/T14.md`.
@@ -149,7 +149,7 @@ Rules:
 ### D
 
 - [x] Polish demo.
-- [x] Start T15 write-up.
+- [ ] Start T15 write-up (no results/T15.md yet).
 - [x] Prepare screenshots.
 
 **Phase exit:** `main` contains working code; final metrics are stable; demo runs end-to-end; write-up draft exists.
@@ -170,7 +170,7 @@ Rules:
 ### D
 
 - [ ] T15: one-page write-up.
-- [ ] T16: two-minute video.
+- [ ] T16: two-minute video (optional).
 - [ ] Post `results/T15.md`, `results/T16.md`.
 
 **Phase exit:** write-up complete; video recorded; links open in incognito.
@@ -180,8 +180,9 @@ Rules:
 ### J
 
 - [ ] T17: submission checklist.
-- [ ] Confirm code, write-up, video, team details, credits.
+- [ ] Confirm code, write-up, video (if recorded), team details, credits.
 - [ ] Submit.
+- [ ] T18: final review — links, metrics, credits, no leakage.
 
 ### A
 
@@ -229,8 +230,8 @@ Branch: j/t06-procrustes
 Artifacts:
 - artifacts/alignment/procrustes.npz
 Metrics:
-- top1=0.42
-- random=0.10
+- top1=0.96
+- random=0.18
 How to run: notebooks/03_alignment.ipynb
 Known issues: ViT-S only
 Next: T07

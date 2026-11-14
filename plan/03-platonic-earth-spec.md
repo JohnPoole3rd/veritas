@@ -103,11 +103,11 @@ This project tests whether a **closed-form rotation** between frozen image and t
 
 ### Example C — failure
 
-**Input:** `permanent crop`
+**Input:** a EuroSAT `PermanentCrop` test tile.
 
-**Output:** top result is `annual crop`.
+**Output:** image→class prediction is `AnnualCrop` (45/375 PermanentCrop tiles are confused this way).
 
-**Explanation:** at 64×64, orchards and seasonal fields are visually similar; the difference depends on crop lifecycle, not a single image.
+**Explanation:** at 64×64, orchards and seasonal fields are visually similar; the difference depends on crop lifecycle, not a single image. A text query for `permanent crop` often retrieves the class correctly; this is an image→class confusion, not a text-search failure.
 
 ## 5. Data schema
 
@@ -252,7 +252,7 @@ Full details in `07-evaluation-plan.md`.
 
 **Result:** retrieval beats random rotation by X; ResNet-18 is stronger for fixed-class classification; text search is the unique capability.
 
-**Failure:** annual vs. permanent crop; local domain shift; abstract queries.
+**Failure:** river channel → Highway; abstract queries; local domain shift; annual vs. permanent crop as a secondary in-distribution confusion.
 
 **Next:** more local labels, temporal change detection, a remote-sensing-specific text encoder.
 

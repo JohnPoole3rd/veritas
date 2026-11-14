@@ -49,7 +49,7 @@ Pivot options:
 
 - Full demo: text search + image upload.
 - Main result: Procrustes beats random.
-- Failure: annual vs. permanent crop.
+- Failure: river channel → Highway; abstract queries; annual vs. permanent crop as secondary.
 - Stretch: CLIP baseline.
 
 ### Fallback B — Procrustes is weak

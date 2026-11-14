@@ -10,7 +10,7 @@ Status: **Accepted**. Revisit only with a human decision.
 | D004 | User | Upper Arlington sustainability / urban-forestry staff | Real decision: where to inspect for canopy/land-cover change. |
 | D005 | Primary decision | Prioritize areas for tree-canopy expansion / land-cover inspection | Ties to 2026 Urban Forestry Plan and 34.2% canopy. |
 | D006 | Training data | **EuroSAT RGB** | 27k tiles, 10 classes, easy loader. |
-| D007 | Local data | **50 Sentinel-2 tiles** clipped to Upper Arlington | Local OOD test and “make it your own.” |
+| D007 | Local data | **50 Sentinel-2 tiles** of Upper Arlington + river corridor (documented boundary exception) | Local OOD test and “make it your own.” |
 | D008 | Local categories | Residential, commercial/industrial, road/highway, park/forest/herbaceous, water/river | 10 tiles each; maps to EuroSAT classes. |
 | D009 | Image encoder | **DINOv2 ViT-S/14**, frozen | Fast, 384-dim, square Procrustes with MiniLM. |
 | D010 | Text encoder | **all-MiniLM-L6-v2**, frozen | 384-dim, simple, reliable. |

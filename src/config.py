@@ -63,6 +63,15 @@ def set_seed(seed: int) -> None:
         pass
 
 
+def refuse_subset_overwrite(limit: int | None, force: bool, existing_is_full: bool, what: str) -> None:
+    """Guard (J): a --limit smoke run must not silently overwrite full-split artifacts/metrics."""
+    if limit is not None and existing_is_full and not force:
+        raise SystemExit(
+            f"Refusing to overwrite full-split {what} with a --limit {limit} run. "
+            "Use --force for a scratch smoke run, or rerun without --limit."
+        )
+
+
 def save_json(path: str | os.PathLike[str], payload: Any) -> None:
     target = ensure_parent(path)
     with target.open("w", encoding="utf-8") as handle:

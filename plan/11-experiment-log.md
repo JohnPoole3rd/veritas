@@ -12,7 +12,7 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 | R002 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Random rotation | 64 | 64 | 64 | 0.14 | 0.36 | | smoke subset; test retrieval |
 | R003 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Unaligned cosine | 64 | 64 | 64 | 0.26 | 0.48 | | smoke subset; test retrieval |
 | R004 | 2026-11-14 | A | ResNet-18 (ImageNet init) | — | — (supervised) | 18900 | 4050 | 4050 | 0.9817 | | 0.9812 | 10 ep, 64px, MPS, best ep 10 by val; results/T08.md |
-| R005 | 2026-11-14 | J, A | — | — | Majority | 18900 | 4050 | 4050 | 0.1111 | | 0.0200 | J scaffold run reproduced by A (T09); AnnualCrop, 5-way tie |
+| R005 | 2026-11-14 | J, A | — | — | Majority | 18900 | 4050 | 4050 | 0.1111 | | 0.0200 | J scaffold run reproduced by A (T09); AnnualCrop, 6-way tie |
 | R006 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 512 | 512 | 512 | 0.94 | 0.98 | | 512 subset; val retrieval |
 | R007 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Random rotation | 512 | 512 | 512 | 0.10 | 0.32 | | 512 subset; test null baseline |
 | R008 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Unaligned cosine | 512 | 512 | 512 | 0.16 | 0.36 | | 512 subset; test baseline |
@@ -28,7 +28,7 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 | EuroSAT | | train | | torchvision | | |
 | EuroSAT | | val | | torchvision | | |
 | EuroSAT | | test | | torchvision | | |
-| Upper Arlington local | S2C_17TLE_20250801_0_L2A (2025-08-01) | local | 50 | Copernicus Sentinel-2 L2A via AWS Earth Search | Copernicus open data | 10 per stratum; T10 |
+| Upper Arlington local | S2C_17TLE_20250801_0_L2A (2025-08-01) | local | 50 | Copernicus Sentinel-2 L2A via AWS Earth Search | Copernicus open data | 10 per sampling stratum; labels: Residential 31, River 10, HerbaceousVegetation 4, Industrial 3, Forest 1, Highway 1; T10 |
 | Upper Arlington local | manifest.csv | local | 10 | blind second labeller (AI subagent A2) | | QA reviewed; 6/10 agree; T11 |
 
 ## 3. Upper Arlington local inventory
@@ -128,10 +128,10 @@ Every claim in the write-up must trace to a run.
 
 | Claim | Evidence | Run ID | Confidence |
 |---|---|---|---|
-| “Procrustes beats random rotation” | table | R007 vs R002 | |
-| “ResNet is stronger at fixed classes” | table | R004 vs R007 | |
-| “Upper Arlington shows domain shift” | table | R008 | |
-| “Annual vs. permanent crop is the main confusion” | confusion matrix | R007 | |
+| “Procrustes beats random rotation” | text search + image→class tables | R009 vs R007; R010 vs random row | |
+| “ResNet is stronger at fixed classes” | image→class table | R004 vs R010 | |
+| “Upper Arlington shows domain shift” | local table | R011/R012 | |
+| “River→Highway is the largest Procrustes confusion; annual vs permanent is 45/375” | T13/top confusions | R010/T13 | |
 
 ## 9. Phase log
 
@@ -141,8 +141,8 @@ Every claim in the write-up must trace to a run.
 | Phase 1 — Data | T02 splits; T03 captions; T10/T11 tiles | J/A done | done | J/A |
 | Phase 2 — Alignment | T04/T05 embeddings; T06 Procrustes; T08/T09 baselines | J/A done; full metrics from A MPS | done | J/A |
 | Phase 3 — Retrieval | T07 retrieval; T12 local eval; T13 failures; T14 demo | J/A/D done | done | J/A/D |
-| Phase 4 — Integration | Merge branches; final eval; T15 draft | main merged; app verified; T15 draft started | partial | J/D |
-| Phase 5 — Docs | T15 write-up; T16 video | pending | pending | D |
+| Phase 4 — Integration | Merge branches; final eval; T15 draft | main merged; app verified; T15 not started | partial | J/D |
+| Phase 5 — Docs | T15 write-up; T16 video (optional) | pending | pending | D |
 | Phase 6 — Submit | T17 checklist; submit | pending | pending | J |
 
 ## 10. Post-mortem

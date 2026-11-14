@@ -136,7 +136,8 @@ def taxonomy(preds: pd.DataFrame, conf: pd.DataFrame) -> pd.DataFrame:
                   + f"Procrustes Pasture on {frac(herb & (P.predicted_label == 'Pasture'), herb)}",
          "likely_cause": "irrigated, saturated-green turf matches no EuroSAT class; ResNet extrapolates confidently",
          "fix_idea": "add local labelled examples; calibrate (temperature) and show uncertainty"},
-        {"failure_type": "Canopy vs residential", "example": "ua_032–ua_035",
+        {"failure_type": "Canopy vs residential",
+         "example": ", ".join(P[resid & (P.resnet18_pred == "Forest")].tile_id) if R else "ua_034, ua_035",
          "count": (f"ResNet Forest on {frac(resid & (P.resnet18_pred == 'Forest'), resid)} Residential tiles; " if R else "")
                   + "primary and blind second labeller disagreed on ua_034/ua_035 (labels_qa.csv)",
          "likely_cause": "34 % city canopy hides houses at 10 m; the label itself is ambiguous",

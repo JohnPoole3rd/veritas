@@ -26,15 +26,19 @@ Numbers below use A's full-split rerun of J's scripts:
 
 ## 0:15–1:15 — Demo
 
-1. **Text search tab.** Type `dense forest` → Search.
-   > "Here is the input: 'dense forest.' The tool returns the top three matching tiles with
-   > similarity scores. These are similarity scores, not probabilities."
-2. Click the `river corridor` example.
-   > "Any plain-language query works without retraining."
-3. **Classify a tile tab.** Upload the Upper Arlington tile.
+1. **Upper Arlington gallery (default).** Type `commercial area` → Search.
+   > "The default gallery is Upper Arlington. Here is the input: 'commercial area.' The tool returns
+   > the top three matching local tiles with similarity scores. These are similarity scores, not
+   > probabilities."
+2. Switch to the **EuroSAT test tiles** gallery and type `dense forest`.
+   > "The EuroSAT gallery shows the model's broader land-cover vocabulary: dense forest returns
+   > Forest tiles."
+3. Back on the Upper Arlington gallery, click the `river corridor` example.
+   > "River corridor returns river tiles; any plain-language query works without retraining."
+4. **Classify a tile tab.** Upload the Upper Arlington tile.
    > "Here is an Upper Arlington tile. It predicts [label], with a warning that local imagery is
    > outside the training distribution."
-4. **Results & limits tab.**
+5. **Results & limits tab.**
    > "ResNet-18 is the supervised baseline: 98.2% per-image accuracy. Our rotation is 81.2% on the
    > same 4,050 test images, with 99.0% top-5 and 79.5% macro-F1. That is the fair comparison.
    > Separately, when we search with each of our 50 class captions, the correct class is top-1
