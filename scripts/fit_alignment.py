@@ -63,6 +63,10 @@ def main() -> None:
     ]
     text_train = encode_texts(text_model, sampled_captions)
     params = fit_procrustes(train_images, text_train, center=True, shuffle_y=False)
+    params["image_model"] = config["image"]["model_name"]
+    params["text_model"] = config["text"]["model_name"]
+    params["eurosat_root"] = config["data"]["eurosat_root"]
+    params["limit"] = args.limit
     save_procrustes(alignment_dir / "procrustes.npz", params)
     print(f"W shape: {params['W'].shape}")
     print(f"orthogonality error: {orthogonality_error(params):.6f}")

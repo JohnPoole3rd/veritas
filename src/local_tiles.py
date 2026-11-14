@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from src.alignment import transform_images
+from src.alignment import transform_images, transform_texts
 from src.retrieval import classify_tile
 
 REQUIRED_COLUMNS = [
@@ -101,9 +101,10 @@ def evaluate_local(
 ) -> pd.DataFrame:
     """Classify local tiles with the aligned image embeddings."""
     rotated = transform_images(image_embeddings, procrustes_params)
+    texts = transform_texts(caption_embeddings, procrustes_params)
     rows: list[dict[str, Any]] = []
     for row, embedding in zip(manifest.to_dict("records"), rotated):
-        predictions = classify_tile(embedding, caption_embeddings, caption_labels)
+        predictions = classify_tile(embedding, texts, caption_labels)
         top_label, top_score = predictions[0]
         rows.append(
             {

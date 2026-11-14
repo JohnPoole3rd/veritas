@@ -1,6 +1,6 @@
 # Platonic Earth — J / A / D Plan
 
-**Status:** Planning complete. Implementation not started.
+**Status:** Implementation in progress.
 **Location:** `/home/john/veritas/plan`
 **Track:** AI + Climate
 **Project:** Platonic Earth
@@ -13,7 +13,7 @@
 |---|---|---|
 | **J** | Integrator + data/alignment lead | T01–T07 |
 | **A** | Baselines + local validation lead | T08–T13 |
-| **D** | Demo + documentation lead | T14–T17 |
+| **D** | Demo + documentation lead | T14–T16 |
 
 **J is the only agent who merges to `main` and pushes `main`.**
 
@@ -26,6 +26,12 @@ D1, D2, D3, ...
 ```
 
 Subagent rules are in [`AGENTS.md`](AGENTS.md) and [`15-agent-work-plan.md`](15-agent-work-plan.md).
+
+**If you are J, A, or D, read your specific runbook first:**
+
+- [`agents/J.md`](agents/J.md)
+- [`agents/A.md`](agents/A.md)
+- [`agents/D.md`](agents/D.md)
 
 When something important is learned, create a durable note under [`learnings/`](learnings/README.md) and update the relevant plan if beneficial.
 
@@ -82,24 +88,25 @@ When something important is learned, create a durable note under [`learnings/`](
 
 ## Read this first
 
-1. [`AGENTS.md`](AGENTS.md) — J/A/D roles, subagent rules, Git rules.
-2. [`DECISIONS.md`](DECISIONS.md) — locked decisions.
-3. [`TASKS.md`](TASKS.md) — task board and acceptance criteria.
-4. [`INTERFACES.md`](INTERFACES.md) — data, artifacts, function contracts.
-5. [`03-platonic-earth-spec.md`](03-platonic-earth-spec.md) — full product spec.
-6. [`05-data-plan.md`](05-data-plan.md) — EuroSAT and Upper Arlington tiles.
-7. [`06-alignment-and-model-plan.md`](06-alignment-and-model-plan.md) — PRH and Procrustes.
-8. [`07-evaluation-plan.md`](07-evaluation-plan.md) — baselines and metrics.
-9. [`08-48-hour-runbook.md`](08-48-hour-runbook.md) — phase-based runbook.
-10. [`09-demo-writeup-submission.md`](09-demo-writeup-submission.md) — demo and submission.
-11. [`10-risks-fallbacks.md`](10-risks-fallbacks.md) — risk register.
-12. [`11-experiment-log.md`](11-experiment-log.md) — results log.
-13. [`12-glossary-references.md`](12-glossary-references.md) — terms and citations.
-14. [`13-open-questions.md`](13-open-questions.md) — remaining unknowns.
-15. [`14-upper-arlington-data-collection.md`](14-upper-arlington-data-collection.md) — local tile guide.
-16. [`15-agent-work-plan.md`](15-agent-work-plan.md) — J/A/D phase plan.
-17. [`16-repo-blueprint.md`](16-repo-blueprint.md) — repo layout.
-18. [`learnings/README.md`](learnings/README.md) — durable findings and plan updates.
+1. [`agents/J.md`](agents/J.md), [`agents/A.md`](agents/A.md), or [`agents/D.md`](agents/D.md) — your exact runbook.
+2. [`AGENTS.md`](AGENTS.md) — J/A/D roles, subagent rules, Git rules.
+3. [`DECISIONS.md`](DECISIONS.md) — locked decisions.
+4. [`TASKS.md`](TASKS.md) — task board and acceptance criteria.
+5. [`INTERFACES.md`](INTERFACES.md) — data, artifacts, function contracts.
+6. [`03-platonic-earth-spec.md`](03-platonic-earth-spec.md) — full product spec.
+7. [`05-data-plan.md`](05-data-plan.md) — EuroSAT and Upper Arlington tiles.
+8. [`06-alignment-and-model-plan.md`](06-alignment-and-model-plan.md) — PRH and Procrustes.
+9. [`07-evaluation-plan.md`](07-evaluation-plan.md) — baselines and metrics.
+10. [`08-48-hour-runbook.md`](08-48-hour-runbook.md) — phase-based runbook.
+11. [`09-demo-writeup-submission.md`](09-demo-writeup-submission.md) — demo and submission.
+12. [`10-risks-fallbacks.md`](10-risks-fallbacks.md) — risk register.
+13. [`11-experiment-log.md`](11-experiment-log.md) — results log.
+14. [`12-glossary-references.md`](12-glossary-references.md) — terms and citations.
+15. [`13-open-questions.md`](13-open-questions.md) — remaining unknowns.
+16. [`14-upper-arlington-data-collection.md`](14-upper-arlington-data-collection.md) — local tile guide.
+17. [`15-agent-work-plan.md`](15-agent-work-plan.md) — J/A/D phase plan.
+18. [`16-repo-blueprint.md`](16-repo-blueprint.md) — repo layout.
+19. [`learnings/README.md`](learnings/README.md) — durable findings and plan updates.
 
 ## Phase overview
 
@@ -127,13 +134,14 @@ No clock times. Start when the human gives the signal.
 - [x] Plain Git workflow defined.
 - [x] Implementation started.
 - [x] J T01–T07 complete on a 512-tile stratified subset.
-- [ ] A baselines/local tiles.
-- [ ] D demo.
+- [x] D T14 real backend verified against J's artifacts.
+- [ ] A T08–T13 baselines and Upper Arlington tiles.
+- [ ] D T15/T16 write-up and video.
 - [ ] Final integration and submission.
 
 ## Next actions
 
-1. J merges the J branch into `main`.
-2. A runs T08/T09 and collects T10/T11.
-3. D wires T14 after J's metrics.
-4. J coordinates the final evaluation and submission.
+1. A runs T08/T09 and collects T10/T11.
+2. D replaces failure placeholders after A's T12/T13.
+3. J runs final integration and submission.
+4. Read your runbook before starting: `plan/agents/J.md`, `A.md`, `D.md`.

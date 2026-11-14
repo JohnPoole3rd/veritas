@@ -306,6 +306,8 @@ tile_id,path,label,local_category,lat,lon,date,source,notes
 ua_001,data/raw/local_tiles/ua_001.png,Residential,residential,40.02,-83.06,2026-06-01,Copernicus,Old Arlington
 ```
 
+The `path` column is **repo-relative**. `scripts/extract_local_embeddings.py` uses the repo root as the image root.
+
 ### B8. Local QA checklist
 
 - [ ] 50 tiles total.

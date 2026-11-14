@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 from src.baselines import evaluate_classifier, save_checkpoint, train_resnet18
 from src.config import load_config, resolve_path, save_json, set_seed
 from src.data import dataset_from_split, get_transforms, load_split
+from src.evaluate import save_metrics_csv
 
 
 def main() -> None:
@@ -53,7 +54,8 @@ def main() -> None:
     )
     test_metrics = evaluate_classifier(model, test_loader, device=args.device)
     metrics_dir = resolve_path("artifacts/metrics", config)
-    save_checkpoint(model, metrics_dir / "resnet18.pt")
+    checkpoint_dir = resolve_path("artifacts/checkpoints", config)
+    save_checkpoint(model, checkpoint_dir / "resnet18.pt")
     save_json(
         metrics_dir / "resnet18.json",
         {
@@ -62,6 +64,18 @@ def main() -> None:
             "epochs": epochs,
             "batch_size": batch_size,
         },
+    )
+    save_metrics_csv(
+        metrics_dir / "resnet18.csv",
+        [
+            {
+                "method": "resnet18",
+                "accuracy": test_metrics["accuracy"],
+                "macro_f1": test_metrics["macro_f1"],
+                "test_n": test_metrics["test_n"],
+                "notes": f"epochs={epochs}; batch_size={batch_size}",
+            }
+        ],
     )
     print(json.dumps({k: v for k, v in test_metrics.items() if k not in {"predictions", "targets"}}, indent=2))
 

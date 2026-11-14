@@ -35,12 +35,54 @@
 
 ### Demo rules
 
-- Precompute embeddings and \(W\).
-- Do not compute during the demo.
+- Precompute the gallery embeddings, class captions, and \(W\).
+- The text query still goes through MiniLM at runtime, and an uploaded tile still goes through DINOv2.
+- Pre-warm both models before the demo; the demo must work with Wi-Fi off.
 - Show one success and one failure.
 - Label the prototype.
 - Use real EuroSAT or Upper Arlington tiles.
 - Keep under two minutes.
+- Never screenshot `--mock` output for the write-up.
+
+### Exact demo commands
+
+Mock rehearsal:
+
+```sh
+python app.py --mock
+```
+
+Real mode after J's artifacts exist:
+
+```sh
+python app.py
+```
+
+Expected real-mode log:
+
+```text
+[demo] REAL mode — gallery N=512, transforms from src.alignment
+[demo] NOTE — using 512-tile stratified subset
+```
+
+If it says `MOCK mode`, the missing artifact list names the blocker.
+
+Pre-warm the runtime encoders:
+
+```sh
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+python -c "from transformers import AutoModel, AutoImageProcessor; AutoModel.from_pretrained('facebook/dinov2-small'); AutoImageProcessor.from_pretrained('facebook/dinov2-small')"
+```
+
+### Baseline table source
+
+The demo reads:
+
+- `artifacts/metrics/majority.csv`
+- `artifacts/metrics/resnet18.csv`
+- `artifacts/metrics/retrieval.csv`
+
+If a file is missing, the table shows `—`; do not replace it with a made-up number.
 
 ### Example queries
 
@@ -117,7 +159,7 @@ Model: DINOv2 ViT-S/14 (frozen), all-MiniLM-L6-v2 (frozen), orthogonal Procruste
 | Random rotation | | | |
 | Procrustes | | | |
 
-Our model scored X. The baseline scored Y on held-out test data.
+Our model scored X. The baseline scored Y on held-out test data. **State N.** J's current retrieval numbers use a stratified 512-tile subset because full DINOv2 extraction was too slow on CPU; do not describe them as full 4,050-tile results.
 Where it fails: annual vs. permanent crop; local domain shift; abstract queries.
 Why: [one sentence].
 

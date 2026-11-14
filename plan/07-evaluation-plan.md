@@ -107,7 +107,41 @@ Rules:
 | E9 | Upper Arlington local | local | Procrustes + ResNet | accuracy, examples | TODO |
 | E10 | Failure taxonomy | test/local | manual review | table | TODO |
 
-## 7. Results tables
+## 7. Metric file contract
+
+Exact columns the demo reads:
+
+`artifacts/metrics/majority.csv`:
+
+```csv
+method,accuracy,macro_f1,test_n,notes
+majority,0.1111,0.0200,4050,majority_class=SeaLake
+```
+
+`artifacts/metrics/resnet18.csv`:
+
+```csv
+method,accuracy,macro_f1,test_n,notes
+resnet18,0.96,0.95,4050,epochs=10
+```
+
+`artifacts/metrics/retrieval.csv`:
+
+```csv
+method,split,top1,top5,macro_f1,n_images,test_n,n_captions,notes
+procrustes,test,0.94,0.96,,512,512,50,512-tile subset
+```
+
+`artifacts/metrics/local.csv`:
+
+```csv
+tile_id,true_label,local_category,predicted_label,score,correct
+ua_001,Residential,residential,Residential,0.74,True
+```
+
+If a file is missing, the demo shows `—`; do not invent a number.
+
+## 8. Results tables
 
 ### Table 1 — Main results
 
@@ -164,7 +198,7 @@ Rules:
 | Abstract query | | | not a land-cover class | query rewriting |
 | Domain shift | | | Upper Arlington vs. EuroSAT | local labels |
 
-## 8. Statistical honesty
+## 9. Statistical honesty
 
 - Report test N.
 - Report local N = 50 as a case study, not a benchmark.
@@ -173,7 +207,7 @@ Rules:
 - Do not report only the best run.
 - If results are weak, say so.
 
-## 9. Success thresholds
+## 10. Success thresholds
 
 | Result | Interpretation |
 |---|---|
@@ -184,7 +218,7 @@ Rules:
 | Procrustes beats ResNet-18 | Check leakage before celebrating |
 | Local accuracy much lower | Expected domain shift; good failure story |
 
-## 10. Negative-result framing
+## 11. Negative-result framing
 
 If Procrustes fails:
 
@@ -192,7 +226,7 @@ If Procrustes fails:
 
 This is a legitimate finding and satisfies the brief’s honest-results rule.
 
-## 11. Evaluation checklist
+## 12. Evaluation checklist
 
 - [ ] Split created before fitting.
 - [ ] Test split untouched until final evaluation.

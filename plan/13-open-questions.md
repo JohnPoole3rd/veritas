@@ -49,7 +49,8 @@ Track, project, test site, and roles are locked. These are the remaining unknown
 | Baselines | ResNet-18, majority, metrics | A |
 | Local data | Upper Arlington tiles, labels, QA | A |
 | Demo | Gradio, visuals, video | D |
-| Writer | Write-up, credits, submission checklist | D |
+| Writer | Write-up, credits, video | D |
+| Submission | Final checklist and form | J |
 
 ## 4. Subagents
 
