@@ -155,14 +155,16 @@ Rules:
 
 ### Table 5 — Failure taxonomy
 
+Filled from real predictions (T13, `artifacts/metrics/failure_taxonomy.csv`; figures `failure_gallery.png`, `local_confusion.png`).
+
 | Failure type | Example | Count | Likely cause | Fix idea |
 |---|---|---:|---|---|
-| Annual vs. permanent crop | | | similar texture | higher resolution |
-| Forest vs. herbaceous | | | similar color | multi-band input |
-| Industrial vs. residential | | | built-up similarity | more context |
-| Cloud/snow | | | not in training | local fine-tune |
-| Abstract query | | | not a land-cover class | query rewriting |
-| Domain shift | | | Upper Arlington vs. EuroSAT | local labels |
+| Water read as road (linear feature) | ua_049, ua_041 | local 6/10 water → Highway (Procrustes); EuroSAT River→Highway 122 (32 % of River) | thin dark channel at 10 m; "river"/"road" captions close | NIR/NDWI band; water captions not tied to shape |
+| Managed turf → forest/pasture | ua_036–ua_038 (golf) | ResNet Forest on 3/4 Herbaceous, mean p = 1.00 | saturated irrigated turf matches no EuroSAT class | local labels; calibration |
+| Canopy vs residential | ua_032–ua_035 | ResNet Forest on 4/31 Residential; labellers split 2/2 | 34 % canopy hides houses at 10 m | fractional canopy cover output |
+| Commercial strip vs residential | ua_013 | Procrustes 1/3 Industrial missed; EuroSAT Residential→Industrial 40 | small US strip centres vs large EU industrial | larger tiles / local examples |
+| Annual vs permanent crop (in-distribution) | EuroSAT test | PermanentCrop→AnnualCrop 45 (12 %) | phenology, not texture | multi-date imagery |
+| Uninformative confidence | all local | Procrustes score 0.377 right vs 0.371 wrong; ResNet p 0.82 when wrong | OOD, uncalibrated | no score threshold; show top-3 + disclaimer |
 
 ## 8. Statistical honesty
 
