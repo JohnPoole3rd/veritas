@@ -12,6 +12,8 @@ Run:
     python app.py --port 7861
     python app.py --prefetch   # once, while online: cache both models for offline demo
 
+The demo runs offline by default (HF_HUB_OFFLINE=1 unless --prefetch).
+
 The UI only talks to the backend through `search_text` and `classify_image`;
 the baseline table reads artifacts/metrics/*.csv directly.
 """
@@ -32,23 +34,23 @@ import gradio as gr
 import numpy as np
 from PIL import Image, ImageDraw
 
-REPO_ROOT = Path(__file__).resolve().parent
-TOP_K = 3
+from src.config import load_config, resolve_path  # noqa: E402
+from src.local_tiles import EUROSAT_CLASSES  # noqa: E402
 
-EUROSAT_CLASSES = [
-    "AnnualCrop", "Forest", "HerbaceousVegetation", "Highway", "Industrial",
-    "Pasture", "PermanentCrop", "Residential", "River", "SeaLake",
-]
+REPO_ROOT = Path(__file__).resolve().parent
+CONFIG = load_config()
+TOP_K = int(CONFIG["demo"]["top_k"])
 
 DISCLAIMER = "Prototype, not a land-use determination. Do not use for permitting, taxation, or legal decisions."
 
+# Clicking an example runs the search. There is no lake/pond tile in Upper Arlington, so
+# "open water" is only meaningful on the EuroSAT gallery and is not offered as an example.
 EXAMPLE_QUERIES = [
     "dense forest",
     "residential neighborhood",
     "park or grassland",
     "commercial area",
     "river corridor",
-    "open water",
 ]
 
 # Failure probes. The Results tab runs these live through the active backend and shows what
@@ -57,9 +59,10 @@ FAILURE_PROBES = [
     {
         "query": "climate change",
         "why": (
-            "“Climate change” is not a land-cover class, so there is nothing to match. The tool still "
-            "returns tiles, with low scores. It cannot say “I don't know,” and A found (T12) that scores "
-            "don't separate right from wrong answers either."
+            "“Climate change” is not a land-cover class, so there is nothing to match, yet the tool "
+            "still returns tiles. It cannot say “I don't know”, and a low score is not a reliable signal "
+            "either: some real land-cover queries score just as low, and A found (T12) that scores don't "
+            "separate right from wrong answers."
         ),
     },
 ]
@@ -124,6 +127,16 @@ def make_placeholder_tile(label: str, variant: int, size: int = 192) -> Image.Im
     return tile
 
 
+def tile_image(path: Path, size: int = 192) -> Image.Image:
+    """A real tile, upscaled with hard pixels; a neutral grey 'missing' tile if it can't be read."""
+    try:
+        return Image.open(path).convert("RGB").resize((size, size), Image.NEAREST)
+    except OSError:
+        tile = Image.new("RGB", (size, size), (128, 128, 128))
+        ImageDraw.Draw(tile).text((8, size // 2 - 6), "image missing", fill=(255, 255, 255))
+        return tile
+
+
 # ---------------------------------------------------------------------------
 # Backends
 # ---------------------------------------------------------------------------
@@ -153,6 +166,7 @@ class MockBackend:
     """Fake scores so the UI can be rehearsed. Replace in Phase 3."""
 
     name = "MOCK"
+    tile_image = staticmethod(tile_image)
 
     def _class_scores(self, key: str, favored: str | None) -> list[tuple[str, float]]:
         rng = np.random.default_rng(_seed("scores", key))
@@ -183,21 +197,19 @@ class MockBackend:
         return self._class_scores(key, favored)[:TOP_K]
 
 
-def _l2(x: np.ndarray) -> np.ndarray:
-    return x / np.clip(np.linalg.norm(x, axis=-1, keepdims=True), 1e-12, None)
-
-
 class RealBackend:
     """Loads J's precomputed artifacts. No fitting at demo time.
 
-    Everything numeric goes through J's own src/ code, so the demo cannot drift from T04–T07:
+    Everything numeric goes through src/, so the demo cannot drift from the logged runs:
     src.alignment (load_procrustes, transform_images/texts), src.encoders (load_dinov2,
-    extract_image_embeddings, load_minilm, encode_texts) and src.data.get_transforms.
+    extract_image_embeddings, load_minilm, encode_texts), src.data.get_transforms,
+    src.retrieval (retrieve_top_k_with_scores, class_scores) and src.local_tiles (captions, local cache).
 
     Two search galleries:
-    - "local": A's 50 Upper Arlington tiles (data/local_tiles/manifest.csv, T10/T11). Their DINOv2
-      embeddings are computed once with A's src.local_tiles._embed_images (J's encoder + transforms)
-      and cached in artifacts/embeddings/dinov2_local.npy (gitignored).
+    - "local": A's Upper Arlington tiles (data/local_tiles/manifest.csv, T10/T11). Embeddings come from
+      the validated cache shared with scripts/extract_local_embeddings.py (src.local_tiles.local_embeddings:
+      tile_ids, model and input size must match) or are computed once and cached. If anything about the
+      local gallery fails, only that gallery is disabled; EuroSAT search keeps working.
     - "eurosat": the EuroSAT test tiles that have embeddings (all 4,050 after a full-split run; the
       first N if J's --limit was used).
     Upload classification uses A's rule from T12 (agg=max: a class scores its best-matching caption),
@@ -209,37 +221,29 @@ class RealBackend:
 
     name = "REAL"
 
-    def __init__(self, root: Path, text_encoder=None, image_encoder=None):
+    def __init__(self, root: Path = REPO_ROOT, text_encoder=None, image_encoder=None):
         from src.alignment import load_procrustes, transform_images, transform_texts
-        from src.config import load_config, resolve_path
+        from src.local_tiles import load_caption_artifacts
 
         self.root = root
-        self.config = load_config(str(root / "configs" / "default.yaml"))
+        self.config = CONFIG
         art = root / "artifacts"
         self.params = load_procrustes(art / "alignment" / "procrustes.npz")
-        self.t_img, self.t_txt = transform_images, transform_texts
-        self.transform_src = "src.alignment"
 
         split = json.loads((root / "data" / "splits" / "test.json").read_text())
         X = np.load(art / "embeddings" / "dinov2_test.npy")
-        self.subset_note = None
         if len(X) > len(split["items"]):
             raise ValueError(f"dinov2_test.npy has {len(X)} rows but test.json has only {len(split['items'])} items")
-        self.items = split["items"][: len(X)]  # J's --limit takes the first N test items
+        self.items = split["items"][: len(X)]  # extract_embeddings.py --limit embeds the first N test items
         self.full_test_n = len(split["items"])
-        if len(X) < self.full_test_n:
-            self.subset_note = f"{len(X)}-tile stratified subset"
+        self.subset_note = (f"first {len(X)} of {self.full_test_n} test tiles (--limit run)"
+                            if len(X) < self.full_test_n else None)
         self.eurosat_root = resolve_path(self.config["data"]["eurosat_root"], self.config)
-        self.gallery = self.t_img(X, self.params)
+        self.gallery = transform_images(X, self.params)
 
-        caps = np.load(art / "embeddings" / "minilm_captions.npy")
-        index = json.loads((art / "embeddings" / "minilm_caption_index.json").read_text())
-        cap_labels = [index[str(i)]["label"] for i in range(len(caps))]
-        Yt = self.t_txt(caps, self.params)
-        self.class_names = sorted(set(cap_labels))
-        lab = np.array(cap_labels)
-        self.caption_aligned = Yt
-        self.caption_class_idx = np.array([self.class_names.index(c) for c in cap_labels])
+        caps, self.caption_labels = load_caption_artifacts()  # T05 vectors + labels, length-checked
+        self.captions_aligned = transform_texts(caps, self.params)
+        self.class_names = list(EUROSAT_CLASSES)
 
         self._text_encoder = text_encoder
         self._image_encoder = image_encoder
@@ -274,60 +278,49 @@ class RealBackend:
 
     # -- Upper Arlington gallery (A's T10/T11 tiles) -----------------------
     def _load_local(self, root: Path):
-        manifest_path = root / "data" / "local_tiles" / "manifest.csv"
+        manifest_path = root / self.config["data"]["local_manifest"]
         if not manifest_path.exists():
             return None
-        from src.local_tiles import _embed_images, load_local_manifest
+        try:
+            from src.alignment import transform_images
+            from src.local_tiles import load_local_manifest, local_embeddings
 
-        df = load_local_manifest(manifest_path)
-        cache = root / "artifacts" / "embeddings" / "dinov2_local.npy"
-        ids_path = cache.with_suffix(".ids.json")
-        ids = df.tile_id.tolist()
-        meta_path = cache.parent / "dinov2_local_meta.json"  # from scripts/extract_local_embeddings.py
-        cached_ids = (json.loads(ids_path.read_text()) if ids_path.exists()
-                      else json.loads(meta_path.read_text()).get("tile_ids") if meta_path.exists() else None)
-        if cache.exists() and cached_ids == ids:
-            X = np.load(cache)
-        elif self._image_encoder is not None:  # tests: injected encoder, no caching
-            X = np.concatenate([self._encode_image(Image.open(root / p)) for p in df.path])
-        else:
-            print("[demo] embedding 50 Upper Arlington tiles once (cached afterwards)…")
-            model, device = self._dinov2_model()
-            X = np.asarray(_embed_images(model, df, int(self.config["image"]["input_size"]), device), np.float32)
-            cache.parent.mkdir(parents=True, exist_ok=True)
-            np.save(cache, X)
-            ids_path.write_text(json.dumps(ids))
-        return {
-            "items": [
-                {"tile_id": r.tile_id, "path": r.path, "label": r.label, "notes": r.notes}
-                for r in df.itertuples()
-            ],
-            "gallery": self.t_img(X, self.params),
-        }
+            df = load_local_manifest(manifest_path)
+            if self._image_encoder is not None:  # tests: injected encoder, no caching
+                X = np.concatenate([self._encode_image(Image.open(root / p)) for p in df.path])
+            else:
+                X = local_embeddings(df, self.config, *self._dinov2_model())
+            return {
+                "items": [{"tile_id": r.tile_id, "path": r.path, "label": r.label, "notes": r.notes}
+                          for r in df.itertuples()],
+                "gallery": transform_images(X, self.params),
+            }
+        except Exception as exc:  # the EuroSAT gallery still works without it
+            print(f"[demo] WARNING — Upper Arlington gallery disabled: {type(exc).__name__}: {exc}")
+            return None
 
     # -- UI API -------------------------------------------------------------
-    def tile_image(self, path: Path, size: int = 192) -> Image.Image:
-        try:
-            return Image.open(path).convert("RGB").resize((size, size), Image.NEAREST)
-        except OSError:
-            return make_placeholder_tile("Residential", 0)
+    tile_image = staticmethod(tile_image)
 
     def search_text(self, query: str, k: int = TOP_K, gallery: str = "local") -> list[Hit]:
-        q = self.t_txt(self._encode_text(query), self.params)[0]
+        from src.alignment import transform_texts
+        from src.retrieval import retrieve_top_k_with_scores
+
+        q = transform_texts(self._encode_text(query), self.params)[0]
         if gallery == "local" and self.local is not None:
             items, G, base = self.local["items"], self.local["gallery"], self.root
         else:
             items, G, base = self.items, self.gallery, self.eurosat_root
-        sims = G @ q
-        top = np.argsort(-sims)[:k]
-        return [Hit(self.tile_image(base / items[i]["path"]), items[i]["label"], round(float(sims[i]), 2),
-                    items[i]["tile_id"]) for i in top]
+        idx, scores = retrieve_top_k_with_scores(q, G, k=k)
+        return [Hit(self.tile_image(base / items[i]["path"]), items[i]["label"], round(s, 2), items[i]["tile_id"])
+                for i, s in zip(idx, scores)]
 
     def classify_image(self, image: Image.Image) -> list[tuple[str, float]]:
-        x = self.t_img(self._encode_image(image), self.params)[0]
-        cap_sims = self.caption_aligned @ x
-        scores = np.full(len(self.class_names), -np.inf)
-        np.maximum.at(scores, self.caption_class_idx, cap_sims)  # agg=max, as in A's T12
+        from src.alignment import transform_images
+        from src.retrieval import class_scores
+
+        x = transform_images(self._encode_image(image), self.params)
+        scores = class_scores(x, self.captions_aligned, self.caption_labels, self.class_names)[0]  # agg=max (T12)
         order = np.argsort(-scores)[:TOP_K]
         return [(self.class_names[i], float(scores[i])) for i in order]
 
@@ -353,10 +346,7 @@ def load_backend(root: Path = REPO_ROOT, force_mock: bool = False):
         print(f"[demo] MOCK mode — real artifacts failed to load: {type(exc).__name__}: {exc}")
         return MockBackend()
     n_local = len(backend.local["items"]) if backend.local else 0
-    print(
-        f"[demo] REAL mode — Upper Arlington N={n_local}; EuroSAT test N={len(backend.items)} "
-        f"of {backend.full_test_n}; transforms from {backend.transform_src}"
-    )
+    print(f"[demo] REAL mode — Upper Arlington N={n_local}; EuroSAT test N={len(backend.items)} of {backend.full_test_n}")
     if backend.subset_note:
         print(f"[demo] NOTE — using {backend.subset_note}")
     return backend
@@ -389,13 +379,10 @@ def results_tables(root: Path = REPO_ROOT) -> list[dict]:
 
     # 1) EuroSAT, per-image classification: the apples-to-apples comparison with ResNet.
     maj = (_read_csv("majority.csv", root) or [{}])[0]
-    if not maj:
-        mj = root / "artifacts" / "metrics" / "majority.json"
-        maj = json.loads(mj.read_text()) if mj.exists() else {}
     res = (_read_csv("resnet18.csv", root) or [{}])[0]
     cc = {r["method"]: r for r in _read_csv("caption_classification_test.csv", root)}
     rows = [
-        ["Majority class (always guess one class)", _fmt(maj.get("accuracy")), _fmt(maj.get("macro_f1")), maj.get("test_n", "—")],
+        [f"Majority class (always “{maj.get('most_common_class', '?')}”)", _fmt(maj.get("accuracy")), _fmt(maj.get("macro_f1")), maj.get("test_n", "—")],
         ["ResNet-18 (trained on the labels)", _fmt(res.get("accuracy")), _fmt(res.get("macro_f1")), res.get("test_n", "—")],
     ]
     for key, label in [("procrustes", "Procrustes rotation (ours)"), ("random_rotation", "Random rotation (control)"),
@@ -413,30 +400,39 @@ def results_tables(root: Path = REPO_ROOT) -> list[dict]:
 
     # 2) Text search: what only the rotation can do.
     ret = _read_csv("retrieval.csv", root)
+    n_q = ret[0].get("n_captions", "?") if ret else "?"
     tables.append({
         "title": "2 · Text search (ResNet-18 can't do this)",
         "headers": ["Method", "Top-1", "Top-5", "Caption queries", "Tiles searched"],
         "rows": [[{"procrustes": "Procrustes rotation (ours)", "random_rotation": "Random rotation (control)",
                    "unaligned": "No rotation (control)"}.get(r["method"], r["method"]), _fmt(r.get("top1")), _fmt(r.get("top5")), r.get("n_captions", "—"),
                   r.get("n_images", "—")] for r in ret],
-        "note": "Each of the 50 class captions is a search; Top-1 = the best tile has the right class. "
-                "Source: retrieval.csv (T07).",
+        "note": f"Each of the {n_q} class captions is a search; Top-1 = the best tile has the right class. "
+                "Random rotation is the mean of several shuffles. Source: retrieval.csv (T07).",
     })
 
     # 3) Upper Arlington, out of distribution.
     loc = _read_csv("local_summary.csv", root)
-    if not loc:  # older layout: method summary in local.csv
-        loc = [r for r in _read_csv("local.csv", root) if "method" in r]
     names = {"procrustes": "Procrustes rotation (ours)", "resnet18": "ResNet-18",
-             "majority_local": "Always guess “Residential”"}
+             "majority_train": "EuroSAT majority class (real baseline)",
+             "oracle_majority_local": "Most common local label (oracle)"}
+    by = {r["method"]: r for r in loc}
+    note = "A small case study, not a benchmark. Source: local_summary.csv (T12)."
+    if "oracle_majority_local" in by and "procrustes" in by:
+        o, pr = by["oracle_majority_local"], by["procrustes"]
+        n = int(o["n"])
+        n_top = round(float(o["accuracy"]) * n)
+        diff = round((float(pr["accuracy"]) - float(o["accuracy"])) * n)
+        top_label = o["notes"].split("'")[1] if "'" in o["notes"] else "the most common label"
+        note = (f"{n_top} of {n} local tiles are {top_label}, so always answering “{top_label}” scores "
+                f"{float(o['accuracy']):.0%}. That oracle reads the test labels; it is the bar for "
+                f"“better than a constant guess”. Procrustes differs from it by {diff:+d} tile(s). " + note)
     tables.append({
         "title": "3 · Upper Arlington tiles (never used for fitting)",
         "headers": ["Method", "Accuracy (all)", "N", "Accuracy (clear-cut tiles)", "N"],
         "rows": [[names.get(r["method"], r["method"]), _fmt(r.get("accuracy")), r.get("n", "—"),
                   _fmt(r.get("accuracy_unambiguous")), r.get("n_unambiguous", "—")] for r in loc],
-        "note": "31 of 50 local tiles are Residential, so guessing “Residential” already scores 62%. "
-                "Both models beat that by 1 tile, and both miss almost every river tile. "
-                "A small case study, not a benchmark. Source: local_summary.csv (T12).",
+        "note": note,
     })
     return [t for t in tables if t["rows"]]
 
@@ -444,17 +440,22 @@ def results_tables(root: Path = REPO_ROOT) -> list[dict]:
 def local_examples(root: Path = REPO_ROOT) -> list[dict]:
     """A's demo picks (T13): success ua_011, failure ua_049, with their logged predictions."""
     preds = {r["tile_id"]: r for r in _read_csv("local_predictions.csv", root)}
+    conf = {(r["true"], r["predicted"]): r for r in _read_csv("procrustes_test_top_confusions.csv", root)}
+    rh = conf.get(("River", "Highway"))
+    rh_txt = f" River→Highway is also a top EuroSAT mistake ({float(rh['share_of_true']):.0%} of river tiles)." if rh else ""
     picks = [
-        ("ua_011", "Success", "Big-box retail. Both models get it right."),
-        ("ua_049", "Failure", "The Scioto River channel. At 10 m per pixel, a thin river looks like a road, so "
-                              "the rotation says Highway. River→Highway is also its #1 mistake on EuroSAT "
-                              "(32% of river tiles)."),
+        ("ua_011", "Success", "Big-box retail."),
+        ("ua_049", "Failure", "The Scioto River channel. At 10 m per pixel a thin river looks like a road." + rh_txt),
     ]
+    manifest = root / CONFIG["data"]["local_manifest"]
+    paths = {}
+    if manifest.exists():
+        with manifest.open(newline="") as f:
+            paths = {r["tile_id"]: root / r["path"] for r in csv.DictReader(f)}
     out = []
     for tid, kind, why in picks:
-        r = preds.get(tid)
-        path = root / "data" / "raw" / "local_tiles" / f"{tid}.png"
-        if r and path.exists():
+        r, path = preds.get(tid), paths.get(tid)
+        if r and path and path.exists():
             out.append({"tile_id": tid, "kind": kind, "why": why, "path": path, "pred": r})
     return out
 
@@ -463,7 +464,8 @@ def local_examples(root: Path = REPO_ROOT) -> list[dict]:
 # UI
 # ---------------------------------------------------------------------------
 
-GALLERIES = {"Upper Arlington (50 local tiles)": "local", "EuroSAT test tiles (Europe)": "eurosat"}
+GALLERY_LOCAL, GALLERY_EUROSAT = "Upper Arlington (local tiles)", "EuroSAT test tiles (Europe)"
+GALLERIES = {GALLERY_LOCAL: "local", GALLERY_EUROSAT: "eurosat"}
 
 
 def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
@@ -472,7 +474,11 @@ def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
         if backend.name == "MOCK" else ""
     )
     has_local = backend.name == "MOCK" or getattr(backend, "local", None) is not None
-    gallery_choices = list(GALLERIES) if has_local else [list(GALLERIES)[1]]
+    gallery_choices = [GALLERY_LOCAL, GALLERY_EUROSAT] if has_local else [GALLERY_EUROSAT]
+    if backend.name == "REAL" and backend.local:
+        gallery_choices[0] = f"Upper Arlington ({len(backend.local['items'])} local tiles)"
+        GALLERIES[gallery_choices[0]] = "local"
+    subset = f" ({backend.subset_note})" if getattr(backend, "subset_note", None) else ""
 
     def on_search(query: str, where: str):
         query = (query or "").strip()
@@ -484,8 +490,8 @@ def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
             return [], f"Search failed: `{type(e).__name__}: {e}`"
         gallery = [(h.image, f"{h.label} · {h.score:.2f} · {h.tile_id}") for h in hits]
         caption = (
-            f"Top {len(hits)} tiles for **“{query}”** in *{where}*. Labels are the human labels; scores are "
-            "cosine similarity, not probability."
+            f"Top {len(hits)} tiles for **“{query}”** in *{where}*{subset if GALLERIES.get(where) == 'eurosat' else ''}. "
+            "Labels are the human labels; scores are cosine similarity, not probability."
         )
         return gallery, caption
 
@@ -501,7 +507,7 @@ def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
         return (
             f"### Nearest label: {top} ({s:.2f})\n"
             f"Next: {nxt}\n\n"
-            "_Upper Arlington tiles are outside the EuroSAT (Europe) training data; treat this as a hint._\n\n"
+            "_Imagery from outside EuroSAT (e.g. Upper Arlington) is out of distribution; treat this as a hint._\n\n"
             f"_{DISCLAIMER}_"
         )
 
@@ -521,9 +527,10 @@ def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
                 query = gr.Textbox(label="Describe the land cover", placeholder="dense forest", scale=4)
                 btn = gr.Button("Search", variant="primary", scale=1)
             where = gr.Radio(gallery_choices, value=gallery_choices[0], label="Search in")
-            gr.Examples(EXAMPLE_QUERIES, inputs=query)
             caption = gr.Markdown()
             gallery = gr.Gallery(label="Top results", columns=TOP_K, height="auto", object_fit="contain")
+            gr.Examples([[q, gallery_choices[0]] for q in EXAMPLE_QUERIES], inputs=[query, where],
+                        outputs=[gallery, caption], fn=on_search, run_on_click=True, cache_examples=False)
             btn.click(on_search, [query, where], [gallery, caption])
             query.submit(on_search, [query, where], [gallery, caption])
 
@@ -548,58 +555,59 @@ def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
                 for e in examples:
                     r = e["pred"]
                     with gr.Column():
-                        gr.Image(backend.tile_image(e["path"], 256) if backend.name == "REAL"
-                                 else Image.open(e["path"]).resize((256, 256), Image.NEAREST),
-                                 label=f"{e['kind']}: {e['tile_id']}", interactive=False)
+                        gr.Image(tile_image(e["path"], 256), label=f"{e['kind']}: {e['tile_id']}", interactive=False)
                         gr.Markdown(
-                            f"**Human label:** {r['label']}  \n"
-                            f"**Ours:** {r['procrustes_pred']} (top 3: {r['procrustes_top3'].replace('|', ', ')})  \n"
+                            f"**Human label:** {r['true_label']}  \n"
+                            f"**Ours:** {r['predicted_label']} (top 3: {r['top3'].replace('|', ', ')})  \n"
                             f"**ResNet-18:** {r.get('resnet18_pred', '—')} (p={r.get('resnet18_prob', '—')})\n\n"
                             f"{e['why']}"
                         )
 
-            gr.Markdown("### Abstract questions (computed live)")
+            gr.Markdown("### Where it fails: abstract questions (computed live)")
+            probe_gallery = "local" if has_local else "eurosat"
             for probe in FAILURE_PROBES:
                 try:
-                    hits = backend.search_text(probe["query"], gallery="local")
+                    hits = backend.search_text(probe["query"], gallery=probe_gallery)
                     got = ", ".join(f"{h.label} ({h.score:.2f})" for h in hits)
                 except Exception as e:
                     got = f"unavailable ({type(e).__name__})"
-                gr.Markdown(f"**Query:** `{probe['query']}` → top 3: {got}\n\n{probe['why']}")
+                where_txt = "Upper Arlington" if probe_gallery == "local" else "EuroSAT test"
+                gr.Markdown(f"**Query:** `{probe['query']}` on {where_txt} → top {TOP_K}: {got}\n\n{probe['why']}")
 
         gr.Markdown(
             "<small>Frozen DINOv2 ViT-S/14 + frozen all-MiniLM-L6-v2, aligned by a closed-form "
-            "orthogonal Procrustes rotation fit on EuroSAT. Imagery: Copernicus Sentinel-2 (EuroSAT; "
-            "Upper Arlington scene 2025-08-01). AI coding assistants were used to build this demo.</small>"
+            f"orthogonal Procrustes rotation fit on labelled EuroSAT pairs (encoders never trained). Imagery: "
+            f"Copernicus Sentinel-2 (EuroSAT; Upper Arlington scene 2025-08-01). AI coding assistants were used "
+            "to build this demo.</small>"
         )
     return demo
 
 
-def prefetch(root: Path = REPO_ROOT) -> None:
+def prefetch() -> None:
     """Download MiniLM + DINOv2 so the demo runs with no internet."""
-    from src.config import load_config
     from src.encoders import load_dinov2, load_minilm
 
-    cfg = load_config(str(root / "configs" / "default.yaml"))
-    load_minilm(cfg["text"]["model_name"])
-    print(f"[prefetch] cached {cfg['text']['model_name']}")
-    load_dinov2(cfg["image"]["model_name"], device="cpu")
-    print(f"[prefetch] cached {cfg['image']['model_name']}")
-    print("[prefetch] done — test offline with: HF_HUB_OFFLINE=1 python app.py")
+    load_minilm(CONFIG["text"]["model_name"])
+    print(f"[prefetch] cached {CONFIG['text']['model_name']}")
+    load_dinov2(CONFIG["image"]["model_name"], device="cpu")
+    print(f"[prefetch] cached {CONFIG['image']['model_name']}")
+    print("[prefetch] done — `python app.py` now runs offline")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Platonic Earth demo")
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument("--mock", action="store_true", help="Force mock mode even if artifacts exist")
-    parser.add_argument("--root", type=Path, default=REPO_ROOT, help="Repo root holding data/ and artifacts/")
     parser.add_argument("--prefetch", action="store_true", help="Download both models into the HF cache, then exit")
     parser.add_argument("--share", action="store_true", help="Create a public Gradio link (needs internet)")
     args = parser.parse_args()
     if args.prefetch:
-        prefetch(args.root)
+        prefetch()
         return
-    build_ui(load_backend(args.root, args.mock), args.root).launch(server_port=args.port, share=args.share)
+    # Demo day: never wait on the Hugging Face hub; models come from the local cache (--prefetch).
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+    build_ui(load_backend(REPO_ROOT, args.mock)).launch(server_port=args.port, share=args.share)
 
 
 if __name__ == "__main__":
