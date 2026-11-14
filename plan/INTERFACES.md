@@ -193,7 +193,8 @@ Required columns:
 - `W` — `(384, 384)` or `(768, 384)`.
 - `mu_x` — image mean, shape `(384,)` or `(768,)`.
 - `mu_y` — text mean, shape `(384,)`.
-- `config` — JSON string.
+- `metadata` — JSON string with method, center, shuffle_y, scale, image_model, text_model, eurosat_root, limit.
+- `config` — accepted as a legacy alias by `app.py`; new runs write `metadata`.
 
 Validation:
 
@@ -201,31 +202,82 @@ Validation:
 - `mu_x` and `mu_y` finite.
 - Reloading reproduces the reported top-1.
 
+### DINOv2 metadata
+
+`artifacts/embeddings/dinov2_meta.json`:
+
+```json
+{
+  "model_name": "facebook/dinov2-small",
+  "input_size": 224,
+  "embedding_dim": 384,
+  "split_sizes": {"train": 512, "val": 512, "test": 512},
+  "limit": 512
+}
+```
+
+If `dinov2_test.npy` has fewer rows than `data/splits/test.json`, `app.py` uses the first N test items. J's extraction order matches the split order.
+
 ### Metrics
 
 `artifacts/metrics/retrieval.csv`:
 
 ```csv
-method,top1,top5,macro_f1,test_n,notes
-procrustes,0.42,0.68,,4050,
-random_rotation,0.10,0.30,,4050,
-unaligned,0.08,0.25,,4050,
+method,split,top1,top5,macro_f1,n_images,test_n,n_captions,notes
+procrustes,test,0.94,0.96,,512,512,50,512-tile subset
+random_rotation,test,0.10,0.32,,512,512,50,512-tile subset
+unaligned,test,0.16,0.36,,512,512,50,512-tile subset
+```
+
+`artifacts/metrics/majority.csv`:
+
+```csv
+method,accuracy,macro_f1,test_n,notes
+majority,0.1111,0.0200,4050,majority_class=SeaLake
 ```
 
 `artifacts/metrics/resnet18.csv`:
 
 ```csv
-method,accuracy,macro_f1,test_n,epochs,notes
-resnet18,0.96,0.95,4050,10,
+method,accuracy,macro_f1,test_n,notes
+resnet18,0.96,0.95,4050,epochs=10
 ```
 
 `artifacts/metrics/local.csv`:
 
 ```csv
-method,accuracy,n,notes
-procrustes,0.50,50,Upper Arlington OOD
-resnet18,0.60,50,Upper Arlington OOD
+tile_id,true_label,local_category,predicted_label,score,correct
+ua_001,Residential,residential,Residential,0.74,True
 ```
+
+`artifacts/metrics/local.json`:
+
+```json
+{
+  "n": 50,
+  "accuracy": 0.50,
+  "per_category": [{"local_category": "residential", "n": 10, "accuracy": 0.6}],
+  "manifest": "data/local_tiles/manifest.csv"
+}
+```
+
+### Demo artifact contract
+
+`app.py` RealBackend requires:
+
+- `artifacts/alignment/procrustes.npz`
+- `artifacts/embeddings/dinov2_test.npy`
+- `artifacts/embeddings/minilm_captions.npy`
+- `artifacts/embeddings/minilm_caption_index.json`
+- `data/splits/test.json`
+
+Optional metrics for the Results tab:
+
+- `artifacts/metrics/majority.csv`
+- `artifacts/metrics/resnet18.csv`
+- `artifacts/metrics/retrieval.csv`
+
+The demo loads MiniLM and DINOv2 at runtime for new queries/uploads. Pre-warm both models and run once with Wi-Fi off before recording.
 
 ## 5. Function contracts
 
@@ -299,11 +351,11 @@ def classify_tile(image_embedding: np.ndarray, caption_embeddings: np.ndarray, c
 ### `src/evaluate.py`
 
 ```python
-def evaluate_retrieval(image_embeddings: np.ndarray, caption_embeddings: np.ndarray, labels: list[str], caption_labels: list[str]) -> dict:
-    """Return top1, top5, per_class, confusion_matrix."""
+def evaluate_retrieval(image_embeddings: np.ndarray, caption_embeddings: np.ndarray, image_labels: list[str], caption_labels: list[str], k_values: tuple[int, ...] = (1, 5)) -> dict:
+    """Return top1, top5, per_class, and counts."""
 
-def evaluate_classifier(model, loader) -> dict:
-    """Return accuracy, macro_f1, per_class, confusion_matrix."""
+def evaluate_classifier(model, loader, device: str | None = None) -> dict:
+    """Return accuracy, macro_f1, test_n, predictions, targets."""
 ```
 
 ### `src/local_tiles.py`
@@ -312,7 +364,7 @@ def evaluate_classifier(model, loader) -> dict:
 def load_local_manifest(path: str) -> pd.DataFrame:
     """Load and validate the local tile manifest."""
 
-def evaluate_local(manifest: pd.DataFrame, image_model, text_model, params: dict) -> pd.DataFrame:
+def evaluate_local(manifest: pd.DataFrame, image_embeddings: np.ndarray, procrustes_params: dict, caption_embeddings: np.ndarray, caption_labels: list[str]) -> pd.DataFrame:
     """Return predictions for each local tile."""
 ```
 

@@ -7,13 +7,15 @@
 
 There are no clock-based gates. Work moves by phase and by artifact readiness.
 
+**Exact per-agent commands:** [`agents/J.md`](agents/J.md), [`agents/A.md`](agents/A.md), [`agents/D.md`](agents/D.md). Read yours first.
+
 ## Roles
 
 | Agent | Role | Tasks |
 |---|---|---|
 | **J** | Integrator + data/alignment lead | T01–T07, integration, submission |
 | **A** | Baselines + local validation lead | T08–T13 |
-| **D** | Demo + documentation lead | T14–T17 |
+| **D** | Demo + documentation lead | T14–T16 |
 
 J merges to `main`. A and D push task branches. J reviews and merges at phase boundaries.
 
@@ -41,9 +43,9 @@ Rules:
 
 ### J
 
-- [ ] T01: repo scaffold, `configs/default.yaml`, `requirements.txt`, `.gitignore`.
-- [ ] Post `results/T01.md`.
-- [ ] Start T02 EuroSAT loader.
+- [x] T01: repo scaffold, `configs/default.yaml`, `requirements.txt`, `.gitignore`.
+- [x] Post `results/T01.md`.
+- [x] Start T02 EuroSAT loader.
 
 ### A
 
@@ -55,9 +57,9 @@ Rules:
 ### D
 
 - [ ] Read plan docs.
-- [ ] Build mock Gradio shell with placeholder tiles and scores.
-- [ ] Write the two-minute demo script.
-- [ ] Start `results/T14.md` with status `IN PROGRESS`; do not mark T14 done until real data is wired.
+- [x] Build mock Gradio shell with placeholder tiles and scores.
+- [x] Write the two-minute demo script.
+- [x] Start `results/T14.md`; real backend verified in Phase 3.
 
 **Phase exit:** J has scaffold and EuroSAT loading; A has tiles underway; D has a clickable mock UI.
 
@@ -65,9 +67,9 @@ Rules:
 
 ### J
 
-- [ ] T02: EuroSAT splits.
-- [ ] T03: caption templates.
-- [ ] Post `results/T02.md`, `results/T03.md`.
+- [x] T02: EuroSAT splits.
+- [x] T03: caption templates.
+- [x] Post `results/T02.md`, `results/T03.md`.
 
 ### A
 
@@ -88,10 +90,10 @@ Rules:
 
 ### J
 
-- [ ] T04: DINOv2 embeddings.
-- [ ] T05: MiniLM caption embeddings.
-- [ ] T06: Procrustes fit and save `W`, `mu_x`, `mu_y`.
-- [ ] Post `results/T04.md`, `results/T05.md`, `results/T06.md`.
+- [x] T04: DINOv2 embeddings (512-tile subset).
+- [x] T05: MiniLM caption embeddings.
+- [x] T06: Procrustes fit and save `W`, `mu_x`, `mu_y`.
+- [x] Post `results/T04.md`, `results/T05.md`, `results/T06.md`.
 
 ### A
 
@@ -111,9 +113,9 @@ Rules:
 
 ### J
 
-- [ ] T07: retrieval evaluation + random baseline.
-- [ ] Save metrics and confusion matrix.
-- [ ] Post `results/T07.md`.
+- [x] T07: retrieval evaluation + random baseline.
+- [x] Save metrics and confusion matrix.
+- [x] Post `results/T07.md`.
 
 ### A
 
@@ -123,7 +125,8 @@ Rules:
 
 ### D
 
-- [ ] T14: wire real artifacts into Gradio.
+- [x] T14: real backend verified with J's artifacts (N=512).
+- [ ] Replace failure-gallery placeholders after A's T13.
 - [ ] Add baseline comparison and failure example.
 - [ ] Post `results/T14.md`.
 

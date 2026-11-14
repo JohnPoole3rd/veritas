@@ -1,6 +1,7 @@
 data/raw/
 artifacts/embeddings/
 artifacts/alignment/
+artifacts/checkpoints/
 *.npy
 *.npz
 *.pt

@@ -1,6 +1,6 @@
 # Repository Blueprint
 
-This is the concrete implementation blueprint for `/home/john/veritas`. No code exists yet; this is the target structure.
+This is the concrete implementation blueprint for `/home/john/veritas`. J's pipeline exists; A and D are still filling their sections.
 
 ## 1. Directory tree
 
@@ -25,15 +25,21 @@ veritas/
       dinov2_val.npy
       dinov2_test.npy
       dinov2_meta.json
+      dinov2_local.npy
+      dinov2_local_meta.json
       minilm_captions.npy
       minilm_caption_index.json
     alignment/
       procrustes.npz
+    checkpoints/
+      resnet18.pt
     metrics/
       retrieval.csv
       resnet18.csv
       majority.csv
       local.csv
+      local_by_category.csv
+      local.json
     figures/
       confusion_matrix.png
       retrieval_examples.png
@@ -42,12 +48,27 @@ veritas/
     T01.md
     T02.md
     ...
-    T17.md
+    T18.md
   plan/
+    agents/
+      README.md
+      J.md
+      A.md
+      D.md
     learnings/
       README.md
       _template.md
-      T04-dinov2-resolution-limit.md
+      T04-cpu-extraction.md
+  scripts/
+    prepare_data.py
+    extract_embeddings.py
+    fit_alignment.py
+    evaluate_retrieval.py
+    evaluate_majority.py
+    train_resnet.py
+    extract_local_embeddings.py
+    evaluate_local.py
+    run_j_pipeline.sh
   src/
     __init__.py
     config.py
@@ -65,6 +86,9 @@ veritas/
     03_alignment.ipynb
     04_evaluation.ipynb
     05_local_tiles.ipynb
+  tests/
+    test_core.py
+    test_local_tiles.py
   app.py
   README.md
   requirements.txt
@@ -316,6 +340,7 @@ The implementation README must include:
 - [ ] Top-k returns k unique indices.
 - [ ] Local manifest has 50 rows.
 - [ ] Local categories have 10 each.
+- [ ] `tests/test_local_tiles.py` passes.
 - [ ] Every completed task has `results/Txx.md`.
 - [ ] Important findings have a file under `plan/learnings/`.
 
@@ -327,7 +352,11 @@ The implementation README must include:
 - [ ] Notebook 04 runs after 03.
 - [ ] Notebook 05 runs after 04.
 - [ ] `app.py` loads cached artifacts.
-- [ ] Demo works offline.
+- [ ] `python app.py --mock` builds.
+- [ ] Real backend prints `[demo] REAL mode` with J's artifacts.
+- [ ] Real backend slices `test.json` when `dinov2_test.npy` is a subset.
+- [ ] `metrics_table` reads `majority.csv`, `resnet18.csv`, and `retrieval.csv`.
+- [ ] Demo works offline after the models are cached.
 
 ### Evaluation checks
 

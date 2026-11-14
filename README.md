@@ -2,7 +2,7 @@
 
 **Track:** AI + Climate
 **Test site:** Upper Arlington, Ohio
-**Status:** Planning complete. Implementation not started.
+**Status:** Implementation in progress. J T01–T07 and D T14 are done; A T08–T13 are pending.
 **Team:** J (integrator + data/alignment), A (baselines + local validation), D (demo + docs)
 **Deadline:** Sunday, November 15, 2026, 11:59 PM ET
 
@@ -11,6 +11,9 @@
 ## Start here
 
 - [Plan index](plan/README.md)
+- [J runbook](plan/agents/J.md)
+- [A runbook](plan/agents/A.md)
+- [D runbook](plan/agents/D.md)
 - [Agent rules](plan/AGENTS.md)
 - [Locked decisions](plan/DECISIONS.md)
 - [Task board](plan/TASKS.md)
@@ -50,6 +53,26 @@ python scripts/evaluate_retrieval.py
 
 For a quick smoke test, add `--limit 64` to the embedding/alignment/evaluation scripts.
 
+## A quick start
+
+```sh
+python scripts/evaluate_majority.py
+python scripts/train_resnet.py --epochs 2 --batch-size 32   # CPU smoke
+python scripts/extract_local_embeddings.py                 # after T10/T11 manifest
+python scripts/evaluate_local.py
+```
+
+Exact A instructions: `plan/agents/A.md`.
+
+## D quick start
+
+```sh
+python app.py --mock     # UI rehearsal
+python app.py            # real mode after J artifacts
+```
+
+Exact D instructions: `plan/agents/D.md`.
+
 ## Current J results
 
 | Method | Top-1 | Top-5 | N |
@@ -79,7 +102,24 @@ nix-shell -p python3Packages.torch python3Packages.torchvision \
 5. `T05` — J/J2: MiniLM caption embeddings. **DONE**
 6. `T06` — J: Procrustes alignment. **DONE** (val top-1 0.94)
 7. `T07` — J: retrieval evaluation. **DONE** (test top-1 0.94, random 0.10)
-8. `T10` — A/A2: Upper Arlington tile collection.
-9. `T14` — D/D1: mock Gradio shell.
+8. `T08` — A/A1: ResNet-18 baseline.
+9. `T09` — A: majority baseline.
+10. `T10` — A/A2: Upper Arlington tile collection.
+11. `T14` — D/D1: Gradio demo. **DONE** (real backend verified; failure images placeholder)
+
+## Run the demo
+
+```sh
+python app.py
+```
+
+Expected with current artifacts:
+
+```text
+[demo] REAL mode — gallery N=512, transforms from src.alignment
+[demo] NOTE — using 512-tile stratified subset
+```
+
+Use `python app.py --mock` only for UI rehearsal. Pre-warm MiniLM and DINOv2 before recording; see `plan/09-demo-writeup-submission.md`.
 
 See `plan/TASKS.md` for the full task board.

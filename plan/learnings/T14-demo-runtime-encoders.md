@@ -25,17 +25,17 @@ center/normalize/rotate order has to match T06's exactly, or scores will be quie
   normalize → subtract train mean → rotate → normalize (plan/03 §7). If J's convention differs, the fallback is wrong,
   but it is only used while `src/` is missing.
 - Model: the upload path takes the CLS token from `last_hidden_state[:, 0]`. T04 must use the same pooling.
-- Data: `procrustes.npz` `config` may carry `eurosat_root`, `image_model`, `text_model`; the demo reads those if present.
+- Data: `procrustes.npz` `metadata` carries `eurosat_root`, `image_model`, `text_model`, `limit`; `app.py` reads it.
 
 ## Plan changes
 
-- [ ] Updated `plan/TASKS.md` (J: consider adding "models cached locally" to T14 acceptance)
-- [ ] Updated `plan/DECISIONS.md` (J only)
-- [ ] Updated runbook
-- [ ] Updated data/model/eval plan
-- [x] No plan change needed by D; this is a note for J's T01/T04/T06
+- [x] Updated `plan/TASKS.md` (T14 acceptance now includes cached models and real-mode verification)
+- [x] Updated `plan/DECISIONS.md` (no decision change; artifact contract clarified in INTERFACES)
+- [x] Updated `plan/09-demo-writeup-submission.md` with runtime encoder and offline-cache instructions
+- [x] Updated `plan/INTERFACES.md` with exact artifact keys and CSV columns
+- [x] Updated `plan/agents/D.md` with exact commands
 
 ## Follow-up
 
-When J merges T06, run `python app.py`, confirm `[demo] REAL mode … transforms from src.alignment`, and check that
-a `dense forest` query returns Forest tiles.
+J verified `python app.py` in real mode with N=512; `dense forest` returns Forest tiles and upload classification works.
+D still needs to replace the failure-gallery placeholders after A's T12/T13.

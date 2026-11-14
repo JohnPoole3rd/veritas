@@ -96,8 +96,11 @@ def main() -> None:
                 "split": "test",
                 "top1": result["top1"],
                 "top5": result["top5"],
+                "macro_f1": "",
                 "n_images": result["n_images"],
+                "test_n": result["n_images"],
                 "n_captions": result["n_captions"],
+                "notes": f"{result['n_images']}-tile subset" if result["n_images"] < 4050 else "",
             }
         )
     save_metrics_csv(metrics_dir / "retrieval.csv", rows)

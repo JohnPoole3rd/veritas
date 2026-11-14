@@ -5,6 +5,8 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 
 **J is the only agent who merges to `main` and pushes `main`.**
 
+**Read your runbook before starting:** `plan/agents/J.md`, `plan/agents/A.md`, or `plan/agents/D.md`.
+
 ## Critical path
 
 ```text
@@ -33,7 +35,7 @@ Do not start a downstream task until the upstream artifact exists.
 | T11 | Local tile labeling + QA | A | — | TODO | T10 | `data/local_tiles/manifest.csv`, `results/T11.md` |
 | T12 | Local OOD evaluation | A | — | TODO | T11, T06 | `artifacts/metrics/local.csv`, `results/T12.md` |
 | T13 | Failure taxonomy + figures | A | — | TODO | T07, T12 | `artifacts/figures/`, failure table, `results/T13.md` |
-| T14 | Gradio demo | D1 | D | TODO | T06, T07 | `app.py`, `results/T14.md` |
+| T14 | Gradio demo | D1 | D | DONE | T06, T07 | `app.py`, `results/T14.md` |
 | T15 | Write-up | D | — | TODO | T07, T12, T13 | one-page write-up, `results/T15.md` |
 | T16 | Demo video | D2 | D | TODO | T14, T15 | unlisted video link, `results/T16.md` |
 | T17 | Submission checklist | J | — | TODO | T15, T16 | submitted form, `results/T17.md` |
@@ -224,6 +226,8 @@ The `Subagent of` column shows the suggested owner. Create more subagents as the
 - Baseline comparison visible.
 - One failure example.
 - Prototype disclaimer.
+- Real mode verified with J's artifacts.
+- MiniLM and DINOv2 cached locally; real mode loads with Wi-Fi off.
 - Loads without internet.
 - Runs under two minutes.
 

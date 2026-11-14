@@ -92,7 +92,7 @@ Do not normalize before fitting unless you have a specific reason.
 3. Stack X and Y.
 4. Center with training means.
 5. Fit W.
-6. Save W, mu_x, mu_y, config.
+6. Save W, mu_x, mu_y, metadata (JSON string with model names, root, limit).
 ```
 
 **Caption pairing:**
