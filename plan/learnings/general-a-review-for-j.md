@@ -55,7 +55,7 @@ image→class accuracy on every test image:
 | Unaligned cosine | 0.0827 | 0.0720 | 4050 |
 | Majority (R005) | 0.1111 | 0.0200 | 4050 |
 
-Reproduce: `python -m src.evaluate caption-classification --split test` (branch `a/t13-failures`).
+Reproduce: `python -m src.evaluate caption-classification --split test` (branch `a/final`).
 
 **Request:** keep text→image top-1/top-5 as the "search" metric, and state its N. Put the
 per-image row in the main results table. Do not compare 0.94 (or 0.96) with ResNet's 0.98.
