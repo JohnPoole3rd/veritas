@@ -1,18 +1,18 @@
 """Platonic Earth — Gradio demo (T14, owner D).
 
-Status: MOCK SHELL (Phase 0). Tiles and scores are placeholders generated
-locally so the UI can be built and rehearsed before J's artifacts (T06/T07)
-and A's metrics (T08/T09/T12) exist. Nothing here is a real result.
+Two backends behind one UI:
+- MockBackend: placeholder tiles + fake scores, used while J's artifacts
+  (T06/T07) and A's metrics (T08/T09/T12) do not exist. Nothing it shows is real.
+- RealBackend: loads precomputed artifacts per plan/INTERFACES.md §4. Selected
+  automatically once every file in REQUIRED_ARTIFACTS exists.
 
 Run:
-    python app.py            # mock mode (default until artifacts exist)
+    python app.py              # auto: REAL if artifacts exist, else MOCK
+    python app.py --mock       # force mock
     python app.py --port 7861
 
-Wiring plan (Phase 3): replace MockBackend with a backend that loads
-artifacts/alignment/procrustes.npz, artifacts/embeddings/*.npy and the MiniLM
-encoder via src/ (see plan/INTERFACES.md). The UI only talks to the backend
-through `search_text`, `classify_image`, and `metrics_table`, so the swap
-should not touch the layout.
+The UI only talks to the backend through `search_text` and `classify_image`;
+the baseline table reads artifacts/metrics/*.csv directly.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,7 +32,6 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 REPO_ROOT = Path(__file__).resolve().parent
-METRICS_DIR = REPO_ROOT / "artifacts" / "metrics"
 TOP_K = 3
 
 EUROSAT_CLASSES = [
@@ -179,17 +179,140 @@ class MockBackend:
         return self._class_scores(key, favored)[:TOP_K]
 
 
-def load_backend() -> MockBackend:
-    # Phase 3: if artifacts/alignment/procrustes.npz exists, return a real backend.
-    return MockBackend()
+def _l2(x: np.ndarray) -> np.ndarray:
+    return x / np.clip(np.linalg.norm(x, axis=-1, keepdims=True), 1e-12, None)
+
+
+def _transforms():
+    """Use J's src.alignment transforms so fit and inference match exactly.
+
+    Fallback mirrors plan/03 §7 (normalize → subtract train mean → rotate → normalize)
+    and is only used if src/ is not importable yet.
+    """
+    try:
+        from src.alignment import transform_images, transform_texts  # type: ignore
+        return transform_images, transform_texts, "src.alignment"
+    except Exception:
+        def t_img(X, p):
+            return _l2((_l2(X) - p["mu_x"]) @ p["W"])
+
+        def t_txt(Y, p):
+            return _l2(_l2(Y) - p["mu_y"])
+
+        return t_img, t_txt, "app.py fallback (verify against src.alignment!)"
+
+
+class RealBackend:
+    """Loads precomputed artifacts (plan/INTERFACES.md §4). No fitting at demo time.
+
+    Gallery = EuroSAT test split. Text queries need MiniLM; uploads need DINOv2.
+    Both load lazily from the local Hugging Face cache, so pre-download them before demo day.
+    `text_encoder` / `image_encoder` can be injected (callables → np.ndarray) for testing.
+    """
+
+    name = "REAL"
+
+    def __init__(self, root: Path, text_encoder=None, image_encoder=None):
+        self.root = root
+        art = root / "artifacts"
+        p = np.load(art / "alignment" / "procrustes.npz", allow_pickle=False)
+        self.params = {"W": p["W"], "mu_x": p["mu_x"], "mu_y": p["mu_y"]}
+        cfg = json.loads(str(p["config"])) if "config" in p.files else {}
+        self.t_img, self.t_txt, self.transform_src = _transforms()
+
+        split = json.loads((root / "data" / "splits" / "test.json").read_text())
+        self.items = split["items"]
+        self.eurosat_root = root / cfg.get("eurosat_root", "data/raw/eurosat")
+        X = np.load(art / "embeddings" / "dinov2_test.npy")
+        if len(X) != len(self.items):
+            raise ValueError(f"dinov2_test.npy has {len(X)} rows but test.json has {len(self.items)} items")
+        self.gallery = self.t_img(X, self.params)
+
+        caps = np.load(art / "embeddings" / "minilm_captions.npy")
+        index = json.loads((art / "embeddings" / "minilm_caption_index.json").read_text())
+        cap_labels = [index[str(i)]["label"] for i in range(len(caps))]
+        Yt = self.t_txt(caps, self.params)
+        self.class_names = sorted(set(cap_labels))
+        lab = np.array(cap_labels)
+        self.centroids = _l2(np.stack([Yt[lab == c].mean(axis=0) for c in self.class_names]))
+
+        self._text_encoder = text_encoder
+        self._image_encoder = image_encoder
+        self.model_names = {
+            "text": cfg.get("text_model", "sentence-transformers/all-MiniLM-L6-v2"),
+            "image": cfg.get("image_model", "facebook/dinov2-small"),
+        }
+
+    # -- encoders (lazy) --------------------------------------------------
+    def _encode_text(self, text: str) -> np.ndarray:
+        if self._text_encoder is None:
+            from sentence_transformers import SentenceTransformer
+            m = SentenceTransformer(self.model_names["text"])
+            self._text_encoder = lambda t: m.encode([t], convert_to_numpy=True)
+        return np.asarray(self._text_encoder(text), dtype=np.float32).reshape(1, -1)
+
+    def _encode_image(self, image: Image.Image) -> np.ndarray:
+        if self._image_encoder is None:
+            import torch
+            from transformers import AutoImageProcessor, AutoModel
+            proc = AutoImageProcessor.from_pretrained(self.model_names["image"])
+            model = AutoModel.from_pretrained(self.model_names["image"]).eval()
+
+            def enc(img):
+                with torch.no_grad():
+                    out = model(**proc(images=img.convert("RGB"), return_tensors="pt"))
+                return out.last_hidden_state[:, 0].numpy()  # CLS, matches T04 contract
+
+            self._image_encoder = enc
+        return np.asarray(self._image_encoder(image), dtype=np.float32).reshape(1, -1)
+
+    # -- UI API -------------------------------------------------------------
+    def _tile(self, i: int) -> Image.Image:
+        path = self.eurosat_root / self.items[i]["path"]
+        try:
+            return Image.open(path).convert("RGB").resize((192, 192), Image.NEAREST)
+        except OSError:
+            return make_placeholder_tile(self.items[i]["label"], i)
+
+    def search_text(self, query: str, k: int = TOP_K) -> list[Hit]:
+        q = self.t_txt(self._encode_text(query), self.params)[0]
+        sims = self.gallery @ q
+        top = np.argsort(-sims)[:k]
+        return [Hit(self._tile(i), self.items[i]["label"], round(float(sims[i]), 2), self.items[i]["tile_id"]) for i in top]
+
+    def classify_image(self, image: Image.Image) -> list[tuple[str, float]]:
+        x = self.t_img(self._encode_image(image), self.params)[0]
+        sims = self.centroids @ x
+        order = np.argsort(-sims)[:TOP_K]
+        return [(self.class_names[i], float(sims[i])) for i in order]
+
+
+REQUIRED_ARTIFACTS = [
+    "artifacts/alignment/procrustes.npz",
+    "artifacts/embeddings/dinov2_test.npy",
+    "artifacts/embeddings/minilm_captions.npy",
+    "artifacts/embeddings/minilm_caption_index.json",
+    "data/splits/test.json",
+]
+
+
+def load_backend(root: Path = REPO_ROOT, force_mock: bool = False):
+    missing = [p for p in REQUIRED_ARTIFACTS if not (root / p).exists()]
+    if force_mock or missing:
+        if missing and not force_mock:
+            print(f"[demo] MOCK mode — missing artifacts: {', '.join(missing)}")
+        return MockBackend()
+    backend = RealBackend(root)
+    print(f"[demo] REAL mode — gallery N={len(backend.items)}, transforms from {backend.transform_src}")
+    return backend
 
 
 # ---------------------------------------------------------------------------
 # Metrics (reads real CSVs from A/J when present; placeholders otherwise)
 # ---------------------------------------------------------------------------
 
-def _read_csv(name: str) -> list[dict]:
-    path = METRICS_DIR / name
+def _read_csv(name: str, root: Path = REPO_ROOT) -> list[dict]:
+    path = root / "artifacts" / "metrics" / name
     if not path.exists():
         return []
     with path.open(newline="") as f:
@@ -205,13 +328,13 @@ def _fmt(v: str | None) -> str:
         return v
 
 
-def metrics_table() -> tuple[list[list[str]], str]:
+def metrics_table(root: Path = REPO_ROOT) -> tuple[list[list[str]], str]:
     rows: list[list[str]] = []
     sources = []
 
-    majority = _read_csv("majority.csv")
-    resnet = _read_csv("resnet18.csv")
-    retrieval = {r.get("method"): r for r in _read_csv("retrieval.csv")}
+    majority = _read_csv("majority.csv", root)
+    resnet = _read_csv("resnet18.csv", root)
+    retrieval = {r.get("method"): r for r in _read_csv("retrieval.csv", root)}
 
     def add(method, top1, top5, f1, n, src):
         rows.append([method, _fmt(top1), _fmt(top5), _fmt(f1), n or "—"])
@@ -237,7 +360,7 @@ def metrics_table() -> tuple[list[list[str]], str]:
 # UI
 # ---------------------------------------------------------------------------
 
-def build_ui(backend: MockBackend) -> gr.Blocks:
+def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
     mock_banner = (
         "> ⚠️ **MOCK MODE** — placeholder tiles and fake scores for UI rehearsal only."
         if backend.name == "MOCK" else ""
@@ -247,7 +370,10 @@ def build_ui(backend: MockBackend) -> gr.Blocks:
         query = (query or "").strip()
         if not query:
             return [], "Type a land-cover description, e.g. *dense forest*."
-        hits = backend.search_text(query)
+        try:
+            hits = backend.search_text(query)
+        except Exception as e:  # e.g. MiniLM not cached and no internet
+            return [], f"Search failed: `{type(e).__name__}: {e}`"
         gallery = [(h.image, f"{h.label} · {h.score:.2f} · {h.tile_id}") for h in hits]
         caption = (
             f"Top {len(hits)} tiles for **“{query}”**. Scores are cosine similarity, "
@@ -258,7 +384,10 @@ def build_ui(backend: MockBackend) -> gr.Blocks:
     def on_upload(image):
         if image is None:
             return "Upload a tile to classify it."
-        ranked = backend.classify_image(image)
+        try:
+            ranked = backend.classify_image(image)
+        except Exception as e:  # e.g. DINOv2 not cached and no internet
+            return f"Classification failed: `{type(e).__name__}: {e}`"
         (top, s), rest = ranked[0], ranked[1:]
         nxt = ", ".join(f"{l} ({v:.2f})" for l, v in rest)
         return (
@@ -268,7 +397,7 @@ def build_ui(backend: MockBackend) -> gr.Blocks:
             f"_{DISCLAIMER}_"
         )
 
-    rows, note = metrics_table()
+    rows, note = metrics_table(root)
 
     with gr.Blocks(title="Platonic Earth — Upper Arlington") as demo:
         gr.Markdown(
@@ -324,9 +453,11 @@ def build_ui(backend: MockBackend) -> gr.Blocks:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Platonic Earth demo")
     parser.add_argument("--port", type=int, default=7860)
+    parser.add_argument("--mock", action="store_true", help="Force mock mode even if artifacts exist")
+    parser.add_argument("--root", type=Path, default=REPO_ROOT, help="Repo root holding data/ and artifacts/")
     parser.add_argument("--share", action="store_true", help="Create a public Gradio link (needs internet)")
     args = parser.parse_args()
-    build_ui(load_backend()).launch(server_port=args.port, share=args.share)
+    build_ui(load_backend(args.root, args.mock), args.root).launch(server_port=args.port, share=args.share)
 
 
 if __name__ == "__main__":
