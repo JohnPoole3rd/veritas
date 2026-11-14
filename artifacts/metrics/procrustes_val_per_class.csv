@@ -1,0 +1,11 @@
+class,recall
+AnnualCrop,0.9267
+Forest,0.9511
+HerbaceousVegetation,0.9156
+Highway,0.7547
+Industrial,0.96
+Pasture,0.5833
+PermanentCrop,0.5787
+Residential,0.8756
+River,0.5093
+SeaLake,0.9089

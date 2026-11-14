@@ -1,0 +1,2 @@
+method,accuracy,macro_f1,test_n,epochs,notes
+resnet18,0.9817,0.9812,4050,10,best_epoch=10 val_acc=0.9785 input=64 device=mps

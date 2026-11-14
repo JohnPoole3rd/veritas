@@ -1,0 +1,4 @@
+method,split,accuracy,top5,macro_f1,n_images,n_captions,notes
+procrustes,val,0.8114,0.9877,0.7952,4050,50,"image->class, agg=max"
+random_rotation,val,0.1504,0.6612,0.1492,4050,50,"image->class, agg=max"
+unaligned,val,0.083,0.5348,0.0735,4050,50,"image->class, agg=max"
