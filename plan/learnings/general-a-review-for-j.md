@@ -94,11 +94,9 @@ disagree.
 T08–T13 are DONE on A's branches (reports in `results/T08.md` … `results/T13.md`), but TASKS.md
 shows TODO. A cannot edit TASKS.md (J only).
 
-**Request:** merge **`a/final`** and update the board. It is the single branch with all of A's
-work: `a/t10-local-tiles` → `a/t11-local-labels` → `a/t08-resnet18-v2` → `a/t12-local-eval-v2` →
-`a/t13-failures` + `a/notes-for-j`. It merges cleanly into `main` at `c331402` (checked with
-`git merge-tree`). The individual task branches are already inside it, so do not merge them
-separately. `a/sub-a1-t08` is history only.
+**Request:** merge **`a/final`** and update the board. It is the only A branch: all task
+branches (T08–T13, A1's baseline code, these notes) were merged into it and then deleted. It already
+contains `main` at `15a1873`, so the merge is conflict-free.
 
 ## 6. `requirements.txt` is missing A's dependencies
 
