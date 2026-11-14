@@ -81,7 +81,7 @@ Exact D instructions: `plan/agents/D.md`.
 | Method | Top-1 | Top-5 |
 |---|---:|---:|
 | Procrustes | 0.96 | 1.00 |
-| Random rotation | 0.18 | 0.34 |
+| Random rotation (mean of 5 seeds) | 0.152 | 0.28 |
 | Unaligned cosine | 0.10 | 0.34 |
 
 ### Image→class — 4,050 test images
@@ -90,19 +90,19 @@ Exact D instructions: `plan/agents/D.md`.
 |---|---:|---:|---:|
 | ResNet-18 | 0.9817 | — | 0.9812 |
 | Procrustes | 0.8121 | 0.9901 | 0.7948 |
-| Random rotation | 0.1590 | 0.6588 | 0.1559 |
+| Random rotation (mean of 5 seeds) | 0.1551 | 0.5958 | 0.1392 |
 | Unaligned cosine | 0.0827 | 0.5326 | 0.0720 |
 | Majority | 0.1111 | — | 0.0200 |
 
-These are A's full-split reruns of J's scripts. J's CPU smoke run used a 512-tile subset and is retained in `results/T04.md`–`T07.md`. Do not compare the 50-query search number with per-image ResNet accuracy.
+These are full-split runs of `scripts/run_j_pipeline.sh` (re-verified end to end in the code review, `plan/learnings/general-code-review.md`). J's CPU smoke run used a 512-tile subset and is retained in `results/T04.md`–`T07.md`. Do not compare the 50-query search number with per-image ResNet accuracy.
 
 Local Nix environment used by J:
 
 ```sh
 nix-shell -p python3Packages.torch python3Packages.torchvision \
   python3Packages.transformers python3Packages.sentence-transformers \
-  python3Packages.numpy python3Packages.scipy python3Packages.scikit-learn \
-  python3Packages.pyyaml python3Packages.pillow python3Packages.tqdm \
+  python3Packages.numpy python3Packages.scikit-learn \
+  python3Packages.pyyaml python3Packages.pillow \
   --run 'python scripts/prepare_data.py'
 ```
 

@@ -1,2 +1,2 @@
 method,split,top1,top5,n_images,n_captions
-procrustes,val,0.94,0.98,512,50
+procrustes,val,0.98,1.0,4050,50

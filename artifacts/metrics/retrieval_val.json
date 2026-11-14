@@ -1,8 +1,8 @@
 {
-  "n_images": 512,
+  "n_images": 4050,
   "n_captions": 50,
-  "top1": 0.94,
-  "top5": 0.98,
+  "top1": 0.98,
+  "top5": 1.0,
   "per_class": {
     "AnnualCrop": {
       "top1": 1.0,
@@ -29,7 +29,7 @@
       "top5": 1.0
     },
     "PermanentCrop": {
-      "top1": 0.8,
+      "top1": 1.0,
       "top5": 1.0
     },
     "Residential": {
@@ -37,8 +37,8 @@
       "top5": 1.0
     },
     "River": {
-      "top1": 0.8,
-      "top5": 0.8
+      "top1": 1.0,
+      "top5": 1.0
     },
     "SeaLake": {
       "top1": 1.0,
@@ -47,5 +47,6 @@
   },
   "method": "procrustes",
   "split": "val",
-  "orthogonality_error": 8.274188985524233e-06
+  "orthogonality_error": 1.1619908036664128e-05,
+  "limit": null
 }

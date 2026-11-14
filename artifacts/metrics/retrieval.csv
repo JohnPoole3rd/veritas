@@ -1,4 +1,4 @@
 method,split,top1,top5,macro_f1,n_images,test_n,n_captions,notes
-procrustes,test,0.96,1.0,,4050,4050,50,full test; A MPS rerun of J scripts
-random_rotation,test,0.18,0.34,,4050,4050,50,full test
-unaligned,test,0.10,0.34,,4050,4050,50,full test
+procrustes,test,0.96,1.0,,4050,4050,50,
+random_rotation,test,0.152,0.28,,4050,4050,50,"mean of 5 seeds 42-46; std top1 0.043, top5 0.074"
+unaligned,test,0.1,0.34,,4050,4050,50,

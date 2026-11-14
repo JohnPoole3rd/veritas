@@ -70,10 +70,10 @@ seed: 42
 
 data:
   eurosat_root: data/raw/eurosat
-  local_tiles_root: data/raw/local_tiles
   splits_dir: data/splits
   captions_path: data/captions.jsonl
   local_manifest: data/local_tiles/manifest.csv
+  download: true            # prepare_data.py; --no-download overrides
 
 split:
   train: 0.70
@@ -84,30 +84,25 @@ image:
   model_name: facebook/dinov2-small
   input_size: 224
   batch_size: 32
-  embedding_dim: 384
+  embedding_dim: 384        # asserted by extract_embeddings.py
 
 text:
   model_name: sentence-transformers/all-MiniLM-L6-v2
-  embedding_dim: 384
+  embedding_dim: 384        # asserted by fit_alignment.py
 
 alignment:
-  center: true
-  normalize: true
-  method: orthogonal_procrustes
+  center: true              # used by the fit and by the random-rotation baselines
 
 baseline:
   resnet18_epochs: 10
   resnet18_batch_size: 64
   resnet18_lr: 0.001
 
-local:
-  city: Upper Arlington, Ohio
-  tile_count: 50
-
 demo:
-  top_k: 3
-  confidence_threshold: null
+  top_k: 3                  # app.py
 ```
+
+Every key above is read by code; unused keys were removed in the code review (plan/learnings/general-code-review.md).
 
 ## 3. Data schemas
 
@@ -120,7 +115,7 @@ demo:
   "seed": 42,
   "class_names": ["AnnualCrop", "Forest", "..."],
   "items": [
-    {"tile_id": "eurosat_000001", "path": "AnnualCrop/AnnualCrop_1.jpg", "label": "AnnualCrop"}
+    {"tile_id": "eurosat_000001", "path": "eurosat/2750/AnnualCrop/AnnualCrop_1.jpg", "label": "AnnualCrop"}
   ]
 }
 ```
@@ -130,7 +125,7 @@ demo:
 `data/captions.jsonl`:
 
 ```json
-{"caption_id": "annual_01", "label": "AnnualCrop", "text": "a satellite image of annual cropland", "template_id": 1}
+{"caption_id": "annualcrop_01", "label": "AnnualCrop", "text": "a satellite image of annual cropland", "template_id": 1}
 ```
 
 ### Local tile record
@@ -170,9 +165,14 @@ Required columns:
   "model_name": "facebook/dinov2-small",
   "input_size": 224,
   "embedding_dim": 384,
-  "split_sizes": {"train": 18900, "val": 4050, "test": 4050}
+  "split_sizes": {"train": 18900, "val": 4050, "test": 4050},
+  "limit": null,
+  "tile_ids": {"train": ["eurosat_011587", "..."], "val": ["..."], "test": ["..."]}
 }
 ```
+
+`tile_ids` (in row order) are checked against the split JSON by `src.encoders.check_split_embeddings`
+before any fit or evaluation; a mismatch stops with both shapes printed.
 
 ### MiniLM caption embeddings
 
@@ -183,7 +183,7 @@ Required columns:
 `minilm_caption_index.json`:
 
 ```json
-{"0": {"caption_id": "annual_01", "label": "AnnualCrop"}, "1": {"caption_id": "annual_02", "label": "AnnualCrop"}}
+{"0": {"caption_id": "annualcrop_01", "label": "AnnualCrop"}, "1": {"caption_id": "annualcrop_02", "label": "AnnualCrop"}}
 ```
 
 ### Procrustes artifact
@@ -193,8 +193,8 @@ Required columns:
 - `W` — `(384, 384)` or `(768, 384)`.
 - `mu_x` — image mean, shape `(384,)` or `(768,)`.
 - `mu_y` — text mean, shape `(384,)`.
-- `metadata` — JSON string with method, center, shuffle_y, scale, image_model, text_model, eurosat_root, limit.
-- `config` — accepted as a legacy alias by `app.py`; new runs write `metadata`.
+- `metadata` — JSON string with method, center, shuffle_y, scale, image_model, text_model, eurosat_root,
+  limit, train_n, seed. `fit_alignment.py` refuses to save if `W.T @ W` deviates from I by more than 1e-3.
 
 Validation:
 
@@ -202,21 +202,11 @@ Validation:
 - `mu_x` and `mu_y` finite.
 - Reloading reproduces the reported top-1.
 
-### DINOv2 metadata
+### Local tile embeddings
 
-`artifacts/embeddings/dinov2_meta.json`:
-
-```json
-{
-  "model_name": "facebook/dinov2-small",
-  "input_size": 224,
-  "embedding_dim": 384,
-  "split_sizes": {"train": 512, "val": 512, "test": 512},
-  "limit": 512
-}
-```
-
-If `dinov2_test.npy` has fewer rows than `data/splits/test.json`, `app.py` uses the first N test items. J's extraction order matches the split order.
+`artifacts/embeddings/dinov2_local.npy` + `dinov2_local_meta.json` (`tile_ids`, `model_name`, `input_size`,
+`embedding_dim`, `n_tiles`, `manifest`). Written by `src.local_tiles.save_local_embeddings`
+(scripts/extract_local_embeddings.py, app.py, run_local_eval); reused only if tile_ids, model and input size match.
 
 ### Metrics
 
@@ -224,10 +214,14 @@ If `dinov2_test.npy` has fewer rows than `data/splits/test.json`, `app.py` uses 
 
 ```csv
 method,split,top1,top5,macro_f1,n_images,test_n,n_captions,notes
-procrustes,test,0.94,0.96,,512,512,50,512-tile subset
-random_rotation,test,0.10,0.32,,512,512,50,512-tile subset
-unaligned,test,0.16,0.36,,512,512,50,512-tile subset
+procrustes,test,0.96,1.0,,4050,4050,50,
+random_rotation,test,<mean>,<mean>,,4050,4050,50,mean of 5 seeds 42-46; std ...
+unaligned,test,0.10,0.34,,4050,4050,50,
 ```
+
+Text→image: each of the 50 captions is a query (N = 50 queries). `unaligned` is omitted when the image
+and text dims differ (e.g. ViT-B). The per-image comparison with ResNet-18 is
+`caption_classification_{val,test}.csv` (`python -m src.evaluate caption-classification`).
 
 `artifacts/metrics/majority.csv`:
 
@@ -282,7 +276,7 @@ ua_001,Residential,residential,Residential,0.74,True
 
 Optional metrics for the Results tab:
 
-- `artifacts/metrics/majority.csv` (fallback: `majority.json`)
+- `artifacts/metrics/majority.csv` (`majority.json` has the same numbers; both from `src.baselines.run_majority`)
 - `artifacts/metrics/resnet18.csv`
 - `artifacts/metrics/caption_classification_test.csv` — image→class, comparable with ResNet
 - `artifacts/metrics/retrieval.csv` — text→image search, 50 caption queries
@@ -298,11 +292,14 @@ These are planning signatures. Implementations may differ internally, but inputs
 ### `src/data.py`
 
 ```python
-def load_eurosat(root: str, split: str, config: dict) -> Dataset:
-    """Return a torch Dataset for a split."""
+def load_eurosat(root: str, download: bool = True):
+    """Return torchvision's EuroSAT dataset."""
 
-def make_splits(root: str, config: dict) -> dict:
-    """Create and save stratified train/val/test splits."""
+def make_splits(config: dict, download: bool | None = None) -> dict:
+    """Create and save stratified train/val/test splits (shares from config["split"])."""
+
+class SplitDataset:  # (items, root, class_names, transform=None, return_id=False)
+    """Torch dataset over split items; paths are relative to data.eurosat_root."""
 
 def load_split(path: str) -> dict:
     """Load a split JSON."""
@@ -314,21 +311,27 @@ def load_split(path: str) -> dict:
 def build_captions(class_names: list[str]) -> list[dict]:
     """Return caption records for all classes."""
 
-def sample_caption(captions: list[dict], label: str, rng) -> str:
-    """Return one caption for a label."""
+def sample_caption(grouped: dict[str, list[str]], label: str, rng) -> str:
+    """Return one caption text for a label."""
+
+def sample_caption_indices(items: list[dict], captions: list[dict], seed: int) -> list[int]:
+    """The Procrustes training pairs: one caption index per split item (single definition)."""
 ```
 
 ### `src/encoders.py`
 
 ```python
-def load_dinov2(model_name: str, device: str):
-    """Return a frozen DINOv2 model and processor."""
+def load_dinov2(model_name: str, device: str | None = None):
+    """Return a frozen DINOv2 model (inputs come from src.data.get_transforms)."""
 
-def extract_image_embeddings(model, processor, dataset, batch_size: int) -> np.ndarray:
-    """Return (N, D) CLS embeddings."""
+def extract_image_embeddings(model, dataset, batch_size: int = 32, device: str | None = None) -> np.ndarray:
+    """Return (N, D) CLS embeddings in dataset order."""
 
-def load_minilm(model_name: str):
+def load_minilm(model_name: str, device: str | None = None):
     """Return a frozen sentence-transformer."""
+
+def check_split_embeddings(embeddings, items, split, meta=None) -> None:
+    """Raise if embeddings and split items differ in count or (via dinov2_meta tile_ids) order."""
 
 def encode_texts(model, texts: list[str]) -> np.ndarray:
     """Return (N, 384) text embeddings."""
@@ -340,8 +343,14 @@ def encode_texts(model, texts: list[str]) -> np.ndarray:
 def center_embeddings(X: np.ndarray, Y: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Return centered X, centered Y, mu_x, mu_y."""
 
-def fit_procrustes(X: np.ndarray, Y: np.ndarray) -> dict:
-    """Return {'W': W, 'mu_x': mu_x, 'mu_y': mu_y}."""
+def fit_procrustes(X: np.ndarray, Y: np.ndarray, *, center=True, shuffle_y=False, seed=42) -> dict:
+    """Return {'W': W, 'mu_x': mu_x, 'mu_y': mu_y, ...}."""
+
+def training_pairs(config, caption_embeddings, captions, limit=None) -> tuple[np.ndarray, np.ndarray]:
+    """(train image embeddings, caption embedding of each image's label): the fit pairs."""
+
+def random_rotation_params(X, Y, seeds, center=True) -> list[dict]:
+    """Null baseline: Procrustes on shuffled pairs, one fit per seed."""
 
 def transform_images(X: np.ndarray, params: dict) -> np.ndarray:
     """Center, rotate, and L2-normalize image embeddings."""
@@ -356,8 +365,11 @@ def transform_texts(Y: np.ndarray, params: dict) -> np.ndarray:
 def retrieve_top_k(query_embedding: np.ndarray, gallery_embeddings: np.ndarray, k: int = 3) -> list[int]:
     """Return indices of top-k most similar items."""
 
-def classify_tile(image_embedding: np.ndarray, caption_embeddings: np.ndarray, caption_labels: list[str]) -> list[tuple[str, float]]:
-    """Return labels and scores sorted by similarity."""
+def retrieve_top_k_with_scores(query_embedding, gallery_embeddings, k: int = 3) -> tuple[list[int], list[float]]:
+    """Top-k indices and cosine scores (k is clipped to [0, len(gallery)])."""
+
+def class_scores(image_embeddings, caption_embeddings, caption_labels, class_names, agg="max") -> np.ndarray:
+    """(N, C) image→class scores: the one classification rule (evaluation, local tiles, demo)."""
 ```
 
 ### `src/evaluate.py`
@@ -366,8 +378,11 @@ def classify_tile(image_embedding: np.ndarray, caption_embeddings: np.ndarray, c
 def evaluate_retrieval(image_embeddings: np.ndarray, caption_embeddings: np.ndarray, image_labels: list[str], caption_labels: list[str], k_values: tuple[int, ...] = (1, 5)) -> dict:
     """Return top1, top5, per_class, and counts."""
 
-def evaluate_classifier(model, loader, device: str | None = None) -> dict:
-    """Return accuracy, macro_f1, test_n, predictions, targets."""
+def evaluate_classifier(model, loader, device=None, class_names=None) -> dict:
+    """Return accuracy, macro_f1, per_class, confusion_matrix, n, probs, y_true, y_pred."""
+
+def evaluate_caption_classification(image_emb, caption_emb, labels, caption_labels, class_names=None, agg="max") -> dict:
+    """Per-image image→class metrics (comparable with ResNet-18)."""
 ```
 
 ### `src/local_tiles.py`

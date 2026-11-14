@@ -1,6 +1,9 @@
 {
   "accuracy": 0.1111111111111111,
   "macro_f1": 0.02,
-  "majority_class": "SeaLake",
-  "test_n": 4050
+  "majority_class": "AnnualCrop",
+  "test_n": 4050,
+  "train_count": 2100,
+  "train_n": 18900,
+  "tie_break": "class_names order"
 }

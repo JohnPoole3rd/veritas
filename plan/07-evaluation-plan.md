@@ -137,7 +137,7 @@ procrustes,test,0.94,0.96,,512,512,50,512-tile subset
 ```csv
 method,split,accuracy,top5,macro_f1,n_images,n_captions,notes
 procrustes,test,0.8121,0.9901,0.7948,4050,50,"image->class, agg=max"
-random_rotation,test,0.1590,0.6588,0.1559,4050,50,"image->class, agg=max"
+random_rotation,test,0.1551,0.5958,0.1392,4050,50,"image->class, agg=max; mean of 5 seeds 42-46, std acc 0.0278"
 unaligned,test,0.0827,0.5326,0.0720,4050,50,"image->class, agg=max"
 ```
 
@@ -157,7 +157,7 @@ If a file is missing, the demo shows `—`; do not invent a number.
 | Method | Top-1 | Top-5 | Queries |
 |---|---:|---:|---:|
 | Procrustes | 0.96 | 1.00 | 50 |
-| Random rotation | 0.18 | 0.34 | 50 |
+| Random rotation (mean of 5 seeds) | 0.152 | 0.28 | 50 |
 | Unaligned cosine | 0.10 | 0.34 | 50 |
 
 ### Table 1b — Image→class (4,050 test images)
@@ -167,7 +167,7 @@ If a file is missing, the demo shows `—`; do not invent a number.
 | Majority class | 0.1111 | — | 0.0200 | 4050 |
 | ResNet-18 | 0.9817 | — | 0.9812 | 4050 |
 | Unaligned cosine | 0.0827 | 0.5326 | 0.0720 | 4050 |
-| Random rotation | 0.1590 | 0.6588 | 0.1559 | 4050 |
+| Random rotation (mean of 5 seeds) | 0.1551 | 0.5958 | 0.1392 | 4050 |
 | Procrustes (ours) | 0.8121 | 0.9901 | 0.7948 | 4050 |
 | CLIP zero-shot | — | — | — | optional |
 
@@ -192,7 +192,7 @@ Detailed per-class files: `procrustes_test_per_class.csv`, `procrustes_test_top_
 
 ### Table 3 — Upper Arlington local results
 
-| Local category | N | Procrustes acc. | ResNet-18 acc. | Local majority |
+| Local category | N | Procrustes acc. | ResNet-18 acc. | Oracle: always Residential* |
 |---|---:|---:|---:|---:|
 | Residential | 10 | 1.00 | 1.00 | 1.00 |
 | Commercial/industrial | 10 | 0.90 | 1.00 | 0.70 |
@@ -201,7 +201,9 @@ Detailed per-class files: `procrustes_test_per_class.csv`, `procrustes_test_top_
 | Water/river | 10 | 0.00 | 0.10 | 0.00 |
 | **Total** | **50** | **0.64** | **0.64** | **0.62** |
 
-On the 37 unambiguous tiles, both Procrustes and ResNet-18 reach 0.8108; local majority reaches 0.7838.
+\* Most common local label; it reads the test labels, so it is a bar to clear, not a fitted baseline. The fitted majority baseline (EuroSAT train majority, AnnualCrop) scores 0.00 on every category.
+
+On the 37 unambiguous tiles, both Procrustes and ResNet-18 reach 0.8108; the most-common-local-label oracle (always Residential, which reads the test labels) reaches 0.7838. The real majority baseline, the EuroSAT train majority (AnnualCrop), scores 0/50.
 
 ### Table 4 — Local tile detail
 

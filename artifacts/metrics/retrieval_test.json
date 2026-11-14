@@ -1,9 +1,9 @@
 {
   "procrustes": {
-    "n_images": 512,
+    "n_images": 4050,
     "n_captions": 50,
-    "top1": 0.94,
-    "top5": 0.96,
+    "top1": 0.96,
+    "top5": 1.0,
     "per_class": {
       "AnnualCrop": {
         "top1": 1.0,
@@ -14,7 +14,7 @@
         "top5": 1.0
       },
       "HerbaceousVegetation": {
-        "top1": 0.8,
+        "top1": 1.0,
         "top5": 1.0
       },
       "Highway": {
@@ -22,7 +22,7 @@
         "top5": 1.0
       },
       "Industrial": {
-        "top1": 1.0,
+        "top1": 0.8,
         "top5": 1.0
       },
       "Pasture": {
@@ -31,15 +31,15 @@
       },
       "PermanentCrop": {
         "top1": 0.8,
-        "top5": 0.8
+        "top5": 1.0
       },
       "Residential": {
         "top1": 1.0,
         "top5": 1.0
       },
       "River": {
-        "top1": 0.8,
-        "top5": 0.8
+        "top1": 1.0,
+        "top5": 1.0
       },
       "SeaLake": {
         "top1": 1.0,
@@ -50,104 +50,87 @@
     "split": "test"
   },
   "random_rotation": {
-    "n_images": 512,
-    "n_captions": 50,
-    "top1": 0.1,
-    "top5": 0.32,
-    "per_class": {
-      "AnnualCrop": {
-        "top1": 0.4,
-        "top5": 0.6
+    "top1": 0.152,
+    "top5": 0.28,
+    "top1_std": 0.04308131845707603,
+    "top5_std": 0.0737563556583431,
+    "per_seed": {
+      "42": {
+        "top1": 0.18,
+        "top5": 0.34
       },
-      "Forest": {
-        "top1": 0.0,
-        "top5": 0.0
+      "43": {
+        "top1": 0.22,
+        "top5": 0.34
       },
-      "HerbaceousVegetation": {
-        "top1": 0.2,
-        "top5": 0.2
+      "44": {
+        "top1": 0.12,
+        "top5": 0.3
       },
-      "Highway": {
-        "top1": 0.0,
-        "top5": 0.8
+      "45": {
+        "top1": 0.1,
+        "top5": 0.14
       },
-      "Industrial": {
-        "top1": 0.0,
-        "top5": 0.6
-      },
-      "Pasture": {
-        "top1": 0.0,
-        "top5": 0.0
-      },
-      "PermanentCrop": {
-        "top1": 0.2,
-        "top5": 0.4
-      },
-      "Residential": {
-        "top1": 0.0,
-        "top5": 0.2
-      },
-      "River": {
-        "top1": 0.0,
-        "top5": 0.2
-      },
-      "SeaLake": {
-        "top1": 0.2,
-        "top5": 0.2
+      "46": {
+        "top1": 0.14,
+        "top5": 0.28
       }
     },
+    "n_images": 4050,
+    "n_captions": 50,
     "method": "random_rotation",
     "split": "test"
   },
   "unaligned": {
-    "n_images": 512,
+    "n_images": 4050,
     "n_captions": 50,
-    "top1": 0.16,
-    "top5": 0.36,
+    "top1": 0.1,
+    "top5": 0.34,
     "per_class": {
       "AnnualCrop": {
-        "top1": 0.4,
-        "top5": 0.4
+        "top1": 0.2,
+        "top5": 0.8
       },
       "Forest": {
         "top1": 0.0,
         "top5": 0.0
       },
       "HerbaceousVegetation": {
-        "top1": 0.6,
-        "top5": 0.8
+        "top1": 0.0,
+        "top5": 0.4
       },
       "Highway": {
         "top1": 0.0,
-        "top5": 0.0
+        "top5": 0.2
       },
       "Industrial": {
         "top1": 0.0,
-        "top5": 0.2
+        "top5": 0.0
       },
       "Pasture": {
-        "top1": 0.0,
-        "top5": 0.2
-      },
-      "PermanentCrop": {
         "top1": 0.2,
         "top5": 0.4
       },
-      "Residential": {
+      "PermanentCrop": {
         "top1": 0.0,
+        "top5": 0.0
+      },
+      "Residential": {
+        "top1": 0.2,
         "top5": 0.4
       },
       "River": {
-        "top1": 0.2,
-        "top5": 0.4
+        "top1": 0.4,
+        "top5": 0.6
       },
       "SeaLake": {
-        "top1": 0.2,
-        "top5": 0.8
+        "top1": 0.0,
+        "top5": 0.6
       }
     },
     "method": "unaligned",
     "split": "test"
   },
-  "orthogonality_error": 8.274188985524233e-06
+  "orthogonality_error": 1.1619908036664128e-05,
+  "limit": null
 }

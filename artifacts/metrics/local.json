@@ -1,6 +1,7 @@
 {
   "n": 50,
   "accuracy": 0.64,
+  "n_other_excluded": 0,
   "per_category": [
     {
       "local_category": "commercial_industrial",
@@ -36,6 +37,7 @@
       "n": 50,
       "accuracy_unambiguous": 0.8108,
       "n_unambiguous": 37,
+      "n_other_excluded": 0,
       "notes": "Upper Arlington OOD"
     },
     {
@@ -44,15 +46,26 @@
       "n": 50,
       "accuracy_unambiguous": 0.8108,
       "n_unambiguous": 37,
+      "n_other_excluded": 0,
       "notes": "Upper Arlington OOD"
     },
     {
-      "method": "majority_local",
+      "method": "majority_train",
+      "accuracy": 0.0,
+      "n": 50,
+      "accuracy_unambiguous": 0.0,
+      "n_unambiguous": 37,
+      "n_other_excluded": 0,
+      "notes": "constant 'AnnualCrop' = EuroSAT train majority (T09)"
+    },
+    {
+      "method": "oracle_majority_local",
       "accuracy": 0.62,
       "n": 50,
       "accuracy_unambiguous": 0.7838,
       "n_unambiguous": 37,
-      "notes": "Upper Arlington OOD; constant 'Residential'"
+      "n_other_excluded": 0,
+      "notes": "constant 'Residential' = most common local label (uses test labels; oracle)"
     }
   ]
 }

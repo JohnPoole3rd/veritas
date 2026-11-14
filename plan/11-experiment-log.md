@@ -17,8 +17,8 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 | R007 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Random rotation | 512 | 512 | 512 | 0.10 | 0.32 | | 512 subset; test null baseline |
 | R008 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Unaligned cosine | 512 | 512 | 512 | 0.16 | 0.36 | | 512 subset; test baseline |
 | R009 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 512 | 512 | 512 | 0.94 | 0.96 | | 512 subset; test retrieval |
-| R010 | 2026-11-14 | A | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes (image→class) | 18900 | 4050 | 4050 | 0.8121 | 0.9901 | 0.7948 | full split, J's scripts re-run on MPS; per-image (comparable with R004); random rot 0.159, unaligned 0.083; text→image top-1 0.96 (50 queries) |
-| R011 | 2026-11-14 | A | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 18900 | | 50 local | 0.64 | | | Upper Arlington OOD; 0.81 on 37 non-ambiguous; local majority 0.62 |
+| R010 | 2026-11-14 | A | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes (image→class) | 18900 | 4050 | 4050 | 0.8121 | 0.9901 | 0.7948 | full split, J's scripts re-run on MPS; per-image (comparable with R004); random rot 0.155 (mean of 5 seeds), unaligned 0.083; text→image top-1 0.96 (50 queries) |
+| R011 | 2026-11-14 | A | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 18900 | | 50 local | 0.64 | | | Upper Arlington OOD; 0.81 on 37 non-ambiguous; most-common-local-label oracle 0.62; EuroSAT majority (AnnualCrop) 0.00 |
 | R012 | 2026-11-14 | A | ResNet-18 | — | — | 18900 | | 50 local | 0.64 | | | Upper Arlington OOD; 0.81 on 37 non-ambiguous |
 
 ## 2. Data inventory
@@ -83,7 +83,7 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 |---|---:|---:|---:|---:|---|
 | Majority | 0.1111 | | 0.0200 | 4050 | R005; constant AnnualCrop |
 | ResNet-18 | 0.9817 | | 0.9812 | 4050 | R004; per-image accuracy |
-| Random rotation | 0.1590 | | 0.1559 | 4050 | R010; image→class |
+| Random rotation | 0.1551 | | 0.1392 | 4050 | R010; image→class; mean of 5 seeds |
 | Unaligned cosine | 0.0827 | | 0.0720 | 4050 | R010; image→class |
 | Procrustes | 0.8121 | 0.9901 | 0.7948 | 4050 | R010; image→class (text→image top-1 0.96 over 50 queries) |
 | CLIP | | | | | optional |
@@ -112,7 +112,7 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 | Road/highway | 10 | 0.9 | 0.8 | 9 Residential labels |
 | Park/forest/herbaceous | 10 | 0.4 | 0.3 | golf turf → Pasture (P) / Forest p≈1 (R) |
 | Water/river | 10 | 0.0 | 0.1 | P: 6/10 → Highway |
-| **Total** | **50** | **0.64** | **0.64** | local majority (Residential) 0.62; R011/R012 |
+| **Total** | **50** | **0.64** | **0.64** | oracle “always Residential” 0.62; EuroSAT majority 0.00; R011/R012 |
 
 ### Local tile detail
 

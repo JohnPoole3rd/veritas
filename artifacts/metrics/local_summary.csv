@@ -1,4 +1,5 @@
-method,accuracy,n,accuracy_unambiguous,n_unambiguous,notes
-procrustes,0.64,50,0.8108,37,Upper Arlington OOD
-resnet18,0.64,50,0.8108,37,Upper Arlington OOD
-majority_local,0.62,50,0.7838,37,Upper Arlington OOD; constant 'Residential'
+method,accuracy,n,accuracy_unambiguous,n_unambiguous,n_other_excluded,notes
+procrustes,0.64,50,0.8108,37,0,Upper Arlington OOD
+resnet18,0.64,50,0.8108,37,0,Upper Arlington OOD
+majority_train,0.0,50,0.0,37,0,constant 'AnnualCrop' = EuroSAT train majority (T09)
+oracle_majority_local,0.62,50,0.7838,37,0,constant 'Residential' = most common local label (uses test labels; oracle)

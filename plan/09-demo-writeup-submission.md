@@ -160,7 +160,7 @@ Model: DINOv2 ViT-S/14 (frozen), all-MiniLM-L6-v2 (frozen), orthogonal Procruste
 |---|---:|---:|---:|
 | Majority | 0.1111 | — | 0.0200 |
 | ResNet-18 | 0.9817 | — | 0.9812 |
-| Random rotation | 0.1590 | 0.6588 | 0.1559 |
+| Random rotation (mean of 5 seeds) | 0.1551 | 0.5958 | 0.1392 |
 | Unaligned cosine | 0.0827 | 0.5326 | 0.0720 |
 | Procrustes | 0.8121 | 0.9901 | 0.7948 |
 
@@ -169,12 +169,12 @@ Model: DINOv2 ViT-S/14 (frozen), all-MiniLM-L6-v2 (frozen), orthogonal Procruste
 | Method | Top-1 | Top-5 |
 |---|---:|---:|
 | Procrustes | 0.96 | 1.00 |
-| Random rotation | 0.18 | 0.34 |
+| Random rotation (mean of 5 seeds) | 0.152 | 0.28 |
 | Unaligned cosine | 0.10 | 0.34 |
 
 Procrustes is well above the null baselines but below supervised ResNet-18. The 50-query search numbers are not comparable with per-image ResNet accuracy.
 
-On 50 Upper Arlington tiles, Procrustes and ResNet-18 both reached 0.64 overall and 0.8108 on the 37 unambiguous tiles; local majority was 0.62.
+On 50 Upper Arlington tiles, Procrustes and ResNet-18 both reached 0.64 overall and 0.8108 on the 37 unambiguous tiles; always answering “Residential” (the most common local label, an oracle that reads the test labels) scored 0.62, and the real EuroSAT majority baseline (AnnualCrop) scored 0.00.
 
 Where it fails: water read as road, managed turf vs forest/pasture, canopy vs residential, commercial strip vs residential, crop-type confusion, uninformative confidence.
 Why: at 10 m, thin water channels and mixed suburban land cover are ambiguous; EuroSAT classes do not match Upper Arlington exactly.

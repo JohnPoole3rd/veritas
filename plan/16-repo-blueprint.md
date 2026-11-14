@@ -35,7 +35,9 @@ veritas/
       resnet18.pt
     metrics/
       retrieval.csv
-      retrieval_test_full.json
+      retrieval_test.json
+      retrieval_val.csv
+      procrustes_test_confusion.csv
       caption_classification_test.csv
       caption_classification_val.csv
       resnet18.csv
@@ -257,43 +259,7 @@ veritas/
 
 ## 4. Config
 
-`configs/default.yaml` must include:
-
-```yaml
-seed: 42
-data:
-  eurosat_root: data/raw/eurosat
-  local_tiles_root: data/raw/local_tiles
-  splits_dir: data/splits
-  captions_path: data/captions.jsonl
-  local_manifest: data/local_tiles/manifest.csv
-split:
-  train: 0.70
-  val: 0.15
-  test: 0.15
-image:
-  model_name: facebook/dinov2-small
-  input_size: 224
-  batch_size: 32
-  embedding_dim: 384
-text:
-  model_name: sentence-transformers/all-MiniLM-L6-v2
-  embedding_dim: 384
-alignment:
-  center: true
-  normalize: true
-  method: orthogonal_procrustes
-baseline:
-  resnet18_epochs: 10
-  resnet18_batch_size: 64
-  resnet18_lr: 0.001
-local:
-  city: Upper Arlington, Ohio
-  tile_count: 50
-demo:
-  top_k: 3
-  confidence_threshold: null
-```
+`configs/default.yaml`: see the canonical schema in `plan/INTERFACES.md` §2 (every key is read by code).
 
 ## 5. Requirements
 

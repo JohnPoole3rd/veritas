@@ -38,7 +38,7 @@ Numbers below use A's full-split rerun of J's scripts:
    > "ResNet-18 is the supervised baseline: 98.2% per-image accuracy. Our rotation is 81.2% on the
    > same 4,050 test images, with 99.0% top-5 and 79.5% macro-F1. That is the fair comparison.
    > Separately, when we search with each of our 50 class captions, the correct class is top-1
-   > 96% of the time (48 of 50), versus 18% for a random rotation. Those are 50 queries, not
+   > 96% of the time (48 of 50), versus about 15% for a random rotation (mean of 5 shuffles). Those are 50 queries, not
    > 4,050 images. ResNet is stronger at fixed classes, but it cannot answer a new text query
    > without retraining. Our method can."
 
@@ -53,11 +53,11 @@ Numbers below use A's full-split rerun of J's scripts:
 
 **Screen:** "Where it fails" on the Results tab (computed live; read what it actually shows).
 
-> "Ask it something abstract, like 'climate change', and it still returns tiles, with very low
-> scores and unrelated classes. It has no way to say 'I don't know.' It also mixes up permanent
+> "Ask it something abstract, like 'climate change', and it still returns tiles from unrelated
+> classes. It has no way to say 'I don't know', and its scores don't tell right from wrong. It also mixes up permanent
 > and annual crops, because the difference is the crop lifecycle, not how one image looks.
 > On 50 local Upper Arlington tiles, accuracy dropped to 64% for both Procrustes and ResNet,
-> only 2 points above the local majority of 62%. Next, we would add local labels and temporal
+> only 1 tile better than always answering 'Residential' (62%), which is the most common local label. Next, we would add local labels and temporal
 > change detection."
 
 ## Claims to avoid

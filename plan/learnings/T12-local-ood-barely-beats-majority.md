@@ -7,8 +7,10 @@
 
 ## What we learned
 
-Out of distribution, Procrustes (0.64) and ResNet-18 (0.64) are 1 tile better than the local
-majority baseline (0.62). On EuroSAT test they score 0.81 and 0.98 per image. The specific
+Out of distribution, Procrustes (0.64) and ResNet-18 (0.64) are 1 tile better than always answering
+"Residential" (0.62). That constant is an *oracle*: it is the most common local label, read from the
+test labels (code review CR, 2026-11-14). The real majority baseline, the EuroSAT train majority
+(AnnualCrop), scores 0/50. On EuroSAT test they score 0.81 and 0.98 per image. The specific
 failures are systematic, not random:
 
 - Water: the Scioto/Griggs channel → **Highway** (Procrustes 6/10). A thin linear feature at 10 m.
