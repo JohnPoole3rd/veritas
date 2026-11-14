@@ -1,5 +1,8 @@
 # Evaluation Plan
 
+**Owner:** A
+**Tasks:** T08, T09, T12, T13; reviews T07.
+
 ## 1. Research questions
 
 **RQ1.** Does a closed-form Procrustes rotation between frozen DINOv2 and MiniLM embeddings support zero-shot text-to-satellite land-cover retrieval?

@@ -316,15 +316,54 @@ def evaluate_local(manifest: pd.DataFrame, image_model, text_model, params: dict
     """Return predictions for each local tile."""
 ```
 
-## 6. Naming conventions
+## 6. Task reports
 
+Every task writes one report:
+
+```text
+results/T01.md
+results/T02.md
+...
+results/T17.md
+```
+
+Required format:
+
+```markdown
+# T06 — Procrustes
+
+Status: DONE
+Owner: J
+Branch: j/t06-procrustes
+Artifacts:
+- artifacts/alignment/procrustes.npz
+Metrics:
+- top1=0.42
+- random=0.10
+How to run: notebooks/03_alignment.ipynb
+Known issues: ViT-S only
+Next: T07
+```
+
+Rules:
+
+- One owner per report.
+- No shared message board.
+- Commit the report with the task branch.
+- J reads reports when merging.
+- Do not edit another task's report.
+
+## 7. Naming conventions
+
+- Task branches: `j/t01-scaffold`, `a/t08-resnet18`, `d/t14-gradio`.
+- Subagent branches: `j/sub-j1-t02`, `a/sub-a1-t08`, `d/sub-d1-t14`.
 - Tile IDs: `eurosat_000001`, `ua_001`.
 - Caption IDs: `{class_lower}_{template:02d}`.
 - Run IDs: `R001`, `R002`, …
 - Figures: `confusion_matrix.png`, `retrieval_examples.png`, `failure_gallery.png`.
 - No spaces in filenames.
 
-## 7. Acceptance tests
+## 8. Acceptance tests
 
 Before marking a task done:
 
@@ -336,7 +375,7 @@ Before marking a task done:
 - [ ] Result is logged in `11-experiment-log.md`.
 - [ ] No test leakage.
 
-## 8. Error handling
+## 9. Error handling
 
 - If a file is missing, fail with a clear message naming the path.
 - If shapes mismatch, print both shapes.
@@ -344,7 +383,7 @@ Before marking a task done:
 - If retrieval is at chance, check centering and normalization before changing models.
 - If the local manifest has missing coordinates, reject the row.
 
-## 9. Versioning
+## 10. Versioning
 
 - Pin model names exactly.
 - Record library versions in `requirements.txt`.

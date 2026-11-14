@@ -1,187 +1,248 @@
-# 48-Hour Runbook — Platonic Earth
+# Phase Runbook — J / A / D
 
-**Start:** Saturday, November 14, 2026, 12:00 AM ET.
-**Deadline:** Sunday, November 15, 2026, 11:59 PM ET.
-**Project:** Platonic Earth, Upper Arlington, Ohio.
-**Rule:** submit a complete first version at T+45.
+**Project:** Platonic Earth, Upper Arlington, Ohio
+**Deadline:** Sunday, November 15, 2026, 11:59 PM ET
+**Working method:** plain Git, normal task branches, no message board.
+**Start:** when the human gives the signal.
 
-Use `T+0` to `T+48` so the plan works in any timezone.
+There are no clock-based gates. Work moves by phase and by artifact readiness.
 
-## 1. Decision gates
+## Roles
 
-| Gate | When | Question | If no |
-|---|---|---|---|
-| G0 | T+0:30 | Track and project locked? | Default: AI + Climate, Platonic Earth |
-| G1 | T+2:00 | Does EuroSAT load? | Use HF mirror; switch after 30 min |
-| G2 | T+6:00 | Do embeddings extract? | Use 5k subset or CPU |
-| G3 | T+10:00 | Does Procrustes beat random rotation? | Keep classifier demo; alignment as ablation |
-| G4 | T+16:00 | Is the ResNet-18 baseline done? | Use logistic regression or majority only |
-| G5 | T+24:00 | Are 50 Upper Arlington tiles collected? | Use 20–30 tiles; report N |
-| G6 | T+30:00 | Does the Gradio demo run end-to-end? | Cut stretch features |
-| G7 | T+42:00 | Is the write-up done? | Stop coding; write |
-| G8 | T+45:00 | Is the video recorded? | Skip video; submit code + write-up |
-| G9 | T+47:00 | Is the submission complete? | Submit what works |
+| Agent | Role | Tasks |
+|---|---|---|
+| **J** | Integrator + data/alignment lead | T01–T07, integration, submission |
+| **A** | Baselines + local validation lead | T08–T13 |
+| **D** | Demo + documentation lead | T14–T17 |
 
-## 2. Team roles
+J merges to `main`. A and D push task branches. J reviews and merges at phase boundaries.
 
-### 1-person team
+## Subagents
 
-- Data + embeddings first.
-- Procrustes + evaluation second.
-- Local tiles third.
-- Simplest Gradio app.
-- Write-up while final metrics run.
-- Cut all stretch goals.
+Each primary agent can create two active subagents:
 
-### 2-person team
+```text
+J1, J2
+A1, A2
+D1, D2
+```
 
-- **Agent A:** data, embeddings, Procrustes.
-- **Agent B:** ResNet-18, local tiles, Gradio.
-- Both: write-up, video, failure analysis.
+Rules:
 
-### 3-person team
+- One level deep. Subagents cannot create subagents.
+- Maximum 2 active per primary.
+- Each subagent gets one bounded task and one file scope.
+- Subagent branch: `j/sub-j1-t02`, `a/sub-a1-t08`, `d/sub-d1-t14`.
+- Subagent cannot merge to `main`.
+- Parent writes the `results/Txx.md` report.
 
-- **Agent A:** data, embeddings, Procrustes, retrieval eval.
-- **Agent B:** baselines, local tiles, metrics, figures.
-- **Agent C:** Gradio, visuals, write-up, video.
-- All: review results and claims.
+## Phase 0 — Setup
 
-## 3. Hour-by-hour plan
+### J
 
-### T+0 to T+2 — Setup and data gate
+- [ ] T01: repo scaffold, `configs/default.yaml`, `requirements.txt`, `.gitignore`.
+- [ ] Post `results/T01.md`.
+- [ ] Start T02 EuroSAT loader.
 
-- [ ] Create shared Colab/GitHub.
-- [ ] Confirm track: AI + Climate.
-- [ ] Confirm test site: Upper Arlington.
-- [ ] Assign roles in `TASKS.md`.
-- [ ] Load EuroSAT via torchvision.
-- [ ] Print class counts, image sizes, sample tiles.
-- [ ] Create stratified train/val/test split.
-- [ ] Save split JSON.
-- [ ] Open Copernicus Browser and locate Upper Arlington.
+### A
 
-**Deliverable:** `01_data.ipynb` with visible outputs.
+- [ ] Read plan docs.
+- [ ] Start T10: collect 50 Upper Arlington tiles.
+- [ ] Prepare T08 ResNet-18 script against the expected split format.
+- [ ] Post `results/T10.md` when collection is done.
 
-**If blocked:** HF mirror or TFDS. If still blocked after 30 min, switch dataset or project.
+### D
 
-### T+2 to T+6 — Embeddings
+- [ ] Read plan docs.
+- [ ] Build mock Gradio shell with placeholder tiles and scores.
+- [ ] Write the two-minute demo script.
+- [ ] Start `results/T14.md` with status `IN PROGRESS`; do not mark T14 done until real data is wired.
 
-- [ ] Load DINOv2 ViT-S/14.
-- [ ] Extract CLS embeddings for a 5k subset.
-- [ ] Load MiniLM.
-- [ ] Encode 5 captions per class.
-- [ ] Check shapes and norms.
-- [ ] Save embeddings to `artifacts/embeddings/`.
+**Phase exit:** J has scaffold and EuroSAT loading; A has tiles underway; D has a clickable mock UI.
 
-**Deliverable:** cached embeddings + sanity check.
+## Phase 1 — Data foundation
 
-**If blocked:** CPU on 2k tiles.
+### J
 
-### T+6 to T+10 — Alignment sanity
+- [ ] T02: EuroSAT splits.
+- [ ] T03: caption templates.
+- [ ] Post `results/T02.md`, `results/T03.md`.
 
-- [ ] Center embeddings.
-- [ ] Fit Procrustes.
-- [ ] Evaluate top-1 on validation.
-- [ ] Compare with random rotation.
-- [ ] Compare with unaligned cosine.
-- [ ] Inspect 5 retrieved tiles visually.
+### A
 
-**Deliverable:** first table.
+- [ ] T10: finish tile collection.
+- [ ] T11: label and QA 50 tiles.
+- [ ] T08: prepare ResNet-18, wait for T02 if needed.
+- [ ] Post `results/T10.md`, `results/T11.md`.
 
-**Decision:** if at chance, debug centering/normalization/caption mapping. If still at chance, keep classifier demo and present alignment as a negative result.
+### D
 
-### T+10 to T+16 — Full run and ResNet-18
+- [ ] Refine mock UI.
+- [ ] Prepare example queries and screenshot placeholders.
+- [ ] Keep `results/T14.md` current.
 
-- [ ] Run all 27k tiles if time allows.
-- [ ] Train ResNet-18.
-- [ ] Evaluate ResNet-18 on test.
-- [ ] Evaluate majority baseline.
-- [ ] Save metrics CSV.
-- [ ] Save confusion matrix.
+**Phase exit:** splits and captions exist; local tiles are collected; mock UI is ready for real data.
 
-**Deliverable:** main results table.
+## Phase 2 — Embeddings and alignment
 
-### T+16 to T+24 — Upper Arlington tiles
+### J
 
-- [ ] Use `14-upper-arlington-data-collection.md`.
-- [ ] Download 50 Sentinel-2 tiles.
-- [ ] Clip to city boundary.
-- [ ] Label 10 per category.
-- [ ] QA 10 tiles with a second person.
-- [ ] Save manifest.
-- [ ] Run Procrustes and ResNet on local tiles.
+- [ ] T04: DINOv2 embeddings.
+- [ ] T05: MiniLM caption embeddings.
+- [ ] T06: Procrustes fit and save `W`, `mu_x`, `mu_y`.
+- [ ] Post `results/T04.md`, `results/T05.md`, `results/T06.md`.
 
-**Deliverable:** local tile manifest + local results.
+### A
 
-### T+24 to T+30 — Demo
+- [ ] T08: ResNet-18 baseline.
+- [ ] T09: majority baseline.
+- [ ] Post `results/T08.md`, `results/T09.md`.
 
-- [ ] Build Gradio app:
-  - text box,
-  - top-3 image grid,
-  - image upload,
-  - label output,
-  - baseline comparison,
-  - failure note.
-- [ ] Add example query buttons.
-- [ ] Add prototype disclaimer.
-- [ ] Test with 3 queries and 2 uploads.
+### D
 
-**Deliverable:** demo runs end-to-end.
+- [ ] Prepare assets.
+- [ ] Do not block J.
+- [ ] Update mock UI with the final layout.
 
-### T+30 to T+36 — Failure analysis and figures
+**Phase exit:** Procrustes beats random rotation on validation; A’s baselines run; D’s UI is ready to wire.
 
-- [ ] Pick one clear failure.
-- [ ] Explain why it fails.
-- [ ] Build confusion matrix figure.
-- [ ] Build 3–5 example gallery.
-- [ ] Save figures.
-- [ ] Update experiment log.
+## Phase 3 — Retrieval and local validation
 
-**Deliverable:** failure table + figures.
+### J
 
-### T+36 to T+42 — Write-up
+- [ ] T07: retrieval evaluation + random baseline.
+- [ ] Save metrics and confusion matrix.
+- [ ] Post `results/T07.md`.
 
-- [ ] Fill the brief’s template.
-- [ ] Problem, user, input/output.
-- [ ] Data and model.
-- [ ] Results table.
-- [ ] Failure case.
-- [ ] What we added.
-- [ ] Next steps.
-- [ ] Sources and credits.
-- [ ] One page.
+### A
 
-**Deliverable:** write-up link opens in incognito.
+- [ ] T12: local out-of-distribution evaluation.
+- [ ] T13: failure taxonomy and figures.
+- [ ] Post `results/T12.md`, `results/T13.md`.
 
-### T+42 to T+45 — Video
+### D
 
-- [ ] Record 2 minutes.
-- [ ] Problem: 15 seconds.
-- [ ] Demo: 60 seconds.
-- [ ] How it works: 30 seconds.
-- [ ] Next steps: 15 seconds.
-- [ ] Upload unlisted.
-- [ ] Check link.
+- [ ] T14: wire real artifacts into Gradio.
+- [ ] Add baseline comparison and failure example.
+- [ ] Post `results/T14.md`.
 
-**Deliverable:** video link.
+**Phase exit:** retrieval metrics exist; local N=50 metrics exist; failure example selected; demo uses real data.
 
-### T+45 to T+47 — Submission
+## Phase 4 — Integration and demo
 
-- [ ] Code link opens.
-- [ ] Write-up link opens.
-- [ ] Video link opens.
-- [ ] Team details correct.
-- [ ] Track = AI + Climate.
-- [ ] Credits complete.
+### J
+
+- [ ] Merge J, A, and D branches.
+- [ ] Run final evaluation on `main`.
+- [ ] Update `plan/TASKS.md`.
+- [ ] Check for leakage and split consistency.
+
+### A
+
+- [ ] Finish metrics and figures.
+- [ ] Review claims against logged runs.
+
+### D
+
+- [ ] Polish demo.
+- [ ] Start T15 write-up.
+- [ ] Prepare screenshots.
+
+**Phase exit:** `main` contains working code; final metrics are stable; demo runs end-to-end; write-up draft exists.
+
+## Phase 5 — Write-up and video
+
+### J
+
+- [ ] Review results and claims.
+- [ ] Final integration fixes.
+- [ ] Prepare submission links.
+
+### A
+
+- [ ] Review metrics and failure examples.
+- [ ] Confirm local sample size and labels.
+
+### D
+
+- [ ] T15: one-page write-up.
+- [ ] T16: two-minute video.
+- [ ] Post `results/T15.md`, `results/T16.md`.
+
+**Phase exit:** write-up complete; video recorded; links open in incognito.
+
+## Phase 6 — Submission
+
+### J
+
+- [ ] T17: submission checklist.
+- [ ] Confirm code, write-up, video, team details, credits.
 - [ ] Submit.
 
-### T+47 to T+48 — Buffer
+### A
 
-- [ ] Fix links.
-- [ ] Resubmit if needed.
-- [ ] No new features.
+- [ ] Stand by for metric questions.
 
-## 4. Scope cuts
+### D
+
+- [ ] Stand by for link or video questions.
+
+**Phase exit:** submission complete.
+
+## Git rules
+
+- One `main`.
+- Normal task branches only:
+  - `j/t01-scaffold`
+  - `a/t08-resnet18`
+  - `d/t14-gradio`
+- No message board.
+- No board branch.
+- No orphan branch.
+- No GitHub CLI.
+- J merges with plain `git merge --no-ff`.
+- A and D never push to `main`.
+
+## Handoff rules
+
+Each task writes one report:
+
+```text
+results/T01.md
+results/T02.md
+...
+results/T17.md
+```
+
+Format:
+
+```markdown
+# T06 — Procrustes
+
+Status: DONE
+Owner: J
+Branch: j/t06-procrustes
+Artifacts:
+- artifacts/alignment/procrustes.npz
+Metrics:
+- top1=0.42
+- random=0.10
+How to run: notebooks/03_alignment.ipynb
+Known issues: ViT-S only
+Next: T07
+```
+
+This is a task report, not a message board.
+
+At phase start, each agent reads:
+
+```sh
+git fetch --all
+git log --all --oneline --decorate -20
+git show origin/main:plan/TASKS.md
+```
+
+## Scope cuts
 
 Cut in this order:
 
@@ -191,7 +252,7 @@ Cut in this order:
 4. Failure gallery.
 5. Video.
 6. ViT-B comparison.
-7. Local tile count from 50 to 30.
+7. Local tiles from 50 to 30.
 
 Never cut:
 
@@ -204,7 +265,7 @@ Never cut:
 7. Write-up and credits.
 8. Link check.
 
-## 5. Do-not-do list
+## Do-not-do list
 
 - Do not train a multimodal model.
 - Do not add audio.
@@ -215,18 +276,5 @@ Never cut:
 - Do not tune on test.
 - Do not compare methods on different splits.
 - Do not hide weak results.
-- Do not spend >30 min on a download.
-- Do not start a new idea after T+12.
-
-## 6. Sync questions
-
-At T+12 and T+24:
-
-1. What works now?
-2. What is blocked?
-3. What is the next smallest deliverable?
-4. What will we cut if behind?
-
-## 7. Submission buffer
-
-The brief allows resubmission. Submit at T+45. Improve only if time remains.
+- Do not spend more than 30 minutes on a data download.
+- Do not start a new idea after Phase 1.

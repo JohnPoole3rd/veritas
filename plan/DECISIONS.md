@@ -28,7 +28,13 @@ Status: **Accepted**. Revisit only with a human decision.
 | D022 | Test split | 15% held out | Never fit or tune on it. |
 | D023 | Local split | Separate OOD case study | Never used for fitting. |
 | D024 | Submission | Code link + one-page write-up; video optional | Brief requirements. |
-| D025 | Deadline buffer | Submit first complete version at T+45 | Avoid last-minute link failures. |
+| D025 | Deadline buffer | Submit a complete version before the final hour | Avoid last-minute link failures. |
+| D026 | Integrator | **J** | J merges to `main` and runs final evaluation. |
+| D027 | Baselines/local lead | **A** | A owns ResNet-18, majority, Upper Arlington tiles, local eval. |
+| D028 | Demo/docs lead | **D** | D owns Gradio, write-up, video. |
+| D029 | Subagents | **J1/J2, A1/A2, D1/D2** | Max 2 active per primary; one level deep; one file scope. |
+| D030 | Message board | **Not used** | Handoffs use per-task `results/Txx.md` and commit messages. |
+| D031 | Git model | **Plain Git feature branches; J merges** | No GitHub CLI, no board branch, no orphan branch. |
 
 ## Canonical values
 
@@ -36,6 +42,11 @@ Status: **Accepted**. Revisit only with a human decision.
 track: AI + Climate
 project: Platonic Earth
 test_site: Upper Arlington, Ohio, USA
+team:
+  integrator: J
+  baselines_local: A
+  demo_docs: D
+  subagents: [J1, J2, A1, A2, D1, D2]
 city_center:
   lat: 40.02056
   lon: -83.06639
@@ -66,12 +77,13 @@ demo: gradio
 
 Revisit a decision only if:
 
-- **D006/D007:** EuroSAT or local tiles cannot be loaded by T+4.
+- **D006/D007:** EuroSAT or local tiles cannot be loaded in Phase 1.
 - **D009:** DINOv2 ViT-S is too weak; try ViT-B.
 - **D011:** Procrustes is at chance after centering/normalization checks.
 - **D012:** ResNet-18 cannot train in time; use logistic regression or majority only.
 - **D017:** Gradio is blocked; use Streamlit.
 - **D024:** Video is optional; cut it before cutting the write-up.
+- **D029:** Subagents collide; reduce to one active subagent per primary.
 
 ## Archived alternatives
 

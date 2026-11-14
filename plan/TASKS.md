@@ -1,165 +1,168 @@
-# TASKS.md — Task Board
+# TASKS.md — J / A / D Task Board
 
 Status values: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`.
-Owner values: `Agent A`, `Agent B`, `Agent C`, `Human`, or a name.
+Owner values: `J`, `A`, `D`, `J1`, `J2`, `A1`, `A2`, `D1`, `D2`, `Human`.
+
+**J is the only agent who merges to `main` and pushes `main`.**
 
 ## Critical path
 
 ```text
-T01 → T02 → T04 → T06 → T07 → T10 → T12 → T14 → T15 → T17
+T01 → T02 → T04 → T06 → T07 → T12 → T14 → T15 → T17
         └→ T03 → T05 ┘
         └→ T08 → T09 ┘
+T10 → T11 → T12
 ```
 
 Do not start a downstream task until the upstream artifact exists.
 
 ## Task table
 
-| ID | Task | Owner | Status | Depends on | Output |
-|---|---|---|---|---|---|
-| T01 | Repo scaffold and config | Agent A | TODO | — | `configs/default.yaml`, `src/`, `requirements.txt` |
-| T02 | EuroSAT loader and splits | Agent A | TODO | T01 | `data/splits/*.json` |
-| T03 | Caption templates | Agent A | TODO | T01 | `data/captions.jsonl` |
-| T04 | DINOv2 embedding extraction | Agent A | TODO | T02 | `artifacts/embeddings/dinov2_*.npy` |
-| T05 | MiniLM caption embeddings | Agent A | TODO | T03 | `artifacts/embeddings/minilm_captions.npy` |
-| T06 | Procrustes fit and save | Agent A | TODO | T04, T05 | `artifacts/alignment/procrustes.npz` |
-| T07 | Retrieval evaluation + random baseline | Agent B | TODO | T06 | `artifacts/metrics/retrieval.csv` |
-| T08 | ResNet-18 baseline | Agent B | TODO | T02 | `artifacts/metrics/resnet18.csv` |
-| T09 | Majority baseline | Agent B | TODO | T02 | `artifacts/metrics/majority.csv` |
-| T10 | Upper Arlington tile collection | Agent C | TODO | T01 | `data/raw/local_tiles/` |
-| T11 | Local tile labeling + QA | Agent C | TODO | T10 | `data/local_tiles/manifest.csv` |
-| T12 | Local OOD evaluation | Agent B | TODO | T11, T06 | `artifacts/metrics/local.csv` |
-| T13 | Failure taxonomy + figures | Agent B | TODO | T07, T12 | `artifacts/figures/`, failure table |
-| T14 | Gradio demo | Agent C | TODO | T06, T07 | `app.py` |
-| T15 | Write-up | Human + Agent C | TODO | T07, T12, T13 | one-page write-up |
-| T16 | Demo video | Human | TODO | T14, T15 | unlisted video link |
-| T17 | Submission checklist | Human | TODO | T15, T16 | submitted form |
-| T18 | Final agent review | Human | TODO | T17 | final check |
+| ID | Task | Owner | Subagent of | Status | Depends on | Output |
+|---|---|---|---|---|---|---|
+| T01 | Repo scaffold and config | J | — | TODO | — | `configs/default.yaml`, `src/`, `requirements.txt`, `results/T01.md` |
+| T02 | EuroSAT loader and splits | J1 | J | TODO | T01 | `data/splits/*.json`, `results/T02.md` |
+| T03 | Caption templates | J | — | TODO | T01 | `data/captions.jsonl`, `results/T03.md` |
+| T04 | DINOv2 embedding extraction | J2 | J | TODO | T02 | `artifacts/embeddings/dinov2_*.npy`, `results/T04.md` |
+| T05 | MiniLM caption embeddings | J2 | J | TODO | T03 | `artifacts/embeddings/minilm_captions.npy`, `results/T05.md` |
+| T06 | Procrustes fit and save | J | — | TODO | T04, T05 | `artifacts/alignment/procrustes.npz`, `results/T06.md` |
+| T07 | Retrieval evaluation + random baseline | J | — | TODO | T06 | `artifacts/metrics/retrieval.csv`, `results/T07.md` |
+| T08 | ResNet-18 baseline | A1 | A | TODO | T02 | `artifacts/metrics/resnet18.csv`, `results/T08.md` |
+| T09 | Majority baseline | A | — | TODO | T02 | `artifacts/metrics/majority.csv`, `results/T09.md` |
+| T10 | Upper Arlington tile collection | A2 | A | TODO | T01 | `data/raw/local_tiles/`, `results/T10.md` |
+| T11 | Local tile labeling + QA | A | — | TODO | T10 | `data/local_tiles/manifest.csv`, `results/T11.md` |
+| T12 | Local OOD evaluation | A | — | TODO | T11, T06 | `artifacts/metrics/local.csv`, `results/T12.md` |
+| T13 | Failure taxonomy + figures | A | — | TODO | T07, T12 | `artifacts/figures/`, failure table, `results/T13.md` |
+| T14 | Gradio demo | D1 | D | TODO | T06, T07 | `app.py`, `results/T14.md` |
+| T15 | Write-up | D | — | TODO | T07, T12, T13 | one-page write-up, `results/T15.md` |
+| T16 | Demo video | D2 | D | TODO | T14, T15 | unlisted video link, `results/T16.md` |
+| T17 | Submission checklist | J | — | TODO | T15, T16 | submitted form, `results/T17.md` |
+| T18 | Final review | J + Human | — | TODO | T17 | final check, `results/T18.md` |
 
 ## Task details
 
 ### T01 — Repo scaffold and config
 
+**Owner:** J
 **Inputs:** plan docs.
-**Outputs:**
-
-- `configs/default.yaml`
-- `src/` modules
-- `requirements.txt`
-- `.gitignore`
-- `README.md` for the implementation repo
+**Outputs:** `configs/default.yaml`, `src/`, `requirements.txt`, `.gitignore`, implementation `README.md`, `results/T01.md`.
 
 **Acceptance:**
 
 - `python -c "import src"` works.
 - Config has paths, model names, seed, split ratios.
 - No absolute paths.
-- `.gitignore` excludes `data/` and `artifacts/embeddings/`.
+- `.gitignore` excludes `data/` and large artifacts.
 
 ### T02 — EuroSAT loader and splits
 
+**Owner:** J1 (subagent of J)
 **Inputs:** `configs/default.yaml`.
-**Outputs:**
-
-- `data/splits/train.json`
-- `data/splits/val.json`
-- `data/splits/test.json`
-- class count report
+**Outputs:** `data/splits/train.json`, `val.json`, `test.json`; class count report; `results/T02.md`.
 
 **Acceptance:**
 
 - 27k tiles loaded.
 - Class counts printed.
-- Split is stratified and seeded.
+- Split stratified and seeded.
 - No duplicate tile IDs across splits.
 - Test split untouched.
 
-**Gate:** if this takes more than 30 minutes, use the Hugging Face mirror or switch dataset.
+**Gate:** if loading fails, use the HF mirror. If still blocked, switch dataset.
 
 ### T03 — Caption templates
 
+**Owner:** J
 **Inputs:** EuroSAT classes.
-**Outputs:** `data/captions.jsonl` with 5–10 captions per class.
+**Outputs:** `data/captions.jsonl`, `results/T03.md`.
+
 **Acceptance:**
 
 - Every class has at least 5 captions.
 - Captions are class-consistent.
-- No caption mentions a class it does not belong to.
+- No caption mentions another class.
 
 ### T04 — DINOv2 embeddings
 
+**Owner:** J2 (subagent of J)
 **Inputs:** EuroSAT splits, DINOv2 model.
-**Outputs:**
-
-- `artifacts/embeddings/dinov2_train.npy`
-- `artifacts/embeddings/dinov2_val.npy`
-- `artifacts/embeddings/dinov2_test.npy`
-- `artifacts/embeddings/dinov2_meta.json`
+**Outputs:** `artifacts/embeddings/dinov2_{split}.npy`, `dinov2_meta.json`, `results/T04.md`.
 
 **Acceptance:**
 
-- Shapes: `(N, 384)`.
+- Shapes `(N, 384)`.
 - No NaNs.
-- Norms are finite.
 - Same order as split IDs.
-- Saved model name and input size.
+- Model name and input size saved.
 
 ### T05 — MiniLM caption embeddings
 
+**Owner:** J2 (subagent of J)
 **Inputs:** `data/captions.jsonl`.
-**Outputs:** `artifacts/embeddings/minilm_captions.npy`, `minilm_caption_index.json`.
+**Outputs:** `artifacts/embeddings/minilm_captions.npy`, `minilm_caption_index.json`, `results/T05.md`.
+
 **Acceptance:**
 
-- Shape: `(num_captions, 384)`.
-- Caption order matches index.
+- Shape `(num_captions, 384)`.
+- Order matches index.
 - No NaNs.
 
 ### T06 — Procrustes fit
 
+**Owner:** J
 **Inputs:** T04, T05.
-**Outputs:** `artifacts/alignment/procrustes.npz` with `W`, `mu_x`, `mu_y`, config.
+**Outputs:** `artifacts/alignment/procrustes.npz` with `W`, `mu_x`, `mu_y`, config; `results/T06.md`.
+
 **Acceptance:**
 
 - `W.shape == (384, 384)`.
-- `W.T @ W` is close to identity.
-- Train retrieval top-1 beats random rotation.
-- Artifact loads and reproduces the score.
+- `W.T @ W` close to identity.
+- Validation top-1 beats random rotation.
+- Artifact reload reproduces the score.
 
 ### T07 — Retrieval evaluation
 
+**Owner:** J
 **Inputs:** T06, test split.
-**Outputs:** `artifacts/metrics/retrieval.csv`, confusion matrix.
+**Outputs:** `artifacts/metrics/retrieval.csv`, confusion matrix, `results/T07.md`.
+
 **Acceptance:**
 
-- Top-1 and top-5 for Procrustes, random rotation, unaligned cosine.
+- Top-1/top-5 for Procrustes, random rotation, unaligned cosine.
 - Per-class table.
 - Test N reported.
 - No tuning on test.
 
 ### T08 — ResNet-18 baseline
 
+**Owner:** A1 (subagent of A)
 **Inputs:** EuroSAT splits.
-**Outputs:** `artifacts/metrics/resnet18.csv`, model checkpoint.
+**Outputs:** `artifacts/metrics/resnet18.csv`, checkpoint, `results/T08.md`.
+
 **Acceptance:**
 
-- Trained only on train, validated on val.
-- Test accuracy and macro-F1 reported.
+- Trained on train, validated on val.
+- Test accuracy and macro-F1.
 - Confusion matrix saved.
 - Training config logged.
 
 ### T09 — Majority baseline
 
+**Owner:** A
 **Inputs:** train labels, test labels.
-**Outputs:** `artifacts/metrics/majority.csv`.
+**Outputs:** `artifacts/metrics/majority.csv`, `results/T09.md`.
+
 **Acceptance:**
 
-- Accuracy and macro-F1 reported.
+- Accuracy and macro-F1.
 - Most common class stated.
 
 ### T10 — Upper Arlington tile collection
 
+**Owner:** A2 (subagent of A)
 **Inputs:** `14-upper-arlington-data-collection.md`.
-**Outputs:** raw tiles in `data/raw/local_tiles/`.
+**Outputs:** raw tiles in `data/raw/local_tiles/`, `results/T10.md`.
+
 **Acceptance:**
 
 - 50 tiles, cloud-free, clipped to city boundary.
@@ -169,20 +172,24 @@ Do not start a downstream task until the upstream artifact exists.
 
 ### T11 — Local tile labeling
 
+**Owner:** A
 **Inputs:** T10.
-**Outputs:** `data/local_tiles/manifest.csv`.
+**Outputs:** `data/local_tiles/manifest.csv`, `results/T11.md`.
+
 **Acceptance:**
 
 - 10 tiles per category.
 - Label rubric followed.
-- `other` used when necessary.
+- `Other` used when necessary.
 - Second-person QA on 10 tiles.
 - Disagreements noted.
 
 ### T12 — Local OOD evaluation
 
+**Owner:** A
 **Inputs:** T06, T11.
-**Outputs:** `artifacts/metrics/local.csv`, example images.
+**Outputs:** `artifacts/metrics/local.csv`, example images, `results/T12.md`.
+
 **Acceptance:**
 
 - Procrustes and ResNet predictions on all 50.
@@ -192,18 +199,22 @@ Do not start a downstream task until the upstream artifact exists.
 
 ### T13 — Failure taxonomy
 
+**Owner:** A
 **Inputs:** T07, T12.
-**Outputs:** failure table, confusion matrix figure, 3–5 example images.
+**Outputs:** failure table, confusion matrix figure, 3–5 example images, `results/T13.md`.
+
 **Acceptance:**
 
 - At least 3 failure types.
-- Each has an example and a likely cause.
-- One failure is shown in the demo.
+- Each has an example and likely cause.
+- One failure shown in the demo.
 
 ### T14 — Gradio demo
 
+**Owner:** D1 (subagent of D)
 **Inputs:** T06, T07.
-**Outputs:** `app.py`.
+**Outputs:** `app.py`, `results/T14.md`.
+
 **Acceptance:**
 
 - Text query returns top-3 tiles.
@@ -212,12 +223,14 @@ Do not start a downstream task until the upstream artifact exists.
 - One failure example.
 - Prototype disclaimer.
 - Loads without internet.
-- Runs in under 2 minutes.
+- Runs under two minutes.
 
 ### T15 — Write-up
 
+**Owner:** D
 **Inputs:** all metrics.
-**Outputs:** one-page document.
+**Outputs:** one-page document, `results/T15.md`.
+
 **Acceptance:**
 
 - Brief template filled.
@@ -230,8 +243,10 @@ Do not start a downstream task until the upstream artifact exists.
 
 ### T16 — Demo video
 
+**Owner:** D2 (subagent of D)
 **Inputs:** T14, T15.
-**Outputs:** unlisted video link, ≤2 minutes.
+**Outputs:** unlisted video link, `results/T16.md`.
+
 **Acceptance:**
 
 - Problem, demo, how it works, next steps.
@@ -240,8 +255,10 @@ Do not start a downstream task until the upstream artifact exists.
 
 ### T17 — Submission
 
+**Owner:** J
 **Inputs:** T15, T16.
-**Outputs:** submitted form.
+**Outputs:** submitted form, `results/T17.md`.
+
 **Acceptance:**
 
 - Code link opens.
@@ -251,15 +268,41 @@ Do not start a downstream task until the upstream artifact exists.
 - Credits complete.
 - Track = AI + Climate.
 
+### T18 — Final review
+
+**Owner:** J + Human
+**Inputs:** T17.
+**Outputs:** `results/T18.md`.
+
+**Acceptance:**
+
+- Links checked in incognito.
+- Metrics match logged runs.
+- No leakage.
+- Submission complete.
+
+## Subagent rules
+
+- Maximum 2 active per primary: J1/J2, A1/A2, D1/D2.
+- One level deep. Subagents cannot create subagents.
+- Subagent branch: `j/sub-j1-t02`, `a/sub-a1-t08`, etc.
+- Subagent cannot merge to `main`.
+- Parent writes the `results/Txx.md` report.
+- No two subagents edit the same file.
+- If blocked for more than 30 minutes, parent stops and reassigns.
+
 ## Handoff notes
 
-Add a short note under the task when changing status:
+Each task report uses this format:
 
 ```text
 Task: T__
 Status:
+Owner:
+Branch:
 What works:
 Artifacts:
+Metrics:
 How to run:
 Known issues:
 Next task:

@@ -1,4 +1,4 @@
-# Platonic Earth — Agent-Ready Plan
+# Platonic Earth — J / A / D Plan
 
 **Status:** Planning complete. Implementation not started.
 **Location:** `/home/john/veritas/plan`
@@ -7,23 +7,56 @@
 **Test site:** Upper Arlington, Ohio, USA
 **Deadline:** Sunday, November 15, 2026, 11:59 PM ET
 
+## Team
+
+| Agent | Role | Tasks |
+|---|---|---|
+| **J** | Integrator + data/alignment lead | T01–T07 |
+| **A** | Baselines + local validation lead | T08–T13 |
+| **D** | Demo + documentation lead | T14–T17 |
+
+**J is the only agent who merges to `main` and pushes `main`.**
+
+J, A, and D can each create subagents to improve speed:
+
+```text
+J1, J2
+A1, A2
+D1, D2
+```
+
+Subagent rules are in [`AGENTS.md`](AGENTS.md) and [`15-agent-work-plan.md`](15-agent-work-plan.md).
+
+## Working method
+
+- **Plain Git only.**
+- One `main` branch.
+- Normal task branches:
+  - `j/t01-scaffold`
+  - `a/t08-resnet18`
+  - `d/t14-gradio`
+- No message board.
+- No board branch.
+- No orphan branch.
+- No GitHub CLI.
+- Handoff through per-task reports in `results/Txx.md` and commit messages.
+- J merges at phase boundaries.
+
 ## The project
 
 > Align frozen satellite-image embeddings (DINOv2) with frozen text embeddings (MiniLM) using a closed-form Procrustes rotation, then let Upper Arlington sustainability/urban-forestry staff search Sentinel-2 tiles in plain language. Compare against majority class, ResNet-18, and a random rotation.
 
 ## Why Upper Arlington
 
-Upper Arlington is a 9.8-square-mile inner-ring suburb of Columbus, Ohio:
-
 - City center: **40.02056° N, 83.06639° W**
-- Bordered west by the **Scioto River**, north/east by Columbus, south by Marble Cliff and Grandview Heights.
-- **34.2% tree canopy**, with about **33% of land** identified as possible additional tree canopy.
-- **21 parks**, about **186 acres**.
-- **Tree City USA** since 1990.
-- The city is preparing an **Urban Forestry Plan** and updating its Master Plan and Parks & Recreation Plan in 2026.
-- Sustainability agenda includes zero waste, zero pollution, and zero emissions by 2050.
-
-That gives the project a concrete user, a real decision, and a local test set.
+- About **9.83 sq mi**
+- Bordered west by the **Scioto River**, north/east by Columbus, south by Marble Cliff and Grandview Heights
+- **34.2% tree canopy**
+- About **33% possible additional canopy**
+- **21 parks**, about **186 acres**
+- **Tree City USA** since 1990
+- 2026 **Urban Forestry Plan** and Master Plan/Parks & Recreation Plan updates
+- Sustainability agenda includes zero waste, zero pollution, and zero emissions by 2050
 
 ## Canonical settings
 
@@ -32,9 +65,9 @@ That gives the project a concrete user, a real decision, and a local test set.
 | Track | AI + Climate |
 | Project | Platonic Earth |
 | Test site | Upper Arlington, Ohio |
-| Image encoder | DINOv2 ViT-S/14, frozen (ViT-B/14 optional) |
+| Image encoder | DINOv2 ViT-S/14, frozen |
 | Text encoder | `sentence-transformers/all-MiniLM-L6-v2`, frozen |
-| Alignment | Orthogonal Procrustes (square 384→384) |
+| Alignment | Orthogonal Procrustes (384→384) |
 | Training data | EuroSAT RGB |
 | Local data | 50 Sentinel-2 tiles clipped to Upper Arlington |
 | Local categories | residential, commercial/industrial, road/highway, park/forest/herbaceous, water/river |
@@ -46,73 +79,53 @@ That gives the project a concrete user, a real decision, and a local test set.
 
 ## Read this first
 
-Any agent starting work should read, in order:
-
-1. [`AGENTS.md`](AGENTS.md) — working rules and handoff protocol.
-2. [`DECISIONS.md`](DECISIONS.md) — locked decisions and revisit conditions.
+1. [`AGENTS.md`](AGENTS.md) — J/A/D roles, subagent rules, Git rules.
+2. [`DECISIONS.md`](DECISIONS.md) — locked decisions.
 3. [`TASKS.md`](TASKS.md) — task board and acceptance criteria.
-4. [`INTERFACES.md`](INTERFACES.md) — file formats, function signatures, artifacts.
+4. [`INTERFACES.md`](INTERFACES.md) — data, artifacts, function contracts.
 5. [`03-platonic-earth-spec.md`](03-platonic-earth-spec.md) — full product spec.
 6. [`05-data-plan.md`](05-data-plan.md) — EuroSAT and Upper Arlington tiles.
 7. [`06-alignment-and-model-plan.md`](06-alignment-and-model-plan.md) — PRH and Procrustes.
 8. [`07-evaluation-plan.md`](07-evaluation-plan.md) — baselines and metrics.
-9. [`08-48-hour-runbook.md`](08-48-hour-runbook.md) — execution timeline.
+9. [`08-48-hour-runbook.md`](08-48-hour-runbook.md) — phase-based runbook.
 10. [`09-demo-writeup-submission.md`](09-demo-writeup-submission.md) — demo and submission.
 11. [`10-risks-fallbacks.md`](10-risks-fallbacks.md) — risk register.
 12. [`11-experiment-log.md`](11-experiment-log.md) — results log.
 13. [`12-glossary-references.md`](12-glossary-references.md) — terms and citations.
 14. [`13-open-questions.md`](13-open-questions.md) — remaining unknowns.
 15. [`14-upper-arlington-data-collection.md`](14-upper-arlington-data-collection.md) — local tile guide.
-16. [`15-agent-work-plan.md`](15-agent-work-plan.md) — phase-by-phase work plan.
-17. [`16-repo-blueprint.md`](16-repo-blueprint.md) — concrete repo structure.
+16. [`15-agent-work-plan.md`](15-agent-work-plan.md) — J/A/D phase plan.
+17. [`16-repo-blueprint.md`](16-repo-blueprint.md) — repo layout.
 
-## File map
+## Phase overview
 
-| File | Purpose |
-|---|---|
-| `README.md` | Entry point and canonical settings |
-| `AGENTS.md` | Rules for implementation agents |
-| `DECISIONS.md` | Locked decisions and decision log |
-| `TASKS.md` | Task board with owners, dependencies, acceptance |
-| `INTERFACES.md` | Data schemas, artifact paths, function signatures |
-| `00-executive-summary.md` | One-page pitch |
-| `01-brief-constraints.md` | Hackathon rules and compliance |
-| `02-project-decision.md` | Why this project, alternatives archived |
-| `03-platonic-earth-spec.md` | Full product and research spec |
-| `04-picture-dictionary-spec.md` | Archived alternative — not selected |
-| `05-data-plan.md` | EuroSAT, local tiles, splits, licenses |
-| `06-alignment-and-model-plan.md` | PRH, Procrustes math, model plan |
-| `07-evaluation-plan.md` | Baselines, metrics, experiment matrix |
-| `08-48-hour-runbook.md` | Hour-by-hour execution |
-| `09-demo-writeup-submission.md` | Demo, video, write-up, checklist |
-| `10-risks-fallbacks.md` | Risks, kill criteria, fallbacks |
-| `11-experiment-log.md` | Tables to fill during the build |
-| `12-glossary-references.md` | Terms and citations |
-| `13-open-questions.md` | Remaining unknowns and defaults |
-| `14-upper-arlington-data-collection.md` | Local tile collection guide |
-| `15-agent-work-plan.md` | Phase plan and parallelization |
-| `16-repo-blueprint.md` | Repo layout and module responsibilities |
+| Phase | J | A | D |
+|---|---|---|---|
+| 0 — Setup | T01 scaffold | Start T10 local tiles | Mock Gradio shell |
+| 1 — Data | T02 EuroSAT, T03 captions | T10 tiles, prepare T08 | Refine mock UI |
+| 2 — Embeddings/alignment | T04 DINOv2, T05 MiniLM, T06 Procrustes | T08 ResNet, T09 majority | Prepare assets |
+| 3 — Retrieval/local | T07 retrieval | T11 QA, T12 local eval, T13 failures | T14 real demo |
+| 4 — Integration | Merge branches, final eval | Finish metrics | Polish demo, T15 |
+| 5 — Docs | Review claims | Review metrics | T15 write-up, T16 video |
+| 6 — Submit | T17 checklist | Stand by | Stand by |
+
+No clock times. Start when the human gives the signal.
 
 ## Current status
 
 - [x] Track chosen: AI + Climate.
 - [x] Project chosen: Platonic Earth.
 - [x] Test site chosen: Upper Arlington, Ohio.
-- [x] User and decision defined.
-- [x] Data sources identified.
-- [x] Model and baseline plan defined.
-- [x] Evaluation plan defined.
-- [x] 48-hour runbook defined.
-- [x] Agent task board created.
+- [x] J/A/D roles assigned.
+- [x] Task ownership assigned.
+- [x] Subagent rules defined.
+- [x] Plain Git workflow defined.
 - [ ] Implementation started.
-- [ ] Local tiles collected.
-- [ ] Experiments run.
-- [ ] Demo built.
-- [ ] Write-up submitted.
 
 ## Next actions
 
-1. Assign owners in `TASKS.md`.
-2. Start T01 (repo scaffold) and T02 (EuroSAT loader).
-3. Run the T+2 data gate.
-4. Log every run in `11-experiment-log.md`.
+1. Wait for the human start signal.
+2. J starts T01 and T02.
+3. A starts T10.
+4. D builds the mock UI.
+5. J merges at the first phase boundary.

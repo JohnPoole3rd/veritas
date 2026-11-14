@@ -1,5 +1,9 @@
 # Demo, Write-up, and Submission
 
+**Owner:** D for T14–T16; J for T17.
+**Tasks:** T14, T15, T16, T17
+**Inputs:** T06/T07 from J, T12/T13 from A.
+
 ## 1. Gradio demo
 
 ### Layout
@@ -86,7 +90,7 @@
 # Platonic Earth
 
 **Track:** AI + Climate
-**Team:** [names]
+**Team:** J, A, D
 
 ## The problem
 Upper Arlington sustainability and urban-forestry staff need to find candidate areas for tree-canopy expansion or land-cover inspection, but browsing thousands of Sentinel-2 tiles is slow. Existing classifiers answer a fixed set of classes and cannot be queried in plain language.

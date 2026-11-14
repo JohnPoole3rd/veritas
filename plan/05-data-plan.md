@@ -1,8 +1,10 @@
 # Data Plan — EuroSAT + Upper Arlington
 
+**Owners:** J for EuroSAT, splits, captions; A for Upper Arlington local tiles.
+
 ## Part A — EuroSAT
 
-### A1. What it is
+### A.1 What it is
 
 | Property | Value |
 |---|---|
@@ -45,7 +47,7 @@ ds = EuroSAT(root="data/raw/eurosat", download=True)
 
 If the download fails, use the Hugging Face mirror or TensorFlow Datasets. Do not spend more than 30 minutes; the brief says switch.
 
-### A2. Splits
+### A.2 Splits
 
 | Split | Share | Use |
 |---|---:|---|
@@ -64,7 +66,7 @@ Rules:
 
 Expected approximate sizes: 18,900 train / 4,050 val / 4,050 test.
 
-### A3. Captions
+### A.3 Captions
 
 Use 5–10 templates per class. Store in `data/captions.jsonl`.
 
@@ -158,6 +160,8 @@ Caption rules:
 - Optional: LLM-generated paraphrases, manually checked.
 
 ## Part B — Upper Arlington local data
+
+**Owner:** A (T10, T11).
 
 ### B1. Why Upper Arlington
 

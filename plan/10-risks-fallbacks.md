@@ -4,31 +4,32 @@
 
 | ID | Risk | Likelihood | Impact | Mitigation | Owner |
 |---|---|---|---|---|---|
-| R1 | EuroSAT download fails | Low | High | HF mirror/TFDS; switch after 30 min | Agent A |
-| R2 | DINOv2 poor on 64×64 tiles | Medium | High | Try ViT-B; patch mean; report limit | Agent A |
-| R3 | Procrustes near chance | Medium | High | Check centering/normalization; random baseline; pivot to classifier demo | Agent A |
-| R4 | Captions too simple | Medium | Medium | Add paraphrases; class centroids | Agent A |
-| R5 | ResNet-18 beats Procrustes | High | Medium | Expected; frame as different tasks; report honestly | Agent B |
-| R6 | Upper Arlington tiles hard to label | High | Medium | Use `Other`; replace; 5 categories only | Agent C |
-| R7 | Local tiles outside city boundary | Medium | Medium | Use OSM/Census polygon; clip | Agent C |
-| R8 | Clouds/snow in local tiles | Medium | Medium | Pick cloud-free date; note if unavoidable | Agent C |
+| R1 | EuroSAT download fails | Low | High | HF mirror/TFDS; switch after 30 min | J |
+| R2 | DINOv2 poor on 64×64 tiles | Medium | High | Try ViT-B; patch mean; report limit | J |
+| R3 | Procrustes near chance | Medium | High | Check centering/normalization; random baseline; pivot to classifier demo | J |
+| R4 | Captions too simple | Medium | Medium | Add paraphrases; class centroids | J |
+| R5 | ResNet-18 beats Procrustes | High | Medium | Expected; frame as different tasks; report honestly | A |
+| R6 | Upper Arlington tiles hard to label | High | Medium | Use `Other`; replace; 5 categories only | A |
+| R7 | Local tiles outside city boundary | Medium | Medium | Use OSM/Census polygon; clip | A |
+| R8 | Clouds/snow in local tiles | Medium | Medium | Pick cloud-free date; note if unavoidable | A |
 | R9 | Colab disconnects | Medium | High | Cache embeddings to Drive; 5k subset | All |
-| R10 | Time runs out | High | High | Scope cuts; submit at T+45 | Human |
-| R11 | Demo breaks on video | Medium | High | Precompute; incognito test; screen capture fallback | Agent C |
-| R12 | Results look too good | Low | High | Check leakage/deduplication | Agent B |
-| R13 | Project judged as generic classifier | Medium | High | Emphasize text search, PRH, local tiles | Writer |
-| R14 | Missing citations | Medium | Medium | Maintain credits table | Writer |
-| R15 | Canopy overclaim | Medium | High | Say “land-cover triage,” not canopy measurement | Writer |
+| R10 | Time runs out | High | High | Scope cuts; submit with buffer | Human |
+| R11 | Demo breaks on video | Medium | High | Precompute; incognito test; screen capture fallback | D |
+| R12 | Results look too good | Low | High | Check leakage/deduplication | A |
+| R13 | Project judged as generic classifier | Medium | High | Emphasize text search, PRH, local tiles | D |
+| R14 | Missing citations | Medium | Medium | Maintain credits table | D |
+| R15 | Canopy overclaim | Medium | High | Say “land-cover triage,” not canopy measurement | D |
 | R16 | Teammate unavailable | Medium | Medium | Cross-train; reduce scope | Human |
+| R17 | Subagents collide on files | Medium | Medium | Max 2 per primary; one level; one file scope; parent accountable | J/A/D |
 
 ## 2. Kill criteria
 
 Stop and pivot if:
 
-- Data has not loaded by T+2.
-- Embeddings are not extracted by T+6.
-- No working demo by T+30.
-- Write-up not started by T+40.
+- Data has not loaded after a reasonable attempt.
+- Embeddings are not extracted after Phase 1.
+- No working demo by Phase 3.
+- Write-up has not started by Phase 4.
 - Team cannot explain the rotation.
 
 Pivot options:
@@ -149,8 +150,8 @@ If a teammate drops:
 If the team disagrees:
 
 - Default to Platonic Earth.
-- Reversible until T+6.
-- After T+6, do not switch.
+- Reversible until Phase 1.
+- After Phase 1, do not switch.
 
 ## 9. Final rule
 

@@ -22,7 +22,7 @@ Only revisit this if:
 
 - A teammate speaks an underserved language.
 - EuroSAT or the Upper Arlington local tiles cannot be used.
-- The team explicitly decides to switch tracks before T+6.
+- The team explicitly decides to switch tracks before Phase 1.
 - The human approves the change.
 
 Otherwise, ignore this file.

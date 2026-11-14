@@ -91,8 +91,8 @@ Archived spec: `04-picture-dictionary-spec.md`.
 
 Change the project only if:
 
-- EuroSAT cannot load by T+2.
-- The local tiles cannot be collected by T+12.
+- EuroSAT cannot load in Phase 1.
+- The local tiles cannot be collected in Phase 1.
 - Procrustes is at chance after debugging.
 - The team is Beginner and cannot run PyTorch.
 

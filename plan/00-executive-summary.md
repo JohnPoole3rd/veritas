@@ -6,7 +6,7 @@
 **Track:** AI + Climate
 **Test site:** Upper Arlington, Ohio, USA
 **Level:** Intermediate / Advanced
-**Team:** 1–3 high school students
+**Team:** J (integrator + data/alignment), A (baselines + local validation), D (demo + docs)
 **Deadline:** Sunday, November 15, 2026, 11:59 PM ET
 
 ## One-liner

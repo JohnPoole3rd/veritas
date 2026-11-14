@@ -3,6 +3,7 @@
 **Track:** AI + Climate
 **Test site:** Upper Arlington, Ohio, USA
 **Core method:** Frozen DINOv2 + frozen MiniLM + closed-form Procrustes
+**Team:** J (integrator + data/alignment), A (baselines + local validation), D (demo + docs)
 
 ## 1. Problem statement
 

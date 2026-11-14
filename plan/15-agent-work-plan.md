@@ -1,312 +1,301 @@
-# Agent Work Plan
+# J / A / D Agent Work Plan
 
-This file describes how multiple agents or teammates can work in parallel without blocking each other.
+This file defines what each primary agent does, what they own, and how subagents are used.
 
-## 1. Phase overview
+## 1. Primary agents
 
-| Phase | Goal | Main output | Gate |
+| Agent | Role | Owns | Tasks |
 |---|---|---|---|
-| P0 | Lock decisions | `DECISIONS.md` | Human approval |
-| P1 | Scaffold + data | EuroSAT loads, splits saved | G1: data loads by T+2 |
-| P2 | Embeddings | DINOv2 + MiniLM `.npy` | G2: shapes/norms pass |
-| P3 | Alignment | Procrustes + retrieval | G3: beats random |
-| P4 | Baselines | Majority + ResNet-18 | G4: metrics saved |
-| P5 | Local tiles | 50 Upper Arlington tiles | G5: manifest validates |
-| P6 | Demo | Gradio app | G6: end-to-end |
-| P7 | Write-up | One-page report + video | G7/G8 |
-| P8 | Submission | Form submitted | G9 |
+| **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07 |
+| **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
+| **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T17 |
 
-## 2. Phase details
+J is the only agent who merges to `main` and pushes `main`.
 
-### P0 — Lock decisions
+## 2. Phase plan
 
-**Owner:** Human.
+### Phase 0 — Setup
 
-**Tasks:**
+**J**
 
-- Confirm track, project, site.
-- Confirm team size and roles.
-- Confirm local imagery date.
-- Confirm whether CLIP and video are in scope.
+- T01 repo scaffold and config.
+- Start T02 EuroSAT loader.
+- Write `results/T01.md`.
 
-**Output:** updated `13-open-questions.md` and `TASKS.md`.
+**A**
 
-**Gate:** no code until track/project/site are locked. They are already locked, so proceed.
+- Start T10 Upper Arlington tile collection.
+- Prepare the ResNet-18 script against the expected split format.
+- Write `results/T10.md` when collection is done.
 
-### P1 — Scaffold + data
+**D**
 
-**Owner:** Agent A.
+- Build mock Gradio UI with placeholder tiles and scores.
+- Write the demo script.
+- Start `results/T14.md` with status `IN PROGRESS`; do not mark T14 done until real data is wired.
 
-**Tasks:**
+**Exit:** J has scaffold and EuroSAT loading; A has tiles underway; D has a clickable mock UI.
 
-- T01 repo scaffold.
-- T02 EuroSAT loader and splits.
-- T03 caption templates.
+### Phase 1 — Data foundation
 
-**Outputs:**
+**J**
 
-- `configs/default.yaml`
-- `data/splits/*.json`
-- `data/captions.jsonl`
+- T02 EuroSAT splits.
+- T03 captions.
+- Write `results/T02.md`, `results/T03.md`.
 
-**Acceptance:**
+**A**
 
-- 27k tiles loaded.
-- Class counts printed.
-- Split stratified and seeded.
-- No duplicates across splits.
-- Captions exist for all 10 classes.
+- T10 finish tile collection.
+- T11 label and QA.
+- T08 prepare ResNet-18.
+- Write `results/T10.md`, `results/T11.md`.
 
-**Gate G1:** if data does not load by T+2, use HF mirror; if still blocked after 30 min, switch.
+**D**
 
-### P2 — Embeddings
+- Refine mock UI.
+- Prepare example queries and screenshots.
+- Keep `results/T14.md` current.
 
-**Owner:** Agent A.
+**Exit:** splits and captions exist; local tiles collected; mock UI ready.
 
-**Tasks:**
+### Phase 2 — Embeddings and alignment
+
+**J**
 
 - T04 DINOv2 embeddings.
 - T05 MiniLM caption embeddings.
-
-**Outputs:**
-
-- `artifacts/embeddings/dinov2_{split}.npy`
-- `artifacts/embeddings/minilm_captions.npy`
-- metadata JSON
-
-**Acceptance:**
-
-- Shapes `(N, 384)`.
-- No NaNs.
-- Order matches split.
-- Model names saved.
-
-**Gate G2:** if embeddings take too long, use 5k subset.
-
-### P3 — Alignment
-
-**Owner:** Agent A.
-
-**Tasks:**
-
 - T06 Procrustes fit.
-- T07 retrieval evaluation.
+- Write `results/T04.md`, `results/T05.md`, `results/T06.md`.
 
-**Outputs:**
-
-- `artifacts/alignment/procrustes.npz`
-- `artifacts/metrics/retrieval.csv`
-- confusion matrix
-
-**Acceptance:**
-
-- `W.T @ W ≈ I`.
-- Top-1 beats random rotation.
-- Test split untouched.
-- Run logged.
-
-**Gate G3:** if at chance, debug centering/normalization/caption mapping. If still at chance, pivot to classifier demo + negative result.
-
-### P4 — Baselines
-
-**Owner:** Agent B.
-
-**Tasks:**
+**A**
 
 - T08 ResNet-18.
-- T09 majority.
-- Optional CLIP.
+- T09 majority baseline.
+- Write `results/T08.md`, `results/T09.md`.
 
-**Outputs:**
+**D**
 
-- `artifacts/metrics/resnet18.csv`
-- `artifacts/metrics/majority.csv`
+- Prepare assets.
+- Update mock UI.
+- Do not block J.
 
-**Acceptance:**
+**Exit:** Procrustes beats random on validation; baselines run; UI ready to wire.
 
-- Trained on train, validated on val, tested on test.
-- Accuracy and macro-F1.
-- Confusion matrix.
-- Config logged.
+### Phase 3 — Retrieval and local validation
 
-**Gate G4:** if ResNet-18 fails, use logistic regression or majority only.
+**J**
 
-### P5 — Upper Arlington tiles
+- T07 retrieval evaluation.
+- Save metrics and confusion matrix.
+- Write `results/T07.md`.
 
-**Owner:** Agent C.
+**A**
 
-**Tasks:**
+- T12 local OOD evaluation.
+- T13 failure taxonomy and figures.
+- Write `results/T12.md`, `results/T13.md`.
 
-- T10 collect 50 tiles.
-- T11 label + QA.
-- T12 local OOD evaluation (Agent B).
+**D**
 
-**Outputs:**
+- T14 wire real artifacts into Gradio.
+- Add baseline comparison and failure example.
+- Write `results/T14.md`.
 
-- `data/raw/local_tiles/ua_*.png`
-- `data/local_tiles/manifest.csv`
-- `artifacts/metrics/local.csv`
+**Exit:** retrieval metrics; local N=50 metrics; failure example; real demo.
 
-**Acceptance:**
+### Phase 4 — Integration and demo
 
-- 10 per category.
-- Within boundary.
-- Coordinates/date/source recorded.
-- QA done.
-- Never used for fitting.
+**J**
 
-**Gate G5:** if 50 is too many, use 30; report N.
+- Merge J/A/D branches.
+- Run final evaluation on `main`.
+- Update `plan/TASKS.md`.
+- Check leakage and splits.
 
-### P6 — Demo
+**A**
 
-**Owner:** Agent C.
+- Finish metrics and figures.
+- Review claims against runs.
 
-**Tasks:**
+**D**
 
-- T14 Gradio app.
+- Polish demo.
+- Start T15 write-up.
+- Prepare screenshots.
 
-**Outputs:**
+**Exit:** `main` has working code; final metrics stable; demo end-to-end; write-up draft.
 
-- `app.py`
+### Phase 5 — Write-up and video
 
-**Acceptance:**
+**J**
 
-- Text query → top-3.
-- Upload → label.
-- Baseline comparison.
-- Failure example.
-- Prototype disclaimer.
-- Loads without internet.
+- Review results and claims.
+- Final integration fixes.
+- Prepare submission links.
 
-**Gate G6:** if demo breaks, use a static screenshot + notebook output for the video.
+**A**
 
-### P7 — Write-up
+- Review metrics and failure examples.
+- Confirm local sample size and labels.
 
-**Owner:** Human + Agent C.
-
-**Tasks:**
+**D**
 
 - T15 write-up.
 - T16 video.
+- Write `results/T15.md`, `results/T16.md`.
 
-**Outputs:**
+**Exit:** write-up complete; video recorded; links work.
 
-- one-page doc
-- unlisted video
+### Phase 6 — Submission
 
-**Acceptance:**
-
-- Brief template filled.
-- Baseline table.
-- Failure case.
-- Sources.
-- Links open in incognito.
-
-**Gate G7/G8:** write-up is mandatory; video optional.
-
-### P8 — Submission
-
-**Owner:** Human.
-
-**Tasks:**
+**J**
 
 - T17 checklist.
-- T18 final review.
+- Submit.
 
-**Output:** submitted form.
+**A / D**
 
-**Gate G9:** submit at T+45; resubmit only for fixes.
+- Stand by for questions.
 
-## 3. Parallelization
+**Exit:** submitted.
 
-### 3 agents
+## 3. Subagents
+
+J, A, and D can each create subagents.
+
+### Naming
 
 ```text
-Agent A: P1 → P2 → P3
-Agent B: P4 (after P1) → P5 evaluation (after P3/P5 data)
-Agent C: P5 collection (after P1) → P6 demo (after P3)
-Human: P0 → P7 → P8
+J1, J2
+A1, A2
+D1, D2
 ```
 
-### 2 agents
+### Rules
 
-```text
-Agent A: P1 → P2 → P3
-Agent B: P4 after P1; P5 collection after P1; P6 after P3
-Human: P7 → P8
+- Maximum **2 active subagents** per primary.
+- **One level deep.** Subagents cannot create subagents.
+- Each subagent gets one bounded task and one file scope.
+- Subagent branch examples:
+  - `j/sub-j1-t02`
+  - `j/sub-j2-t04`
+  - `a/sub-a1-t08`
+  - `a/sub-a2-t10`
+  - `d/sub-d1-t14`
+- Subagents cannot merge to `main`.
+- Parent writes the `results/Txx.md` report.
+- No two subagents edit the same file.
+- If a subagent is blocked for more than 30 minutes, the parent stops it and reassigns the work.
+
+### Suggested assignments
+
+**J**
+
+- `J1` — EuroSAT loader and splits (T02).
+- `J2` — DINOv2 and MiniLM embedding extraction (T04/T05).
+
+J keeps T06/T07 and integration.
+
+**A**
+
+- `A1` — ResNet-18 training loop (T08).
+- `A2` — Upper Arlington tile collection (T10).
+
+A keeps T12/T13 and metrics.
+
+**D**
+
+- `D1` — Gradio UI components (T14).
+- `D2` — visuals and demo script (T15/T16).
+
+D keeps T15/T16.
+
+## 4. Git workflow
+
+No message board. No board branch. Plain Git only.
+
+### Feature branch
+
+```sh
+git fetch --all
+git switch main
+git pull --rebase origin main
+git switch -c j/t01-scaffold
 ```
 
-### 1 agent
+### Commit
 
-```text
-P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8
+```sh
+git add configs/ src/
+git commit -m "T01: add repo scaffold and config"
+git push -u origin j/t01-scaffold
 ```
 
-Cut CLIP, map, and video if solo.
+### J merges
 
-## 4. Handoff artifacts
-
-Each phase hands off:
-
-| Phase | Artifact | Consumer |
-|---|---|---|
-| P1 | split JSON, captions | P2, P4 |
-| P2 | embeddings `.npy` | P3 |
-| P3 | `W`, retrieval metrics | P4, P6 |
-| P4 | baseline metrics | P7 |
-| P5 | local manifest, local metrics | P6, P7 |
-| P6 | working demo | P7 |
-| P7 | write-up, video | P8 |
-
-## 5. Sync points
-
-At T+6, T+12, T+24, T+36:
-
-1. What is done?
-2. What is blocked?
-3. What is the next smallest deliverable?
-4. What are we cutting?
-
-Update `TASKS.md` and `11-experiment-log.md` at each sync.
-
-## 6. Definition of done
-
-A phase is done when:
-
-- The output exists.
-- The acceptance check passes.
-- The result is logged.
-- A teammate can reproduce it.
-- The next phase is unblocked.
-
-## 7. Critical path
-
-```text
-P1 → P2 → P3 → P6 → P7 → P8
+```sh
+git fetch --all
+git switch main
+git pull --rebase origin main
+git merge --no-ff origin/j/t01-scaffold
+git push origin main
 ```
 
-P4 and P5 can run in parallel but must not delay P3/P6.
+No `gh`. No GitHub CLI.
 
-## 8. If a phase blocks
+## 5. Handoff
 
-- P1: switch dataset.
-- P2: use 5k subset.
-- P3: debug centering; pivot to classifier demo.
-- P4: use logistic regression.
-- P5: use 30 tiles.
-- P6: use notebook output + screenshots.
-- P7: write a shorter report.
-- P8: submit what works.
-
-## 9. Agent communication template
+Each task writes one report:
 
 ```text
-Phase:
-Task:
-Status:
-What works:
+results/T01.md
+results/T02.md
+...
+results/T17.md
+```
+
+Format:
+
+```markdown
+# T06 — Procrustes
+
+Status: DONE
+Owner: J
+Branch: j/t06-procrustes
 Artifacts:
-How to run:
-Known issues:
-Next:
+- artifacts/alignment/procrustes.npz
+Metrics:
+- top1=0.42
+- random=0.10
+How to run: notebooks/03_alignment.ipynb
+Known issues: ViT-S only
+Next: T07
 ```
+
+This is not a message board. It is a per-task report with one owner.
+
+## 6. Phase sync
+
+J reviews and merges at these points:
+
+- After Phase 0: scaffold, tiles started, mock UI.
+- After Phase 1: splits, captions, tiles collected.
+- After Phase 2: embeddings, Procrustes, baselines.
+- After Phase 3: retrieval, local eval, demo.
+- After Phase 4: integration, final eval, write-up draft.
+- After Phase 5: write-up and video.
+- Phase 6: submit.
+
+No clock times. Move when the phase exit is met.
+
+## 7. Conflict rules
+
+- One owner per module.
+- J only writes `plan/TASKS.md`.
+- Each task owner writes only their own `results/Txx.md`.
+- No direct pushes to `main` except J.
+- No two subagents on the same file.
+- Pull before work.
+- Small commits.
+- If blocked, commit `Txx: BLOCKED ...` on the task branch and push.

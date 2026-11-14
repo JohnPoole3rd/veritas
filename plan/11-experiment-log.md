@@ -2,6 +2,8 @@
 
 Fill this in during the build. Do not reconstruct from memory.
 
+Owner values: `J`, `A`, `D`, `J1`, `J2`, `A1`, `A2`, `D1`, `D2`.
+
 ## 1. Run log
 
 | Run ID | Date/time | Owner | Image encoder | Text encoder | Alignment | Train N | Val N | Test N | Top-1 | Top-5 | Macro-F1 | Notes |
@@ -51,8 +53,8 @@ Fill this in during the build. Do not reconstruct from memory.
 
 | Date/time | Decision | Reason | Alternatives | Reversible? |
 |---|---|---|---|---|
-| | Track = Climate | Best fit | Languages | until T+6 |
-| | Project = Platonic Earth | Feasible, PRH central | Picture Dictionary | until T+6 |
+| | Track = Climate | Best fit | Languages | until Phase 1 |
+| | Project = Platonic Earth | Feasible, PRH central | Picture Dictionary | until Phase 1 |
 | | Site = Upper Arlington | Local, public imagery | Columbus, Franklin County | yes |
 | | Dataset = EuroSAT | Small, public | BigEarthNet, UC Merced | yes |
 | | Image encoder = ViT-S/14 | Fast, 384-dim | ViT-B/14 | yes |
@@ -127,20 +129,17 @@ Every claim in the write-up must trace to a run.
 | “Upper Arlington shows domain shift” | table | R008 | |
 | “Annual vs. permanent crop is the main confusion” | confusion matrix | R007 | |
 
-## 9. Time log
+## 9. Phase log
 
-| Checkpoint | Planned | Actual | Status | Notes |
+| Phase | Planned outcome | Actual | Status | Notes |
 |---|---|---|---|---|
-| Data loaded | T+2 | | | |
-| Embeddings | T+6 | | | |
-| First alignment | T+10 | | | |
-| Full run | T+16 | | | |
-| Local tiles | T+24 | | | |
-| Demo skeleton | T+30 | | | |
-| Failure case | T+36 | | | |
-| Write-up | T+42 | | | |
-| Video | T+45 | | | |
-| Submitted | T+47 | | | |
+| Phase 0 — Setup | T01 scaffold; A starts T10; D mock UI | | | |
+| Phase 1 — Data | T02 splits; T03 captions; T10/T11 tiles | | | |
+| Phase 2 — Alignment | T04/T05 embeddings; T06 Procrustes; T08/T09 baselines | | | |
+| Phase 3 — Retrieval | T07 retrieval; T12 local eval; T13 failures; T14 demo | | | |
+| Phase 4 — Integration | Merge branches; final eval; T15 draft | | | |
+| Phase 5 — Docs | T15 write-up; T16 video | | | |
+| Phase 6 — Submit | T17 checklist; submit | | | |
 
 ## 10. Post-mortem
 

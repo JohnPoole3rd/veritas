@@ -1,5 +1,8 @@
 # Alignment and Model Plan
 
+**Owner:** J
+**Tasks:** T04, T05, T06, T07.
+
 ## 1. Hypothesis
 
 The **Platonic Representation Hypothesis (PRH)** proposes that independently trained models converge toward a shared representation of reality. This project tests a practical version:

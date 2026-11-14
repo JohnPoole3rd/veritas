@@ -1,5 +1,8 @@
 # Upper Arlington Data Collection Guide
 
+**Owner:** A
+**Tasks:** T10, T11.
+
 This is the step-by-step guide for the 50 local Sentinel-2 tiles. Read `05-data-plan.md` first for context.
 
 ## 0. Goal

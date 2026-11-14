@@ -1,6 +1,6 @@
 # Open Questions
 
-Track, project, and test site are locked. These are the remaining unknowns.
+Track, project, test site, and roles are locked. These are the remaining unknowns.
 
 ## 1. Resolved decisions
 
@@ -20,35 +20,54 @@ Track, project, and test site are locked. These are the remaining unknowns.
 | Demo | Gradio |
 | Audio | Out of scope |
 | Multilingual | Out of scope |
+| Message board | Not used |
+| Git workflow | Plain Git feature branches; J merges to `main` |
+| Integrator | J |
+| Data/alignment lead | J |
+| Baselines/local lead | A |
+| Demo/docs lead | D |
+| Subagents | J1/J2, A1/A2, D1/D2 |
 | Deadline | Sunday, Nov 15, 11:59 PM ET |
 
 ## 2. Remaining unknowns
 
 | Question | Options | Default | Decision |
 |---|---|---|---|
-| Team size? | 1 / 2 / 3 | 3 | |
-| Experience level? | Beginner / Intermediate / Advanced | Intermediate | |
-| Who owns data? | name | Agent A | |
-| Who owns alignment? | name | Agent A | |
-| Who owns baselines/local? | name | Agent B | |
-| Who owns demo/write-up? | name | Agent C | |
 | Exact local imagery date? | date | most recent cloud-free | |
 | Include CLIP baseline? | yes / no | optional | |
 | Record video? | yes / no | recommended | |
 | Contact a real Upper Arlington user? | yes / no | optional | |
 | Use 50 or 30 local tiles? | 50 / 30 | 50 | |
+| Start signal? | human tells agents | wait | |
 
-## 3. Team roles
+## 3. Roles
 
 | Role | Responsibilities | Default owner |
 |---|---|---|
-| Data lead | EuroSAT, splits, captions, local tiles | Agent A |
-| Alignment lead | DINOv2, MiniLM, Procrustes, retrieval | Agent A |
-| Evaluation lead | ResNet-18, majority, metrics, failure analysis | Agent B |
-| Demo lead | Gradio, visuals, video | Agent C |
-| Writer | Write-up, credits, submission | Human + Agent C |
+| Integrator | Merge branches, final eval, submission | J |
+| Data/alignment | EuroSAT, splits, captions, DINOv2, MiniLM, Procrustes, retrieval | J |
+| Baselines | ResNet-18, majority, metrics | A |
+| Local data | Upper Arlington tiles, labels, QA | A |
+| Demo | Gradio, visuals, video | D |
+| Writer | Write-up, credits, submission checklist | D |
 
-## 4. Local tile collection decisions
+## 4. Subagents
+
+| Primary | Subagents | Suggested work |
+|---|---|---|
+| J | J1, J2 | J1 EuroSAT loader; J2 embedding extraction |
+| A | A1, A2 | A1 ResNet-18; A2 local tile collection |
+| D | D1, D2 | D1 Gradio UI; D2 visuals/video |
+
+Rules:
+
+- Max 2 active per primary.
+- One level deep.
+- One bounded task and file scope per subagent.
+- Subagent cannot merge to `main`.
+- Parent writes `results/Txx.md`.
+
+## 5. Local tile collection decisions
 
 | Question | Default |
 |---|---|
@@ -62,41 +81,31 @@ Track, project, and test site are locked. These are the remaining unknowns.
 | `Other` allowed? | Yes, with note; replace if possible |
 | QA | Second person reviews 10 tiles |
 
-## 5. Submission decisions
+## 6. Submission decisions
 
 | Question | Default |
 |---|---|
 | Code platform | GitHub or Colab |
 | Write-up platform | Google Doc or GitHub README |
 | Video platform | YouTube unlisted |
-| Submit first version | T+45 |
+| Submit buffer | Submit before the final hour |
 | Resubmit | Only for link fixes or final metrics |
 
-## 6. Defaults if no answers
+## 7. Defaults if no answers
 
 Proceed with:
 
-- 3-person roles as assigned in `TASKS.md`.
+- J/A/D roles as assigned.
 - 50 local tiles.
 - Most recent cloud-free summer imagery.
 - CLIP optional; skip if behind.
 - Video recommended but optional.
 - No real user contact required; design for the role.
-- Submit at T+45.
-
-## 7. Decisions that cannot wait
-
-1. Team roles — by T+2.
-2. EuroSAT data loaded — by T+2.
-3. Local boundary source — by T+12.
-4. Local tile date — by T+12.
-5. Whether Procrustes works — by T+10; if not, pivot.
-6. Whether to record video — by T+42.
+- Submit before the final hour.
 
 ## 8. Questions for the human
 
-- How many people are on the team, and what is their experience level?
-- Do you want to assign the three agent roles, or should the plan default?
-- Do you have a preferred date/season for the Upper Arlington tiles?
+- When should everyone start?
 - Do you want to include the CLIP baseline?
-- Do you want to try to contact a real Upper Arlington sustainability/forestry staff member for feedback?
+- Do you want to try to contact a real Upper Arlington sustainability/forestry staff member?
+- Do you want a video, or code + write-up only?

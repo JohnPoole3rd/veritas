@@ -1,10 +1,8 @@
-# AGENTS.md — Working Rules for Implementation Agents
+# AGENTS.md — Working Rules for J, A, D, and Subagents
 
-This file is the contract for any agent or human working on Platonic Earth.
+This file is the contract for the Platonic Earth implementation. Read it before writing code.
 
 ## 0. Read order
-
-Before writing code, read:
 
 1. `DECISIONS.md`
 2. `TASKS.md`
@@ -13,10 +11,44 @@ Before writing code, read:
 5. `05-data-plan.md`
 6. `06-alignment-and-model-plan.md`
 7. `07-evaluation-plan.md`
+8. `14-upper-arlington-data-collection.md`
 
 If a task conflicts with `DECISIONS.md`, stop and ask the human. Do not silently change the project.
 
-## 1. Non-negotiable project decisions
+## 1. Team and ownership
+
+| Agent | Role | Owns | Tasks |
+|---|---|---|---|
+| **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07 |
+| **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
+| **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T17 |
+
+**J is the only agent who merges to `main` and pushes `main`.**
+
+## 2. Subagents
+
+J, A, and D can each create subagents to improve speed.
+
+### Names
+
+```text
+J1, J2
+A1, A2
+D1, D2
+```
+
+### Rules
+
+- Maximum **2 active subagents** per primary.
+- **One level deep.** Subagents cannot create subagents.
+- Each subagent gets one bounded task and one file scope.
+- Subagent branch: `j/sub-j1-t02`, `a/sub-a1-t08`, `d/sub-d1-t14`.
+- Subagents cannot merge to `main`.
+- The parent writes the `results/Txx.md` report.
+- No two subagents edit the same file.
+- If a subagent is blocked for more than 30 minutes, the parent stops it and reassigns the work.
+
+## 3. Non-negotiable project decisions
 
 - **Track:** AI + Climate only.
 - **Project:** Platonic Earth only.
@@ -30,7 +62,7 @@ If a task conflicts with `DECISIONS.md`, stop and ask the human. Do not silently
 - **Claims:** report honest numbers, including weak results. No overclaiming.
 - **User:** Upper Arlington sustainability/urban-forestry staff. Not “general users.”
 
-## 2. Allowed tools and data
+## 4. Allowed tools and data
 
 Allowed:
 
@@ -49,40 +81,18 @@ Not allowed:
 - Pretrained models with unclear licenses, unless cited and allowed.
 - Claiming a pretrained model as your own.
 
-## 3. Repository rules
+## 5. Repository rules
 
-The future implementation lives in `/home/john/veritas`.
-
-Planned layout:
+Implementation lives in `/home/john/veritas`.
 
 ```text
 veritas/
   configs/
-    default.yaml
   data/
-    raw/eurosat/
-    raw/local_tiles/
-    splits/
   artifacts/
-    embeddings/
-    alignment/
-    metrics/
-    figures/
+  results/
   src/
-    data.py
-    captions.py
-    encoders.py
-    alignment.py
-    retrieval.py
-    evaluate.py
-    baselines.py
-    local_tiles.py
   notebooks/
-    01_data.ipynb
-    02_embeddings.ipynb
-    03_alignment.ipynb
-    04_evaluation.ipynb
-    05_local_tiles.ipynb
   app.py
   README.md
   requirements.txt
@@ -94,39 +104,102 @@ Rules:
 - Save embeddings and rotations to `artifacts/`; commit only small reports and figures.
 - Use `configs/default.yaml` for paths and model names.
 - Keep notebooks runnable top-to-bottom.
-- Do not hardcode absolute paths; use config values.
+- Do not hardcode absolute paths.
 - Do not edit another agent’s file without coordinating.
 - Do not rewrite specs in the plan folder unless the human asks.
 
-## 4. Task workflow
+## 6. Git workflow
 
-1. Open `TASKS.md`.
-2. Pick a `TODO` task with satisfied dependencies.
-3. Change status to `IN PROGRESS` and add your name/handle.
-4. Read the task’s inputs, outputs, and acceptance criteria.
+Plain Git only. No GitHub CLI. No message board. No board branch.
+
+### Task branch
+
+```sh
+git fetch --all
+git switch main
+git pull --rebase origin main
+git switch -c j/t01-scaffold
+```
+
+### Commit
+
+```sh
+git add configs/ src/
+git commit -m "T01: add repo scaffold and config"
+git push -u origin j/t01-scaffold
+```
+
+### J merges
+
+```sh
+git fetch --all
+git switch main
+git pull --rebase origin main
+git merge --no-ff origin/j/t01-scaffold
+git push origin main
+```
+
+A and D never push to `main`.
+
+## 7. Task workflow
+
+1. Read `TASKS.md`.
+2. Confirm your assigned task.
+3. Read its inputs, outputs, and acceptance criteria.
+4. Create a task branch.
 5. Implement only that task.
 6. Run the acceptance check.
 7. Save artifacts to the paths in `INTERFACES.md`.
-8. Log results in `11-experiment-log.md`.
-9. Change status to `DONE` or `BLOCKED`.
-10. Write a one-paragraph handoff note in `TASKS.md`.
+8. Write `results/Txx.md`.
+9. Commit and push the branch.
+10. J merges at the phase boundary.
 
-Do not start a downstream task until the upstream artifact exists and passes its acceptance check.
+Do not start a downstream task until the upstream artifact exists and passes acceptance.
 
-## 5. Definition of done
+## 8. Handoff format
+
+Every task writes one report:
+
+```text
+results/T01.md
+results/T02.md
+...
+results/T17.md
+```
+
+Format:
+
+```markdown
+# T06 — Procrustes
+
+Status: DONE
+Owner: J
+Branch: j/t06-procrustes
+Artifacts:
+- artifacts/alignment/procrustes.npz
+Metrics:
+- top1=0.42
+- random=0.10
+How to run: notebooks/03_alignment.ipynb
+Known issues: ViT-S only
+Next: T07
+```
+
+This is not a message board. It is a per-task report with one owner.
+
+## 9. Definition of done
 
 A task is done only when:
 
 - The code runs from a clean state.
 - The output artifact exists at the agreed path.
 - The acceptance check passes.
-- The result is logged.
-- The task is marked `DONE`.
-- A teammate can reproduce it from the README or notebook.
+- `results/Txx.md` exists.
+- The result is logged in `11-experiment-log.md`.
+- A teammate can reproduce it.
+- J has merged the branch or it is ready to merge.
 
-“It works on my machine” is not done.
-
-## 6. Experiment discipline
+## 10. Experiment discipline
 
 - Use the split in `data/splits/`.
 - Never fit on test.
@@ -134,9 +207,9 @@ A task is done only when:
 - Save the exact config for every run.
 - Log every run in `11-experiment-log.md`.
 - Include model names, versions, seed, and split sizes.
-- If a result looks too good, check for leakage before reporting it.
+- If a result looks too good, check for leakage.
 
-## 7. Claim discipline
+## 11. Claim discipline
 
 Every claim in the write-up or demo must trace to a logged run.
 
@@ -155,17 +228,17 @@ Not allowed:
 - “Beat the baseline” without a number.
 - “Works well” without evidence.
 
-## 8. Data discipline
+## 12. Data discipline
 
 - EuroSAT only from torchvision or the official/HF mirror.
 - Local tiles only from Copernicus Browser / Sentinel-2.
 - Clip local tiles to the Upper Arlington city boundary.
 - Record coordinates, date, source, label, and notes for every local tile.
 - Use the label rubric in `14-upper-arlington-data-collection.md`.
-- Do not label a tile you cannot identify; mark `other` and note why.
+- Do not label a tile you cannot identify; mark `Other` and note why.
 - Do not collect personal data.
 
-## 9. Demo discipline
+## 13. Demo discipline
 
 - Precompute embeddings and rotation before the demo.
 - The demo must load without internet.
@@ -175,18 +248,18 @@ Not allowed:
 - Keep the demo under two minutes.
 - Record a fallback screen capture.
 
-## 10. Stop conditions
+## 14. Stop conditions
 
 Stop and ask the human if:
 
-- EuroSAT does not load within 30 minutes.
+- EuroSAT does not load after a reasonable attempt.
 - Procrustes retrieval is at chance after checking centering and normalization.
 - A task requires a private dataset.
 - A result would require changing the track or project.
-- The deadline is within 6 hours and the write-up is not started.
+- The deadline is close and the write-up is not started.
 - An agent wants to add audio, multilingual, or a third modality.
 
-## 11. Escalation defaults
+## 15. Escalation defaults
 
 If no human is available:
 
@@ -196,18 +269,13 @@ If no human is available:
 - Prefer a working classifier demo over a broken alignment demo.
 - Log the decision in `11-experiment-log.md`.
 
-## 12. Handoff format
+## 16. Conflict rules
 
-When handing off, write:
-
-```text
-Task: T__
-Status: DONE / BLOCKED
-What works:
-Artifacts:
-How to run:
-Known issues:
-Next task:
-```
-
-Put it in `TASKS.md` under the task. Keep it short.
+- One owner per module.
+- J only writes `plan/TASKS.md`.
+- Each task owner writes only their own `results/Txx.md`.
+- No direct pushes to `main` except J.
+- No two subagents on the same file.
+- Pull before work.
+- Small commits.
+- If blocked, commit `Txx: BLOCKED ...` on the task branch and push.

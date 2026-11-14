@@ -38,6 +38,11 @@ veritas/
       confusion_matrix.png
       retrieval_examples.png
       failure_gallery.png
+  results/
+    T01.md
+    T02.md
+    ...
+    T17.md
   src/
     __init__.py
     config.py
@@ -288,6 +293,7 @@ The implementation README must include:
 - How to run notebooks in order.
 - How to run the demo.
 - Where artifacts go.
+- Where task reports go (`results/Txx.md`).
 - Known limitations.
 - Credits.
 
@@ -304,6 +310,7 @@ The implementation README must include:
 - [ ] Top-k returns k unique indices.
 - [ ] Local manifest has 50 rows.
 - [ ] Local categories have 10 each.
+- [ ] Every completed task has `results/Txx.md`.
 
 ### Integration checks
 
