@@ -20,10 +20,10 @@ Do not start a downstream task until the upstream artifact exists.
 
 | ID | Task | Owner | Subagent of | Status | Depends on | Output |
 |---|---|---|---|---|---|---|
-| T01 | Repo scaffold and config | J | — | TODO | — | `configs/default.yaml`, `src/`, `requirements.txt`, `results/T01.md` |
-| T02 | EuroSAT loader and splits | J1 | J | TODO | T01 | `data/splits/*.json`, `results/T02.md` |
-| T03 | Caption templates | J | — | TODO | T01 | `data/captions.jsonl`, `results/T03.md` |
-| T04 | DINOv2 embedding extraction | J2 | J | TODO | T02 | `artifacts/embeddings/dinov2_*.npy`, `results/T04.md` |
+| T01 | Repo scaffold and config | J | — | DONE | — | `configs/default.yaml`, `src/`, `requirements.txt`, `results/T01.md` |
+| T02 | EuroSAT loader and splits | J1 | J | DONE | T01 | `data/splits/*.json`, `results/T02.md` |
+| T03 | Caption templates | J | — | DONE | T01 | `data/captions.jsonl`, `results/T03.md` |
+| T04 | DINOv2 embedding extraction | J2 | J | IN PROGRESS | T02 | `artifacts/embeddings/dinov2_*.npy`, `results/T04.md` |
 | T05 | MiniLM caption embeddings | J2 | J | TODO | T03 | `artifacts/embeddings/minilm_captions.npy`, `results/T05.md` |
 | T06 | Procrustes fit and save | J | — | TODO | T04, T05 | `artifacts/alignment/procrustes.npz`, `results/T06.md` |
 | T07 | Retrieval evaluation + random baseline | J | — | TODO | T06 | `artifacts/metrics/retrieval.csv`, `results/T07.md` |

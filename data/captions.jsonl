@@ -1,0 +1,50 @@
+{"caption_id": "annualcrop_01", "label": "AnnualCrop", "text": "a satellite image of annual cropland", "template_id": 1}
+{"caption_id": "annualcrop_02", "label": "AnnualCrop", "text": "farmland with seasonal crops", "template_id": 2}
+{"caption_id": "annualcrop_03", "label": "AnnualCrop", "text": "agricultural fields with bare soil between rows", "template_id": 3}
+{"caption_id": "annualcrop_04", "label": "AnnualCrop", "text": "a patchwork of crop fields", "template_id": 4}
+{"caption_id": "annualcrop_05", "label": "AnnualCrop", "text": "cropland seen from above", "template_id": 5}
+{"caption_id": "forest_01", "label": "Forest", "text": "a satellite image of dense forest", "template_id": 1}
+{"caption_id": "forest_02", "label": "Forest", "text": "tree canopy seen from above", "template_id": 2}
+{"caption_id": "forest_03", "label": "Forest", "text": "a wooded area with closed canopy", "template_id": 3}
+{"caption_id": "forest_04", "label": "Forest", "text": "forest land", "template_id": 4}
+{"caption_id": "forest_05", "label": "Forest", "text": "dark green tree cover", "template_id": 5}
+{"caption_id": "herbaceousvegetation_01", "label": "HerbaceousVegetation", "text": "a satellite image of grassland", "template_id": 1}
+{"caption_id": "herbaceousvegetation_02", "label": "HerbaceousVegetation", "text": "low vegetation and shrubs", "template_id": 2}
+{"caption_id": "herbaceousvegetation_03", "label": "HerbaceousVegetation", "text": "herbaceous vegetation", "template_id": 3}
+{"caption_id": "herbaceousvegetation_04", "label": "HerbaceousVegetation", "text": "open grassy land", "template_id": 4}
+{"caption_id": "herbaceousvegetation_05", "label": "HerbaceousVegetation", "text": "sparse natural vegetation", "template_id": 5}
+{"caption_id": "highway_01", "label": "Highway", "text": "a satellite image of a highway", "template_id": 1}
+{"caption_id": "highway_02", "label": "Highway", "text": "a major road with vehicles", "template_id": 2}
+{"caption_id": "highway_03", "label": "Highway", "text": "a multi-lane highway", "template_id": 3}
+{"caption_id": "highway_04", "label": "Highway", "text": "transport corridor", "template_id": 4}
+{"caption_id": "highway_05", "label": "Highway", "text": "road network", "template_id": 5}
+{"caption_id": "industrial_01", "label": "Industrial", "text": "a satellite image of an industrial site", "template_id": 1}
+{"caption_id": "industrial_02", "label": "Industrial", "text": "factories and warehouses", "template_id": 2}
+{"caption_id": "industrial_03", "label": "Industrial", "text": "large commercial buildings", "template_id": 3}
+{"caption_id": "industrial_04", "label": "Industrial", "text": "industrial buildings and pavement", "template_id": 4}
+{"caption_id": "industrial_05", "label": "Industrial", "text": "manufacturing area", "template_id": 5}
+{"caption_id": "pasture_01", "label": "Pasture", "text": "a satellite image of pasture", "template_id": 1}
+{"caption_id": "pasture_02", "label": "Pasture", "text": "grazing land", "template_id": 2}
+{"caption_id": "pasture_03", "label": "Pasture", "text": "open grass for livestock", "template_id": 3}
+{"caption_id": "pasture_04", "label": "Pasture", "text": "meadow", "template_id": 4}
+{"caption_id": "pasture_05", "label": "Pasture", "text": "managed grassland", "template_id": 5}
+{"caption_id": "permanentcrop_01", "label": "PermanentCrop", "text": "a satellite image of permanent crops", "template_id": 1}
+{"caption_id": "permanentcrop_02", "label": "PermanentCrop", "text": "orchards and vineyards", "template_id": 2}
+{"caption_id": "permanentcrop_03", "label": "PermanentCrop", "text": "tree crops in rows", "template_id": 3}
+{"caption_id": "permanentcrop_04", "label": "PermanentCrop", "text": "long-lived agricultural plants", "template_id": 4}
+{"caption_id": "permanentcrop_05", "label": "PermanentCrop", "text": "fruit tree plantation", "template_id": 5}
+{"caption_id": "residential_01", "label": "Residential", "text": "a satellite image of a residential area", "template_id": 1}
+{"caption_id": "residential_02", "label": "Residential", "text": "houses and streets", "template_id": 2}
+{"caption_id": "residential_03", "label": "Residential", "text": "a neighborhood", "template_id": 3}
+{"caption_id": "residential_04", "label": "Residential", "text": "suburban housing", "template_id": 4}
+{"caption_id": "residential_05", "label": "Residential", "text": "dense residential buildings", "template_id": 5}
+{"caption_id": "river_01", "label": "River", "text": "a satellite image of a river", "template_id": 1}
+{"caption_id": "river_02", "label": "River", "text": "a winding waterway", "template_id": 2}
+{"caption_id": "river_03", "label": "River", "text": "a river through land", "template_id": 3}
+{"caption_id": "river_04", "label": "River", "text": "flowing water", "template_id": 4}
+{"caption_id": "river_05", "label": "River", "text": "river channel", "template_id": 5}
+{"caption_id": "sealake_01", "label": "SeaLake", "text": "a satellite image of a lake", "template_id": 1}
+{"caption_id": "sealake_02", "label": "SeaLake", "text": "open water", "template_id": 2}
+{"caption_id": "sealake_03", "label": "SeaLake", "text": "a sea or lake", "template_id": 3}
+{"caption_id": "sealake_04", "label": "SeaLake", "text": "large body of water", "template_id": 4}
+{"caption_id": "sealake_05", "label": "SeaLake", "text": "blue water surface", "template_id": 5}

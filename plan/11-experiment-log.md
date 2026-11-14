@@ -8,9 +8,9 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 
 | Run ID | Date/time | Owner | Image encoder | Text encoder | Alignment | Train N | Val N | Test N | Top-1 | Top-5 | Macro-F1 | Notes |
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|---|
-| R001 | | | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | | | | | | | first sanity run |
-| R002 | | | | | Random rotation | | | | | | | null baseline |
-| R003 | | | | | Unaligned cosine | | | | | | | no rotation |
+| R001 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 64 | 64 | 64 | 0.72 | 0.98 | | smoke subset; val retrieval |
+| R002 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Random rotation | 64 | 64 | 64 | 0.14 | 0.36 | | smoke subset; test retrieval |
+| R003 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Unaligned cosine | 64 | 64 | 64 | 0.26 | 0.48 | | smoke subset; test retrieval |
 | R004 | | | | | ResNet-18 | | | | | | | supervised |
 | R005 | | | | | Majority | | | | | | | required baseline |
 | R006 | | | | | CLIP | | | | | | | optional |
