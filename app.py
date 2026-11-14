@@ -10,6 +10,7 @@ Run:
     python app.py              # auto: REAL if artifacts exist, else MOCK
     python app.py --mock       # force mock
     python app.py --port 7861
+    python app.py --prefetch   # once, while online: cache both models for offline demo
 
 The UI only talks to the backend through `search_text` and `classify_image`;
 the baseline table reads artifacts/metrics/*.csv directly.
@@ -50,15 +51,26 @@ EXAMPLE_QUERIES = [
     "open water",
 ]
 
-FAILURE_EXAMPLE = {
-    "query": "permanent crop",
-    "expected": "PermanentCrop",
-    "got": "AnnualCrop",
-    "why": (
-        "At 64×64 pixels, orchards and seasonal fields look similar. The difference "
-        "depends on the crop lifecycle, which a single tile does not show."
-    ),
-}
+# Failure probes. The Results tab runs these live through the active backend and shows what
+# actually comes back, so the demo never claims a failure the model did not make.
+FAILURE_PROBES = [
+    {
+        "query": "climate change",
+        "why": (
+            "Abstract query: “climate change” is not a land-cover class, so the model has nothing "
+            "to match. Look for low scores (around 0.15) and unrelated classes. The tool cannot "
+            "say “I don't know.”"
+        ),
+    },
+    {
+        "query": "permanent crop",
+        "why": (
+            "Look-alike classes: at 64×64 pixels, orchards (permanent crop) and seasonal fields "
+            "(annual crop) look similar. The difference is the crop lifecycle, which one image "
+            "does not show. Check how many of the top 3 are AnnualCrop."
+        ),
+    },
+]
 
 
 # ---------------------------------------------------------------------------
@@ -183,49 +195,39 @@ def _l2(x: np.ndarray) -> np.ndarray:
     return x / np.clip(np.linalg.norm(x, axis=-1, keepdims=True), 1e-12, None)
 
 
-def _transforms():
-    """Use J's src.alignment transforms so fit and inference match exactly.
-
-    Fallback mirrors plan/03 §7 (normalize → subtract train mean → rotate → normalize)
-    and is only used if src/ is not importable yet.
-    """
-    try:
-        from src.alignment import transform_images, transform_texts  # type: ignore
-        return transform_images, transform_texts, "src.alignment"
-    except Exception:
-        def t_img(X, p):
-            return _l2((_l2(X) - p["mu_x"]) @ p["W"])
-
-        def t_txt(Y, p):
-            return _l2(_l2(Y) - p["mu_y"])
-
-        return t_img, t_txt, "app.py fallback (verify against src.alignment!)"
-
-
 class RealBackend:
-    """Loads precomputed artifacts (plan/INTERFACES.md §4). No fitting at demo time.
+    """Loads J's precomputed artifacts. No fitting at demo time.
 
-    Gallery = EuroSAT test split. Text queries need MiniLM; uploads need DINOv2.
-    Both load lazily from the local Hugging Face cache, so pre-download them before demo day.
-    `text_encoder` / `image_encoder` can be injected (callables → np.ndarray) for testing.
+    Everything numeric goes through J's own src/ code, so the demo cannot drift from T04–T07:
+    src.alignment (load_procrustes, transform_images/texts), src.encoders (load_dinov2,
+    extract_image_embeddings, load_minilm, encode_texts) and src.data.get_transforms.
+
+    Gallery = the EuroSAT test tiles that have embeddings. J ran with --limit 512, so
+    dinov2_test.npy covers the first N items of test.json; the gallery is truncated to match.
+    Text queries need MiniLM; uploads need DINOv2. Both load lazily from the local
+    Hugging Face cache (run `python app.py --prefetch` once while online). `text_encoder` / `image_encoder`
+    can be injected (callables → np.ndarray) for testing.
     """
 
     name = "REAL"
 
     def __init__(self, root: Path, text_encoder=None, image_encoder=None):
+        from src.alignment import load_procrustes, transform_images, transform_texts
+        from src.config import load_config, resolve_path
+
         self.root = root
+        self.config = load_config(str(root / "configs" / "default.yaml"))
         art = root / "artifacts"
-        p = np.load(art / "alignment" / "procrustes.npz", allow_pickle=False)
-        self.params = {"W": p["W"], "mu_x": p["mu_x"], "mu_y": p["mu_y"]}
-        cfg = json.loads(str(p["config"])) if "config" in p.files else {}
-        self.t_img, self.t_txt, self.transform_src = _transforms()
+        self.params = load_procrustes(art / "alignment" / "procrustes.npz")
+        self.t_img, self.t_txt = transform_images, transform_texts
 
         split = json.loads((root / "data" / "splits" / "test.json").read_text())
-        self.items = split["items"]
-        self.eurosat_root = root / cfg.get("eurosat_root", "data/raw/eurosat")
         X = np.load(art / "embeddings" / "dinov2_test.npy")
-        if len(X) != len(self.items):
-            raise ValueError(f"dinov2_test.npy has {len(X)} rows but test.json has {len(self.items)} items")
+        if len(X) > len(split["items"]):
+            raise ValueError(f"dinov2_test.npy has {len(X)} rows but test.json has only {len(split['items'])} items")
+        self.items = split["items"][: len(X)]  # J's --limit takes the first N test items
+        self.full_test_n = len(split["items"])
+        self.eurosat_root = resolve_path(self.config["data"]["eurosat_root"], self.config)
         self.gallery = self.t_img(X, self.params)
 
         caps = np.load(art / "embeddings" / "minilm_captions.npy")
@@ -238,32 +240,25 @@ class RealBackend:
 
         self._text_encoder = text_encoder
         self._image_encoder = image_encoder
-        self.model_names = {
-            "text": cfg.get("text_model", "sentence-transformers/all-MiniLM-L6-v2"),
-            "image": cfg.get("image_model", "facebook/dinov2-small"),
-        }
 
-    # -- encoders (lazy) --------------------------------------------------
+    # -- encoders (lazy, via J's src.encoders) -----------------------------
     def _encode_text(self, text: str) -> np.ndarray:
         if self._text_encoder is None:
-            from sentence_transformers import SentenceTransformer
-            m = SentenceTransformer(self.model_names["text"])
-            self._text_encoder = lambda t: m.encode([t], convert_to_numpy=True)
+            from src.encoders import encode_texts, load_minilm
+            model = load_minilm(self.config["text"]["model_name"])
+            self._text_encoder = lambda t: encode_texts(model, [t])
         return np.asarray(self._text_encoder(text), dtype=np.float32).reshape(1, -1)
 
     def _encode_image(self, image: Image.Image) -> np.ndarray:
         if self._image_encoder is None:
-            import torch
-            from transformers import AutoImageProcessor, AutoModel
-            proc = AutoImageProcessor.from_pretrained(self.model_names["image"])
-            model = AutoModel.from_pretrained(self.model_names["image"]).eval()
-
-            def enc(img):
-                with torch.no_grad():
-                    out = model(**proc(images=img.convert("RGB"), return_tensors="pt"))
-                return out.last_hidden_state[:, 0].numpy()  # CLS, matches T04 contract
-
-            self._image_encoder = enc
+            from src.data import get_transforms
+            from src.encoders import extract_image_embeddings, get_device, load_dinov2
+            device = get_device()
+            model = load_dinov2(self.config["image"]["model_name"], device=device)
+            tf = get_transforms(int(self.config["image"]["input_size"]), train=False)
+            self._image_encoder = lambda img: extract_image_embeddings(
+                model, [tf(img.convert("RGB"))], batch_size=1, device=device
+            )
         return np.asarray(self._image_encoder(image), dtype=np.float32).reshape(1, -1)
 
     # -- UI API -------------------------------------------------------------
@@ -303,7 +298,7 @@ def load_backend(root: Path = REPO_ROOT, force_mock: bool = False):
             print(f"[demo] MOCK mode — missing artifacts: {', '.join(missing)}")
         return MockBackend()
     backend = RealBackend(root)
-    print(f"[demo] REAL mode — gallery N={len(backend.items)}, transforms from {backend.transform_src}")
+    print(f"[demo] REAL mode — gallery N={len(backend.items)} of {backend.full_test_n} EuroSAT test tiles")
     return backend
 
 
@@ -333,6 +328,12 @@ def metrics_table(root: Path = REPO_ROOT) -> tuple[list[list[str]], str]:
     sources = []
 
     majority = _read_csv("majority.csv", root)
+    mj = root / "artifacts" / "metrics" / "majority.json"
+    if not majority and mj.exists():
+        majority = [{k: str(v) for k, v in json.loads(mj.read_text()).items()}]
+        maj_src = "majority.json"
+    else:
+        maj_src = "majority.csv"
     resnet = _read_csv("resnet18.csv", root)
     retrieval = {r.get("method"): r for r in _read_csv("retrieval.csv", root)}
 
@@ -342,12 +343,12 @@ def metrics_table(root: Path = REPO_ROOT) -> tuple[list[list[str]], str]:
             sources.append(src)
 
     m = majority[0] if majority else {}
-    add("Majority class", m.get("accuracy"), None, m.get("macro_f1"), m.get("test_n"), "majority.csv" if m else None)
+    add("Majority class", m.get("accuracy"), None, m.get("macro_f1"), m.get("test_n"), maj_src if m else None)
     r = resnet[0] if resnet else {}
     add("ResNet-18 (supervised)", r.get("accuracy"), None, r.get("macro_f1"), r.get("test_n"), "resnet18.csv" if r else None)
     for key, label in [("unaligned", "Unaligned cosine"), ("random_rotation", "Random rotation"), ("procrustes", "Procrustes (ours)")]:
         x = retrieval.get(key, {})
-        add(label, x.get("top1"), x.get("top5"), x.get("macro_f1"), x.get("test_n"), "retrieval.csv" if x else None)
+        add(label, x.get("top1"), x.get("top5"), x.get("macro_f1"), x.get("test_n") or x.get("n_images"), "retrieval.csv" if x else None)
 
     if sources:
         note = f"Loaded from `artifacts/metrics/` ({', '.join(sorted(set(sources)))}). Held-out EuroSAT test split."
@@ -432,15 +433,24 @@ def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
             )
             gr.Markdown(note)
             gr.Markdown(
-                "ResNet-18 is trained on the exact class labels, so it is expected to win at "
-                "fixed-class classification. Our method answers new text queries without retraining.\n\n"
-                "### Known failure\n"
-                f"**Query:** `{FAILURE_EXAMPLE['query']}` → top result **{FAILURE_EXAMPLE['got']}** "
-                f"(expected {FAILURE_EXAMPLE['expected']}).\n\n{FAILURE_EXAMPLE['why']}"
+                "**How to read this:** for Procrustes / random / unaligned, Top-1 is *text→image search*: "
+                "for each of the 50 class captions, is the single best-matching test tile from the right class? "
+                "Majority is plain classification accuracy on the full test split. The N columns differ, "
+                "so compare rows with care.\n\n"
+                "ResNet-18 is trained on the exact class labels, so it is expected to win at fixed-class "
+                "classification. Our method answers new text queries without retraining."
             )
-            with gr.Row():
-                gr.Image(make_placeholder_tile("PermanentCrop", 0), label="Expected: PermanentCrop", interactive=False)
-                gr.Image(make_placeholder_tile("AnnualCrop", 0), label="Returned: AnnualCrop", interactive=False)
+            gr.Markdown("### Where it fails (computed live, not hand-picked)")
+            for probe in FAILURE_PROBES:
+                try:
+                    hits = backend.search_text(probe["query"])
+                    got = ", ".join(f"{h.label} ({h.score:.2f})" for h in hits)
+                    gallery_value = [(h.image, f"{h.label} · {h.score:.2f}") for h in hits]
+                except Exception as e:
+                    got, gallery_value = f"unavailable ({type(e).__name__})", []
+                gr.Markdown(f"**Query:** `{probe['query']}` → top 3: {got}\n\n{probe['why']}")
+                gr.Gallery(value=gallery_value, columns=TOP_K, height="auto", object_fit="contain",
+                           show_label=False, interactive=False)
 
         gr.Markdown(
             "<small>Frozen DINOv2 ViT-S/14 + frozen all-MiniLM-L6-v2, aligned by a closed-form "
@@ -450,13 +460,30 @@ def build_ui(backend, root: Path = REPO_ROOT) -> gr.Blocks:
     return demo
 
 
+def prefetch(root: Path = REPO_ROOT) -> None:
+    """Download MiniLM + DINOv2 so the demo runs with no internet."""
+    from src.config import load_config
+    from src.encoders import load_dinov2, load_minilm
+
+    cfg = load_config(str(root / "configs" / "default.yaml"))
+    load_minilm(cfg["text"]["model_name"])
+    print(f"[prefetch] cached {cfg['text']['model_name']}")
+    load_dinov2(cfg["image"]["model_name"], device="cpu")
+    print(f"[prefetch] cached {cfg['image']['model_name']}")
+    print("[prefetch] done — test offline with: HF_HUB_OFFLINE=1 python app.py")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Platonic Earth demo")
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument("--mock", action="store_true", help="Force mock mode even if artifacts exist")
     parser.add_argument("--root", type=Path, default=REPO_ROOT, help="Repo root holding data/ and artifacts/")
+    parser.add_argument("--prefetch", action="store_true", help="Download both models into the HF cache, then exit")
     parser.add_argument("--share", action="store_true", help="Create a public Gradio link (needs internet)")
     args = parser.parse_args()
+    if args.prefetch:
+        prefetch(args.root)
+        return
     build_ui(load_backend(args.root, args.mock), args.root).launch(server_port=args.port, share=args.share)
 
 
