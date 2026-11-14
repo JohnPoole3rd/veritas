@@ -57,7 +57,11 @@ def train_resnet18(
             {
                 "epoch": epoch + 1,
                 "train_loss": running_loss / max(seen, 1),
-                **val_metrics,
+                **{
+                    key: value
+                    for key, value in val_metrics.items()
+                    if key not in {"predictions", "targets"}
+                },
             }
         )
     return model, history

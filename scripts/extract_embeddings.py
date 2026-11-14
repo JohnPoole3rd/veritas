@@ -44,6 +44,7 @@ def main() -> None:
     embedding_dim = None
 
     for split in ("train", "val", "test"):
+        print(f"Extracting {split}...", flush=True)
         dataset = dataset_from_split(config, split, transform=None, return_id=True)
         if args.limit is not None:
             dataset = Subset(dataset, range(min(args.limit, len(dataset))))
