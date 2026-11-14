@@ -1,7 +1,7 @@
 # Demo, Write-up, and Submission
 
-**Owner:** D for T14–T16; J for T17.
-**Tasks:** T14, T15, T16, T17
+**Owner:** D for T14–T16; J for T17 and T18.
+**Tasks:** T14, T15, T16 (optional), T17, T18
 **Inputs:** T06/T07 from J, T12/T13 from A.
 
 ## 1. Gradio demo
@@ -28,8 +28,8 @@
 │  [ drop image ] → Predicted: Residential (0.74)     │
 ├─────────────────────────────────────────────────────┤
 │  Baseline comparison                                │
-│  Majority: X% | ResNet-18: Y% | Ours: Z% top-1     │
-│  Failure: annual vs. permanent crop                 │
+│  Majority: X% | ResNet-18: Y% | Ours image→class: Z% │
+│  Failure: river channel → Highway; abstract query     │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -61,7 +61,7 @@ python app.py
 Expected real-mode log:
 
 ```text
-[demo] REAL mode — gallery N=512 of 4050, transforms from src.alignment
+[demo] REAL mode — Upper Arlington N=50; EuroSAT test N=512 of 4050; transforms from src.alignment
 [demo] NOTE — using 512-tile stratified subset
 ```
 
@@ -82,28 +82,35 @@ The demo reads:
 - `artifacts/metrics/resnet18.csv`
 - `artifacts/metrics/caption_classification_test.csv` — image→class rows, comparable with ResNet
 - `artifacts/metrics/retrieval.csv` — text search row, 50 caption queries
+- `artifacts/metrics/local_summary.csv` — Upper Arlington table
+- `artifacts/metrics/local_predictions.csv` — success/failure examples
 
 If a file is missing, the table shows `—`; do not replace it with a made-up number. Do not compare the 50-query search row with per-image ResNet accuracy.
 
 ### Example queries
 
-- `dense forest`
-- `residential neighborhood`
-- `park or grassland`
+**Upper Arlington gallery (default):**
+
 - `commercial area`
 - `river corridor`
+- `park or grassland`
+
+**EuroSAT test gallery:**
+
+- `dense forest`
 - `open water`
+- `industrial site`
 
 ### Example failure
 
-**Query:** `permanent crop`
-**Top result:** `annual crop`
-**Explanation:** “At 64×64, orchards and seasonal fields look similar. The difference depends on crop lifecycle, which a single tile does not show.”
+**Local tile:** `ua_049` (Scioto/Griggs river channel). Procrustes predicts `Highway`; ResNet-18 predicts `HerbaceousVegetation` at p≈0.98. Both are wrong.
+**Why:** at 10 m per pixel, a 60–150 m river channel is a thin dark line; the largest EuroSAT confusion is River→Highway (122/375 = 32%).
+**Abstract query:** `climate change` returns unrelated tiles with scores around 0.05; the tool cannot abstain.
 
 ### Upper Arlington example
 
 **Input:** a residential tile from Old Arlington.
-**Output:** “Residential (0.74); next: Industrial (0.69). Outside the EuroSAT distribution; treat as a hint.”
+**Output:** “Residential (score 0.74); next: Industrial (0.69). Outside the EuroSAT distribution; treat this as a hint.”
 
 ## 2. Two-minute video script
 
@@ -113,9 +120,11 @@ If a file is missing, the table shows `—`; do not replace it with a made-up nu
 
 ### 0:15–1:15 — Demo
 
-> “Here is the input: ‘dense forest.’ The tool returns the top three matching tiles with confidence scores.”
+> “The default gallery is Upper Arlington. Here is the input: ‘commercial area.’ The tool returns the top three matching local tiles with similarity scores.”
 >
-> “Here is an Upper Arlington tile. It predicts residential, with a warning that local imagery is outside the training distribution.”
+> “Switch to the EuroSAT gallery and ask for ‘dense forest’ to see the model’s broader land-cover vocabulary.”
+>
+> “Here is an Upper Arlington tile. It predicts [label], with a warning that local imagery is outside the training distribution.”
 >
 > “We compare with a supervised ResNet-18 classifier. ResNet is stronger at fixed classes, but it cannot answer a new text query without retraining. Our rotation can.”
 
@@ -125,7 +134,7 @@ If a file is missing, the table shows `—`; do not replace it with a made-up nu
 
 ### 1:45–2:00 — Failure and next steps
 
-> “It fails on annual versus permanent crop, because the difference is crop lifecycle, not appearance. Next, we would add local labels and temporal change detection.”
+> “It fails on the river channel (`ua_049`; the rotation says Highway) and on abstract queries like ‘climate change’. It also confuses permanent and annual crops in-distribution. Next, we would add local labels and temporal change detection.”
 
 ## 3. Write-up template
 
@@ -139,7 +148,7 @@ If a file is missing, the table shows `—`; do not replace it with a made-up nu
 Upper Arlington sustainability and urban-forestry staff need to find candidate areas for tree-canopy expansion or land-cover inspection, but browsing thousands of Sentinel-2 tiles is slow. Existing classifiers answer a fixed set of classes and cannot be queried in plain language.
 
 ## What we built
-A Gradio app that takes a text query or a satellite tile and returns matching land-cover tiles with confidence scores. It uses frozen DINOv2 and MiniLM embeddings aligned by a closed-form Procrustes rotation. No multimodal training.
+A Gradio app that takes a text query or a satellite tile and returns matching land-cover tiles with similarity scores. It uses frozen DINOv2 and MiniLM embeddings aligned by a closed-form Procrustes rotation. No multimodal training.
 
 ## What we added
 We started from the suggested land-use mapping project and added:
@@ -149,7 +158,7 @@ We started from the suggested land-use mapping project and added:
 - a comparison against a supervised classifier.
 
 ## How it works
-Data: EuroSAT (27,000 tiles, 10 classes). We used [N] training, [N] validation, [N] test. Local tiles: 50 from Copernicus Browser, clipped to the Upper Arlington boundary.
+Data: EuroSAT (27,000 tiles, 10 classes). We used [N] training, [N] validation, [N] test. Local tiles: 50 Sentinel-2 L2A tiles of Upper Arlington and the immediate river corridor (40/50 fully inside the city; the 10 water tiles are 25–37% inside). Imagery: scene `S2C_17TLE_20250801_0_L2A`, 2025-08-01, via Copernicus Sentinel-2 on AWS Earth Search. OSM boundary and ESA WorldCover were used only to choose locations.
 Model: DINOv2 ViT-S/14 (frozen), all-MiniLM-L6-v2 (frozen), orthogonal Procrustes. Baselines: majority class and ResNet-18.
 
 ## Results
@@ -176,7 +185,7 @@ Procrustes is well above the null baselines but below supervised ResNet-18. The 
 
 On 50 Upper Arlington tiles, Procrustes and ResNet-18 both reached 0.64 overall and 0.8108 on the 37 unambiguous tiles; local majority was 0.62.
 
-Where it fails: water read as road, managed turf vs forest/pasture, canopy vs residential, commercial strip vs residential, crop-type confusion, uninformative confidence.
+Where it fails: water read as road, managed turf vs forest/pasture, canopy vs residential, commercial strip vs residential, crop-type confusion, uncalibrated similarity.
 Why: at 10 m, thin water channels and mixed suburban land cover are ambiguous; EuroSAT classes do not match Upper Arlington exactly.
 
 ## What we'd do next
@@ -188,7 +197,8 @@ Why: at 10 m, thin water channels and mixed suburban land cover are ambiguous; E
 - EuroSAT: [link]
 - DINOv2: [link]
 - MiniLM: [link]
-- Copernicus Browser: [link]
+- Copernicus Sentinel-2 L2A via Element84 Earth Search / AWS `sentinel-cogs`: [link]
+- OpenStreetMap boundary (ODbL) and ESA WorldCover 2021 (CC BY 4.0): [links]
 - Upper Arlington GIS/canopy context: [link]
 - Gradio: [link]
 - AI tools used: [list]
@@ -218,12 +228,13 @@ Why: at 10 m, thin water channels and mixed suburban land cover are ambiguous; E
 - [ ] Next steps.
 - [ ] Sources.
 
-### Video
+### Video (optional)
 
 - [ ] ≤2 minutes.
 - [ ] Problem, demo, how it works, next steps.
 - [ ] Unlisted link.
 - [ ] Opens in incognito.
+- [ ] If not recorded, note that in `results/T16.md`; code + write-up are the required submission.
 
 ### Team
 
@@ -302,4 +313,4 @@ The brief rewards honest, modest results over unexplained high ones.
 
 ## 8. Final takeaway
 
-> “A closed-form rotation can turn frozen satellite and text models into a natural-language land-cover search tool — but it is not a replacement for supervised classification, and it fails on classes that differ by lifecycle rather than appearance.”
+> “A closed-form rotation can turn frozen satellite and text models into a natural-language land-cover search tool — but it is not a replacement for supervised classification. It fails on thin water channels read as roads and on classes that differ by lifecycle rather than appearance.”

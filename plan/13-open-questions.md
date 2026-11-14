@@ -33,12 +33,12 @@ Track, project, test site, and roles are locked. These are the remaining unknown
 
 | Question | Options | Default | Decision |
 |---|---|---|---|
-| Exact local imagery date? | date | most recent cloud-free | |
-| Include CLIP baseline? | yes / no | optional | |
-| Record video? | yes / no | recommended | |
-| Contact a real Upper Arlington user? | yes / no | optional | |
-| Use 50 or 30 local tiles? | 50 / 30 | 50 | |
-| Start signal? | human tells agents | wait | |
+| Exact local imagery date? | date | 2025-08-01 | resolved |
+| Include CLIP baseline? | yes / no | optional | not run |
+| Record video? | yes / no | optional; T16 if recorded | optional |
+| Contact a real Upper Arlington user? | yes / no | optional | optional |
+| Use 50 or 30 local tiles? | 50 / 30 | 50 | resolved: 50 |
+| Work started? | human tells agents | wait | resolved: started |
 
 ## 3. Roles
 
@@ -51,6 +51,7 @@ Track, project, test site, and roles are locked. These are the remaining unknown
 | Demo | Gradio, visuals, video | D |
 | Writer | Write-up, credits, video | D |
 | Submission | Final checklist and form | J |
+| Final review | Links, metrics, credits, leakage check | J + Human |
 
 ## 4. Subagents
 

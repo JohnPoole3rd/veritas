@@ -14,9 +14,9 @@ Read `plan/AGENTS.md`, `plan/DECISIONS.md`, and `plan/INTERFACES.md` first.
 ## Current state
 
 - `app.py` has MockBackend and RealBackend.
-- RealBackend verified with J's artifacts + A's metrics: gallery N=512 of 4,050, `dense forest` returns Forest, upload works.
-- The Results tab now shows image→class Procrustes (81.2%) next to ResNet-18 (98.2%), and text search separately (50 queries, 96% top-1).
-- Current limitation: Upper Arlington tiles are not in the search gallery; local results are in the metrics/write-up.
+- RealBackend verified with J's artifacts + A's metrics: Upper Arlington gallery N=50, EuroSAT test N=512 of 4,050, upload works. On the EuroSAT gallery, `dense forest` returns Forest; on the default Upper Arlington gallery, use local queries like `commercial area` or `river corridor`.
+- The Results tab shows image→class Procrustes (81.2%) next to ResNet-18 (98.2%), and text search separately (50 queries, 96% top-1).
+- Current limitation: the live EuroSAT gallery uses the committed 512-tile embeddings. Full-split 4,050 metrics are benchmarks from A's separate run.
 
 ## Exact commands
 
@@ -37,7 +37,7 @@ python app.py
 Expected:
 
 ```text
-[demo] REAL mode — gallery N=512 of 4050, transforms from src.alignment
+[demo] REAL mode — Upper Arlington N=50; EuroSAT test N=512 of 4050; transforms from src.alignment
 [demo] NOTE — using 512-tile stratified subset
 ```
 
@@ -69,15 +69,15 @@ The table shows image→class Procrustes separately from the 50-query text searc
 
 ## Write-up
 
-Use only numbers from:
+Write the one-page write-up to `WRITEUP.md` at the repo root and link it from `results/T15.md`. Use the brief's template in `plan/09-demo-writeup-submission.md`.
 
-- `results/T07.md`
-- `results/T08.md`
-- `results/T09.md`
-- `results/T12.md`
-- `results/T13.md`
+Use the full-split tables in `results/T07.md`:
+- text→image search = 50 caption queries over 4,050 test tiles: Procrustes 0.96/1.00, random 0.18/0.34, unaligned 0.10/0.34;
+- image→class = 4,050 images: Procrustes 0.8121/0.7948, ResNet-18 0.9817/0.9812, majority 0.1111/0.0200.
 
-State N=512 for J's retrieval numbers and the CPU limitation. Do not invent full-split numbers.
+Required sections: problem, user, input/output, data, model, results (two tables), failure (ua_049: Procrustes Highway, ResNet HerbaceousVegetation; plus `climate change`), what we added, next steps, sources/credits.
+
+Do not quote the old 512-subset 0.94/0.96 values except as J's CPU smoke-test caveat. Do not compare the 50-query search number directly with per-image ResNet accuracy. Do not call the method zero-shot.
 
 ## Rules
 

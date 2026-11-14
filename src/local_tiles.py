@@ -211,7 +211,8 @@ def local_metrics(preds: pd.DataFrame, qa_path: str | Path = QA_PATH) -> tuple[p
 
 
 def run_local_eval(out_dir: str | Path = "artifacts", resnet_checkpoint="artifacts/checkpoints/resnet18.pt",
-                   procrustes_path="artifacts/alignment/procrustes.npz", local_embeddings="auto"):
+                   procrustes_path="artifacts/alignment/procrustes.npz", local_embeddings="auto",
+                   manifest_path: str | Path | None = None, config: dict | None = None):
     """T12 entry point: needs J's T05/T06 artifacts (caption embeddings, procrustes.npz) and
     T08's ResNet-18 checkpoint (optional). Uses artifacts/embeddings/dinov2_local.npy if present,
     else embeds the tiles with DINOv2 directly (identical transforms)."""
@@ -228,10 +229,10 @@ def run_local_eval(out_dir: str | Path = "artifacts", resnet_checkpoint="artifac
     from src.encoders import get_device, load_dinov2
 
     params = load_procrustes(pz)
-    cfg = load_config()
+    cfg = config or load_config()
     device = get_device()
     ck = ROOT / resnet_checkpoint
-    df = load_local_manifest()
+    df = load_local_manifest(manifest_path or DEFAULT_MANIFEST)
     emb_path = ROOT / "artifacts/embeddings/dinov2_local.npy"
     if local_embeddings == "auto":
         local_embeddings = emb_path.exists()
@@ -254,7 +255,7 @@ def run_local_eval(out_dir: str | Path = "artifacts", resnet_checkpoint="artifac
         "n": int(len(preds)),
         "accuracy": float(preds["correct"].mean()),
         "per_category": by_cat[["local_category", "n", "accuracy"]].to_dict("records"),
-        "manifest": DEFAULT_MANIFEST,
+        "manifest": str(manifest_path or DEFAULT_MANIFEST),
         "methods": summary.to_dict("records"),
     }
     (m / "local.json").write_text(json.dumps(payload, indent=2))

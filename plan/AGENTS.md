@@ -21,9 +21,9 @@ If your runbook and this file disagree, follow the runbook and tell J.
 
 | Agent | Role | Owns | Tasks |
 |---|---|---|---|
-| **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07 |
+| **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07, T17, T18 |
 | **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, `src/failures.py`, `src/local_collect.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
-| **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T16 |
+| **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T16 (T16 optional) |
 
 **J is the only agent who merges to `main` and pushes `main`.**
 
@@ -181,8 +181,8 @@ Branch: j/t06-procrustes
 Artifacts:
 - artifacts/alignment/procrustes.npz
 Metrics:
-- top1=0.42
-- random=0.10
+- top1=0.96
+- random=0.18
 How to run: notebooks/03_alignment.ipynb
 Known issues: ViT-S only
 Next: T07

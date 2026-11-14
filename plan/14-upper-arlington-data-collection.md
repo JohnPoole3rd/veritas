@@ -36,7 +36,7 @@ If a tile includes Grandview Heights, Marble Cliff, or Columbus, move it or clip
 
 ## 2. Imagery settings
 
-**Source:** Copernicus Browser.
+**Source:** Copernicus Browser is the manual option. A's actual collection used the Copernicus Sentinel-2 L2A COG mirror on AWS Earth Search (`src/local_collect.py`), scene `S2C_17TLE_20250801_0_L2A` (2025-08-01). Use one consistent source for a new collection.
 
 **Mission:** Sentinel-2 L2A.
 
@@ -149,7 +149,7 @@ If a tile includes Grandview Heights, Marble Cliff, or Columbus, move it or clip
 
 > **As collected (T10):** the OSM boundary follows the east bank, so the Scioto/Griggs water is just outside the city. The 10 water tiles straddle the boundary (25–37 % inside) and are the 10 most water-rich, non-overlapping tiles on the corridor. River vs SeaLake is assigned visually in T11, not fixed at 5/5.
 
-**Goal:** 5 river tiles, 5 lake/pond tiles.
+**Goal:** 10 water tiles along the Scioto/Griggs corridor. As collected, all 10 are labelled `River`; there is no separate lake/pond in this scene.
 
 **Search anchors:**
 
@@ -158,10 +158,10 @@ If a tile includes Grandview Heights, Marble Cliff, or Columbus, move it or clip
 - Any lake/pond inside a park.
 - Griggs Reservoir only if within/immediately adjacent to the boundary; label carefully.
 
-**Labels:**
+**Labels (as collected):**
 
-- `River` for flowing river channel (ua_041–ua_045).
-- `SeaLake` for a pond/lake (ua_046–ua_050).
+- `River` for the Scioto/Griggs channel (ua_041–ua_050).
+- If a future scene has a separate pond/lake, use `SeaLake` and document the split; do not force 5/5.
 
 **Avoid:** tiles dominated by trees along the riverbank; center on the water.
 

@@ -11,9 +11,9 @@
 
 | Agent | Role | Tasks |
 |---|---|---|
-| **J** | Integrator + data/alignment lead | T01–T07 |
+| **J** | Integrator + data/alignment lead | T01–T07, T17, T18 |
 | **A** | Baselines + local validation lead | T08–T13 |
-| **D** | Demo + documentation lead | T14–T16 |
+| **D** | Demo + documentation lead | T14–T16 (T16 optional) |
 
 **J is the only agent who merges to `main` and pushes `main`.**
 
@@ -78,7 +78,7 @@ When something important is learned, create a durable note under [`learnings/`](
 | Text encoder | `sentence-transformers/all-MiniLM-L6-v2`, frozen |
 | Alignment | Orthogonal Procrustes (384→384) |
 | Training data | EuroSAT RGB |
-| Local data | 50 Sentinel-2 tiles clipped to Upper Arlington |
+| Local data | 50 Sentinel-2 tiles of Upper Arlington + river corridor (40/50 fully inside; 10 water 25–37% inside) |
 | Local categories | residential, commercial/industrial, road/highway, park/forest/herbaceous, water/river |
 | Baselines | majority class, ResNet-18, random rotation, unaligned cosine |
 | Demo | Gradio |
@@ -136,12 +136,13 @@ No clock times. Start when the human gives the signal.
 - [x] J T01–T07 complete; full-split metrics adopted from A.
 - [x] A T08–T13 complete and merged.
 - [x] D T14 real backend verified against J/A artifacts.
-- [ ] D T15/T16 write-up and video.
+- [ ] D T15/T16 write-up and optional video.
 - [ ] J T17 submission.
+- [ ] J T18 final review.
 
 ## Next actions
 
 1. D writes T15 using A's full-split and local results.
-2. D records T16 video with the real demo.
-3. J runs T17 submission checklist.
+2. D records T16 video with the real demo, or marks it not recorded.
+3. J runs T17 submission checklist and T18 final review.
 4. Read your runbook before starting: `plan/agents/J.md`, `A.md`, `D.md`.

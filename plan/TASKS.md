@@ -1,6 +1,6 @@
 # TASKS.md — J / A / D Task Board
 
-Status values: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`.
+Status values: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`, `OPTIONAL`.
 Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, … , `Human`.
 
 **J is the only agent who merges to `main` and pushes `main`.**
@@ -10,7 +10,7 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 ## Critical path
 
 ```text
-T01 → T02 → T04 → T06 → T07 → T12 → T14 → T15 → T17
+T01 → T02 → T04 → T06 → T07 → T12 → T14 → T15 → T17 → T18
         └→ T03 → T05 ┘
         └→ T08 → T09 ┘
 T10 → T11 → T12
@@ -36,9 +36,9 @@ Do not start a downstream task until the upstream artifact exists.
 | T12 | Local OOD evaluation | A | — | DONE | T11, T06 | `artifacts/metrics/local.csv`, `results/T12.md` |
 | T13 | Failure taxonomy + figures | A | — | DONE | T07, T12 | `artifacts/figures/`, failure table, `results/T13.md` |
 | T14 | Gradio demo | D1 | D | DONE | T06, T07 | `app.py`, `results/T14.md` |
-| T15 | Write-up | D | — | TODO | T07, T12, T13 | one-page write-up, `results/T15.md` |
-| T16 | Demo video | D2 | D | TODO | T14, T15 | unlisted video link, `results/T16.md` |
-| T17 | Submission checklist | J | — | TODO | T15, T16 | submitted form, `results/T17.md` |
+| T15 | Write-up | D | — | TODO | T06, T07, T08, T09, T12, T13, T14 | one-page write-up, `results/T15.md` |
+| T16 | Demo video (optional) | D2 | D | OPTIONAL | T14, T15 | unlisted video link if recorded, `results/T16.md` |
+| T17 | Submission checklist | J | — | TODO | T15 | submitted form, `results/T17.md` |
 | T18 | Final review | J + Human | — | TODO | T17 | final check, `results/T18.md` |
 
 The `Subagent of` column shows the suggested owner. Create more subagents as they want; see the subagent rules below.
@@ -169,7 +169,7 @@ The `Subagent of` column shows the suggested owner. Create more subagents as the
 
 **Acceptance:**
 
-- 50 tiles, cloud-free, clipped to city boundary.
+- 50 tiles, cloud-free; 40 fully inside the city, 10 water tiles 25–37% inside.
 - Coordinates and date recorded.
 - File naming follows `INTERFACES.md`.
 - Source is Copernicus/Sentinel-2.
@@ -182,10 +182,11 @@ The `Subagent of` column shows the suggested owner. Create more subagents as the
 
 **Acceptance:**
 
-- 10 tiles per category.
+- 10 sampling-stratum tiles per local category; EuroSAT labels may vary.
+- As collected: Residential 31, River 10, HerbaceousVegetation 4, Industrial 3, Forest 1, Highway 1.
 - Label rubric followed.
 - `Other` used when necessary.
-- Second-person QA on 10 tiles.
+- QA on 10 tiles by a blind second labeler (AI subagent A2); human spot-check of 13 ambiguous tiles recommended.
 - Disagreements noted.
 
 ### T12 — Local OOD evaluation
@@ -234,45 +235,49 @@ The `Subagent of` column shows the suggested owner. Create more subagents as the
 ### T15 — Write-up
 
 **Owner:** D
-**Inputs:** all metrics.
-**Outputs:** one-page document, `results/T15.md`.
+**Inputs:** T06/T07 (text search + image→class), T08/T09 (baselines), T12 (local), T13 (failures), T14 (demo).
+**Outputs:** `WRITEUP.md`, `results/T15.md`.
 
 **Acceptance:**
 
 - Brief template filled.
 - User, problem, input/output.
-- Baseline table.
-- Failure case.
+- Separate tables: text search (50 caption queries) and image→class (4,050 images).
+- Baseline table with ResNet-18 and majority.
+- Failure case: river channel → Highway and abstract query.
 - What we added.
 - Sources.
-- Honest limitations.
+- Honest limitations, including live gallery N=50/512 vs full-split metrics.
+- No zero-shot claim.
 
-### T16 — Demo video
+### T16 — Demo video (optional)
 
 **Owner:** D2 (subagent of D)
 **Inputs:** T14, T15.
-**Outputs:** unlisted video link, `results/T16.md`.
+**Outputs:** unlisted video link if recorded, `results/T16.md`.
 
 **Acceptance:**
 
 - Problem, demo, how it works, next steps.
 - Real input/output.
 - Link opens in incognito.
+- If not recorded, state "video not recorded; code + write-up submitted" in `results/T16.md`.
 
 ### T17 — Submission
 
 **Owner:** J
-**Inputs:** T15, T16.
+**Inputs:** T15; T16 if recorded.
 **Outputs:** submitted form, `results/T17.md`.
 
 **Acceptance:**
 
 - Code link opens.
 - Write-up link opens.
-- Video link opens.
+- Video link opens if a video was recorded.
 - Team details correct.
 - Credits complete.
 - Track = AI + Climate.
+- Metrics checked against `artifacts/metrics/`.
 
 ### T18 — Final review
 

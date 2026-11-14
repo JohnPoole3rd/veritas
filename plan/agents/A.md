@@ -26,9 +26,10 @@ J already ran this while scaffolding. Verify the metrics and write `results/T09.
 
 ```sh
 python scripts/evaluate_majority.py
+# or: python -m src.baselines majority
 ```
 
-Current output: accuracy `0.1111`, macro-F1 `0.0200`, majority class `SeaLake`, N=4050.
+Current output: accuracy `0.1111`, macro-F1 `0.0200`, majority class `AnnualCrop`, N=4050. The five-way count tie is broken by class-name order.
 
 Outputs:
 
@@ -61,7 +62,7 @@ The app reads `resnet18.csv` columns:
 
 ```csv
 method,accuracy,macro_f1,test_n,epochs,notes
-resnet18,0.96,0.95,4050,epochs=10
+resnet18,0.9817,0.9812,4050,10,best_epoch=10 val_acc=0.9785 input=64 device=mps
 ```
 
 ### T10–T11 — Upper Arlington tiles
@@ -115,6 +116,8 @@ Outputs:
 - `results/T12.md`
 
 Current T12 result: Procrustes 0.64, ResNet-18 0.64, local majority 0.62 on 50 tiles; 0.8108 for both models on the 37 unambiguous tiles.
+
+**Guard:** `evaluate_local.py` refuses to overwrite these committed full-split local metrics when `procrustes.npz` has `limit: 512`. Rerun the full split or pass `--force` only if you intend to replace A's numbers.
 
 `local.csv` columns:
 

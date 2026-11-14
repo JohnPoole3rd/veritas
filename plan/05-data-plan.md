@@ -189,6 +189,8 @@ Approximate center for search: `40.02056, -83.06639`.
 
 **Copernicus Browser:** `https://browser.dataspace.copernicus.eu`
 
+A's actual collection used the Copernicus Sentinel-2 L2A COG mirror on AWS Earth Search (`src/local_collect.py`), scene `S2C_17TLE_20250801_0_L2A`. Browser is the manual alternative.
+
 Steps:
 
 1. Create a free account.
@@ -215,7 +217,7 @@ Recommended dates:
 | Commercial/industrial | 10 | Industrial (proxy) | Lane Ave, Kenny Rd, Henderson Rd, Tremont Center |
 | Road/highway | 10 | Highway | Lane Ave, Henderson Rd, Kenny Rd, Riverside Dr, Fishinger Rd |
 | Park/forest/herbaceous | 10 | Forest (5) + HerbaceousVegetation (5) | Northam, Thompson, Fancyburg, Reed Road, Miller, Sunny 95 |
-| Water/river | 10 | River (5) + SeaLake (5) | Scioto River corridor |
+| Water/river | 10 | River (10 in A's scene; no separate lake) | Scioto River corridor |
 
 If a tile does not fit, label `Other` and note why. Replace it if possible so each category has 10 useful examples.
 

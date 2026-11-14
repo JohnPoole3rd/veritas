@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import random
 import sys
@@ -46,6 +47,7 @@ def main() -> None:
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--device", default=None)
     parser.add_argument("--limit", type=int, default=None, help="Optional per-split limit")
+    parser.add_argument("--force", action="store_true", help="Allow overwriting full-split metrics with a subset run")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -103,9 +105,24 @@ def main() -> None:
                 "notes": f"{result['n_images']}-tile subset" if result["n_images"] < 4050 else "",
             }
         )
+    if args.limit is not None and not args.force:
+        existing = metrics_dir / "retrieval.csv"
+        if existing.exists():
+            with existing.open(newline="") as handle:
+                rows_existing = list(csv.DictReader(handle))
+            full_rows = [
+                row for row in rows_existing
+                if int(float(row.get("test_n") or row.get("n_images") or 0)) >= 4050
+            ]
+            if full_rows:
+                raise SystemExit(
+                    "Refusing to overwrite full-split retrieval.csv with a --limit run. "
+                    "Use --force for a scratch smoke run, or rerun without --limit."
+                )
     save_metrics_csv(metrics_dir / "retrieval.csv", rows)
+    out_name = "retrieval_test_full.json" if args.limit is None else f"retrieval_test_{args.limit}.json"
     save_json(
-        metrics_dir / "retrieval_test.json",
+        metrics_dir / out_name,
         {
             "procrustes": procrustes,
             "random_rotation": random_metrics,

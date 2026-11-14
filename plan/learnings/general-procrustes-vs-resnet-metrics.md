@@ -8,8 +8,8 @@
 ## What we learned
 
 1. `evaluate_retrieval` (T07) scores **text→image**: each of the 50 captions is a query, and a hit
-   means the single most similar test image has the caption's class. So "top-1 = 0.94" means
-   47/50 caption queries hit, and the effective N is **50 queries**, not 512 or 4,050 images.
+   means the single most similar test image has the caption's class. So full-split "top-1 = 0.96" means
+   48/50 caption queries hit, and the effective N is **50 queries**, not 4,050 images.
 2. ResNet-18 accuracy is **per image** (N = 4,050). The comparable Procrustes number is
    image→class accuracy: classify every test image by its most similar class caption(s).
    `src.evaluate.evaluate_caption_classification` (A) computes this, with the same confusion

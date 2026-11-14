@@ -29,15 +29,20 @@ veritas/
       minilm_caption_index.json
     alignment/
       procrustes.npz
+    checkpoints/
+      resnet18.pt
     metrics/
       retrieval.csv
       resnet18.csv
       majority.csv
       local.csv
+      local_summary.csv
     figures/
-      confusion_matrix.png
-      retrieval_examples.png
       failure_gallery.png
+      local_confusion.png
+      procrustes_test_confusion_matrix.png
+      procrustes_val_confusion_matrix.png
+      resnet18_confusion_matrix.png
   src/
     __init__.py
     config.py
@@ -49,12 +54,13 @@ veritas/
     evaluate.py
     baselines.py
     local_tiles.py
+    failures.py
+    local_collect.py
   notebooks/
     01_data.ipynb
     02_embeddings.ipynb
     03_alignment.ipynb
-    04_evaluation.ipynb
-    05_local_tiles.ipynb
+    # 04/05 not used; A implemented T08-T13 as scripts
   app.py
   README.md
   requirements.txt
@@ -224,9 +230,9 @@ If `dinov2_test.npy` has fewer rows than `data/splits/test.json`, `app.py` uses 
 
 ```csv
 method,split,top1,top5,macro_f1,n_images,test_n,n_captions,notes
-procrustes,test,0.94,0.96,,512,512,50,512-tile subset
-random_rotation,test,0.10,0.32,,512,512,50,512-tile subset
-unaligned,test,0.16,0.36,,512,512,50,512-tile subset
+procrustes,test,0.96,1.0,,4050,4050,50,full test; A MPS rerun of J scripts
+random_rotation,test,0.18,0.34,,4050,4050,50,full test
+unaligned,test,0.10,0.34,,4050,4050,50,full test
 ```
 
 `artifacts/metrics/majority.csv`:
@@ -256,7 +262,7 @@ unaligned,test,0.0827,0.5326,0.0720,4050,50,"image->class, agg=max"
 
 ```csv
 tile_id,true_label,local_category,predicted_label,score,correct
-ua_001,Residential,residential,Residential,0.74,True
+ua_001,Residential,residential,Residential,0.3834,True
 ```
 
 `artifacts/metrics/local.json`:
@@ -269,6 +275,17 @@ ua_001,Residential,residential,Residential,0.74,True
   "manifest": "data/local_tiles/manifest.csv"
 }
 ```
+
+`artifacts/metrics/local_summary.csv` (used by the demo table):
+
+```csv
+method,accuracy,n,accuracy_unambiguous,n_unambiguous,notes
+procrustes,0.64,50,0.8108,37,Upper Arlington OOD
+resnet18,0.64,50,0.8108,37,Upper Arlington OOD
+majority_local,0.62,50,0.7838,37,constant Residential
+```
+
+`artifacts/metrics/local_predictions.csv` is used for the demo's success/failure examples; it must contain `tile_id`, `label`, `procrustes_pred`, and `resnet18_pred`.
 
 ### Demo artifact contract
 
@@ -298,10 +315,10 @@ These are planning signatures. Implementations may differ internally, but inputs
 ### `src/data.py`
 
 ```python
-def load_eurosat(root: str, split: str, config: dict) -> Dataset:
-    """Return a torch Dataset for a split."""
+def load_eurosat(root: str, download: bool = True) -> Dataset:
+    """Return torchvision's EuroSAT dataset."""
 
-def make_splits(root: str, config: dict) -> dict:
+def make_splits(config: dict, download: bool | None = None) -> dict:
     """Create and save stratified train/val/test splits."""
 
 def load_split(path: str) -> dict:
@@ -402,8 +419,8 @@ Branch: j/t06-procrustes
 Artifacts:
 - artifacts/alignment/procrustes.npz
 Metrics:
-- top1=0.42
-- random=0.10
+- top1=0.96
+- random=0.18
 How to run: notebooks/03_alignment.ipynb
 Known issues: ViT-S only
 Next: T07
@@ -435,7 +452,7 @@ Use `plan/learnings/_template.md`. Do not edit another agent's learning file. J 
 - Tile IDs: `eurosat_000001`, `ua_001`.
 - Caption IDs: `{class_lower}_{template:02d}`.
 - Run IDs: `R001`, `R002`, …
-- Figures: `confusion_matrix.png`, `retrieval_examples.png`, `failure_gallery.png`.
+- Figures: `failure_gallery.png`, `local_confusion.png`, `procrustes_test_confusion_matrix.png`, `procrustes_val_confusion_matrix.png`, `resnet18_confusion_matrix.png`.
 - No spaces in filenames.
 
 ## 8. Acceptance tests

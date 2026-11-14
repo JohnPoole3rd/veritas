@@ -407,20 +407,21 @@ def results_tables(root: Path = REPO_ROOT) -> list[dict]:
         "headers": ["Method", "Accuracy", "Macro-F1", "Test N"],
         "rows": rows,
         "note": "Held-out EuroSAT test split. ResNet-18 is trained on these exact labels; ours never trains "
-                "either model. It only fits one rotation. Sources: majority.csv, resnet18.csv, "
-                "caption_classification_test.csv (T08, T09, T12).",
+                "either encoder. It fits one rotation on labelled EuroSAT image–caption pairs. "
+                "Sources: majority.csv, resnet18.csv, caption_classification_test.csv (T08, T09, T12).",
     })
 
     # 2) Text search: what only the rotation can do.
     ret = _read_csv("retrieval.csv", root)
     tables.append({
         "title": "2 · Text search (ResNet-18 can't do this)",
-        "headers": ["Method", "Top-1", "Top-5", "Caption queries", "Tiles searched"],
+        "headers": ["Method", "Top-1", "Top-5", "Caption queries", "Benchmark tiles (full split)"],
         "rows": [[{"procrustes": "Procrustes rotation (ours)", "random_rotation": "Random rotation (control)",
                    "unaligned": "No rotation (control)"}.get(r["method"], r["method"]), _fmt(r.get("top1")), _fmt(r.get("top5")), r.get("n_captions", "—"),
                   r.get("n_images", "—")] for r in ret],
         "note": "Each of the 50 class captions is a search; Top-1 = the best tile has the right class. "
-                "Source: retrieval.csv (T07).",
+                "These metrics come from A's full-split rerun (4,050 test tiles). The live demo gallery "
+                "uses the available Upper Arlington 50 or EuroSAT 512 tiles. Source: retrieval.csv (T07).",
     })
 
     # 3) Upper Arlington, out of distribution.
@@ -429,16 +430,23 @@ def results_tables(root: Path = REPO_ROOT) -> list[dict]:
         loc = [r for r in _read_csv("local.csv", root) if "method" in r]
     names = {"procrustes": "Procrustes rotation (ours)", "resnet18": "ResNet-18",
              "majority_local": "Always guess “Residential”"}
+    maj_local = next((r for r in loc if r.get("method") == "majority_local"), {})
+    maj_local_txt = _fmt(maj_local.get("accuracy")) if maj_local else "—"
     tables.append({
         "title": "3 · Upper Arlington tiles (never used for fitting)",
         "headers": ["Method", "Accuracy (all)", "N", "Accuracy (clear-cut tiles)", "N"],
         "rows": [[names.get(r["method"], r["method"]), _fmt(r.get("accuracy")), r.get("n", "—"),
                   _fmt(r.get("accuracy_unambiguous")), r.get("n_unambiguous", "—")] for r in loc],
-        "note": "31 of 50 local tiles are Residential, so guessing “Residential” already scores 62%. "
+        "note": f"The local set is skewed toward Residential: a constant “Residential” guess already scores {maj_local_txt}. "
                 "Both models beat that by 1 tile, and both miss almost every river tile. "
                 "A small case study, not a benchmark. Source: local_summary.csv (T12).",
     })
     return [t for t in tables if t["rows"]]
+
+
+def metrics_table(root: Path = REPO_ROOT) -> list[dict]:
+    """Compatibility wrapper for older integration checks and runbooks."""
+    return results_tables(root)
 
 
 def local_examples(root: Path = REPO_ROOT) -> list[dict]:

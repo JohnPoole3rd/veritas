@@ -17,9 +17,9 @@ Full 27k EuroSAT extraction with DINOv2 ViT-S/14 on CPU was stopped after severa
 
 ## Impact
 
-- T04/T06/T07 are reported with N=512, not the full split.
-- The code supports the full split; rerun without `--limit` on a GPU.
-- The write-up must state N and the CPU limitation honestly.
+- T04 used N=512; T06/T07 later adopted A's full-split metrics.
+- The committed alignment/embedding artifacts remain 512-tile; the full-split metrics are a separate MPS run.
+- The write-up must state which N belongs to which artifact.
 
 ## Plan changes
 
