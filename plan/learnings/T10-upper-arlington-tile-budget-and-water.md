@@ -29,7 +29,7 @@ The water lies just outside the OSM city boundary, and the city holds only about
 ## Evidence
 
 - `data/local_tiles/collection_log.csv` — per-tile `inside`, `overlap`, WorldCover and OSM fractions.
-- Water tiles ua_041–ua_050: 25–37 % of the tile inside the city, 10–38 % water.
+- Water tiles ua_041–ua_050: 25–37 % of the tile inside the city, 10–40 % water.
 - Road tiles ua_021–ua_030: OSM major-road pavement 5–11 %.
 
 ## Impact
@@ -52,3 +52,15 @@ The water lies just outside the OSM city boundary, and the city holds only about
 - T11: label visually by rubric; record mixes; use `Other` where no class dominates.
 - T12/T13: report per-category results with these caveats; Highway and Forest are expected weak spots.
 - D (T15): use the wording "tiles in and immediately adjacent to Upper Arlington".
+
+## Credits (brief §5 requires every dataset/tool with links)
+
+- Sentinel-2 L2A: "Contains modified Copernicus Sentinel data [2025]", accessed via Element84 Earth Search / AWS Open Data `sentinel-cogs` (https://registry.opendata.aws/sentinel-2-l2a-cogs/).
+- ESA WorldCover 10 m 2021 v200, CC BY 4.0 (https://esa-worldcover.org) — used only to choose tile locations.
+- OpenStreetMap contributors, ODbL (https://www.openstreetmap.org/copyright) — city boundary (relation 181876) and land-use/roads used only to choose tile locations.
+
+## Idea for J (brief §4.3.3 "make it your own": "look for real change over time")
+
+`src/local_collect.py --scene <id>` can re-cut the *same 50 tile windows* from an earlier leaf-on scene
+(e.g. summer 2019) so the demo can show per-tile prediction change for the canopy question. Not started;
+needs J's go-ahead because it adds scope.

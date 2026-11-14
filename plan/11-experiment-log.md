@@ -25,19 +25,19 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 | EuroSAT | | train | | torchvision | | |
 | EuroSAT | | val | | torchvision | | |
 | EuroSAT | | test | | torchvision | | |
-| Upper Arlington local | | local | 50 | Copernicus | | 10 per category |
-| Upper Arlington local | | local | | Copernicus | | QA reviewed |
+| Upper Arlington local | S2C_17TLE_20250801_0_L2A (2025-08-01) | local | 50 | Copernicus Sentinel-2 L2A via AWS Earth Search | Copernicus open data | 10 per stratum; T10 |
+| Upper Arlington local | manifest.csv | local | 10 | blind second labeller (AI subagent A2) | | QA reviewed; 6/10 agree; T11 |
 
 ## 3. Upper Arlington local inventory
 
 | Local category | Planned N | Collected N | Labeled N | QA N | Notes |
 |---|---:|---:|---:|---:|---|
-| Residential | 10 | | | | |
-| Commercial/industrial | 10 | | | | |
-| Road/highway | 10 | | | | |
-| Park/forest/herbaceous | 10 | | | | |
-| Water/river | 10 | | | | |
-| **Total** | **50** | | | | |
+| Residential | 10 | 10 | 10 | 2 | stratum; all labelled Residential |
+| Commercial/industrial | 10 | 10 | 10 | 2 | 3 Industrial, 7 Residential |
+| Road/highway | 10 | 10 | 10 | 2 | 1 Highway, 9 Residential (arterials 5–11 % of pixels) |
+| Park/forest/herbaceous | 10 | 10 | 10 | 2 | 1 Forest, 4 HerbaceousVegetation, 5 Residential |
+| Water/river | 10 | 10 | 10 | 2 | 10 River; straddle W boundary; no SeaLake |
+| **Total** | **50** | **50** | **50** | **10** | blind QA 6/10 agree; see results/T11.md |
 
 ## 4. Failure log
 
