@@ -19,14 +19,16 @@
 - [Upper Arlington data guide](plan/14-upper-arlington-data-collection.md)
 - [Agent work plan](plan/15-agent-work-plan.md)
 - [Repo blueprint](plan/16-repo-blueprint.md)
+- [Learnings / durable notes](plan/learnings/README.md)
 
 ## Working method
 
-Plain Git only. One `main`. Normal task branches. No message board. No board branch. J merges. A and D push task branches. Handoffs use per-task `results/Txx.md` reports.
+Plain Git only. One `main`. Normal task branches. No message board. No board branch. J merges. A and D push task branches. Handoffs use per-task `results/Txx.md` reports. Important findings go to `plan/learnings/`; update plans when beneficial.
 
 ## What is in this repo right now
 
 - `plan/` — complete hackathon planning package.
+- `plan/learnings/` — durable findings and plan updates.
 - `projectBrief.pdf` — original Veritas AI project brief.
 - `LICENSE` — repository license.
 

@@ -353,6 +353,17 @@ Rules:
 - J reads reports when merging.
 - Do not edit another task's report.
 
+### Learning files
+
+Important findings go to:
+
+```text
+plan/learnings/Txx-topic.md
+plan/learnings/general-topic.md
+```
+
+Use `plan/learnings/_template.md`. Do not edit another agent's learning file. J reviews and merges learnings.
+
 ## 7. Naming conventions
 
 - Task branches: `j/t01-scaffold`, `a/t08-resnet18`, `d/t14-gradio`.

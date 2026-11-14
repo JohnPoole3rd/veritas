@@ -162,20 +162,20 @@ J is the only agent who merges to `main` and pushes `main`.
 
 ## 3. Subagents
 
-J, A, and D can each create subagents.
+J, A, and D can each create as many subagents as they want.
 
 ### Naming
 
 ```text
-J1, J2
-A1, A2
-D1, D2
+J1, J2, J3, ...
+A1, A2, A3, ...
+D1, D2, D3, ...
 ```
 
 ### Rules
 
-- Maximum **2 active subagents** per primary.
-- **One level deep.** Subagents cannot create subagents.
+- **No fixed cap.** Create as many as they want, provided each has a bounded task and file scope.
+- Prefer one level of delegation. If a subagent needs more help, it reports to its parent, and the parent creates another subagent.
 - Each subagent gets one bounded task and one file scope.
 - Subagent branch examples:
   - `j/sub-j1-t02`
@@ -187,6 +187,7 @@ D1, D2
 - Parent writes the `results/Txx.md` report.
 - No two subagents edit the same file.
 - If a subagent is blocked for more than 30 minutes, the parent stops it and reassigns the work.
+- The parent is accountable for every subagent it creates.
 
 ### Suggested assignments
 
@@ -210,6 +211,8 @@ A keeps T12/T13 and metrics.
 - `D2` — visuals and demo script (T15/T16).
 
 D keeps T15/T16.
+
+These are starting suggestions. Create more subagents whenever they improve speed.
 
 ## 4. Git workflow
 
@@ -289,7 +292,48 @@ J reviews and merges at these points:
 
 No clock times. Move when the phase exit is met.
 
-## 7. Conflict rules
+## 7. Continuous planning
+
+Plans change when the work teaches you something.
+
+### Update a plan file when
+
+- A task reveals a new constraint.
+- A dataset or model behaves differently than expected.
+- A metric changes the interpretation.
+- A failure becomes important enough to document.
+- A new artifact or script becomes part of the workflow.
+
+### Create a learning file when
+
+The finding is important but does not fit an existing section.
+
+```text
+plan/learnings/Txx-topic.md
+plan/learnings/general-topic.md
+```
+
+Examples:
+
+```text
+plan/learnings/T04-dinov2-resolution-limit.md
+plan/learnings/T10-upper-arlington-cloud-cover.md
+plan/learnings/general-procrustes-centering-bug.md
+```
+
+Use `plan/learnings/_template.md`.
+
+### Rules
+
+- Any agent may create a learning file.
+- Do not edit another agent's learning file.
+- J owns `plan/TASKS.md` and `plan/DECISIONS.md`.
+- Agents may update plan sections local to their task; use a learning file for cross-cutting findings.
+- If it changes a locked decision, write the learning file and ask J/human.
+- J reviews and merges learnings with the task branch.
+- Learning files are a durable knowledge base, not a chat board.
+
+## 8. Conflict rules
 
 - One owner per module.
 - J only writes `plan/TASKS.md`.

@@ -20,7 +20,8 @@
 | R14 | Missing citations | Medium | Medium | Maintain credits table | D |
 | R15 | Canopy overclaim | Medium | High | Say “land-cover triage,” not canopy measurement | D |
 | R16 | Teammate unavailable | Medium | Medium | Cross-train; reduce scope | Human |
-| R17 | Subagents collide on files | Medium | Medium | Max 2 per primary; one level; one file scope; parent accountable | J/A/D |
+| R17 | Subagents collide on files | Medium | Medium | No fixed cap; bounded task/file scope; parent accountable; monitor | J/A/D |
+| R18 | Plan files diverge from reality | Medium | Medium | Update plans when beneficial; create `plan/learnings/`; J reconciles at merge | J |
 
 ## 2. Kill criteria
 

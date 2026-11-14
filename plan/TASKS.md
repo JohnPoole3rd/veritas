@@ -1,7 +1,7 @@
 # TASKS.md — J / A / D Task Board
 
 Status values: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`.
-Owner values: `J`, `A`, `D`, `J1`, `J2`, `A1`, `A2`, `D1`, `D2`, `Human`.
+Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, … , `Human`.
 
 **J is the only agent who merges to `main` and pushes `main`.**
 
@@ -38,6 +38,8 @@ Do not start a downstream task until the upstream artifact exists.
 | T16 | Demo video | D2 | D | TODO | T14, T15 | unlisted video link, `results/T16.md` |
 | T17 | Submission checklist | J | — | TODO | T15, T16 | submitted form, `results/T17.md` |
 | T18 | Final review | J + Human | — | TODO | T17 | final check, `results/T18.md` |
+
+The `Subagent of` column shows the suggested owner. Create more subagents as they want; see the subagent rules below.
 
 ## Task details
 
@@ -283,13 +285,29 @@ Do not start a downstream task until the upstream artifact exists.
 
 ## Subagent rules
 
-- Maximum 2 active per primary: J1/J2, A1/A2, D1/D2.
-- One level deep. Subagents cannot create subagents.
+- No fixed cap: create as many as they want.
+- Names: J1, J2, J3, …; A1, A2, A3, …; D1, D2, D3, …
+- Prefer one level of delegation. If a subagent needs more help, it reports to its parent, and the parent creates another subagent.
+- Each subagent gets one bounded task and one file scope.
 - Subagent branch: `j/sub-j1-t02`, `a/sub-a1-t08`, etc.
 - Subagent cannot merge to `main`.
 - Parent writes the `results/Txx.md` report.
 - No two subagents edit the same file.
 - If blocked for more than 30 minutes, parent stops and reassigns.
+- Parent is accountable for every subagent it creates.
+
+## Continuous planning
+
+When a finding changes future work:
+
+- Update the relevant plan file if the change is clear and local to your task.
+- Create `plan/learnings/Txx-topic.md` for a new important finding.
+- Use `plan/learnings/_template.md`.
+- J owns `plan/TASKS.md` and `plan/DECISIONS.md`.
+- If it changes a locked decision, write the learning and ask J/human.
+- J reviews and merges learnings with the task branch.
+
+Learning files are a durable knowledge base, not a chat board.
 
 ## Handoff notes
 

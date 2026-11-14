@@ -19,22 +19,23 @@ J merges to `main`. A and D push task branches. J reviews and merges at phase bo
 
 ## Subagents
 
-Each primary agent can create two active subagents:
+Each primary agent can create as many subagents as they want:
 
 ```text
-J1, J2
-A1, A2
-D1, D2
+J1, J2, J3, ...
+A1, A2, A3, ...
+D1, D2, D3, ...
 ```
 
 Rules:
 
-- One level deep. Subagents cannot create subagents.
-- Maximum 2 active per primary.
+- No fixed cap. Create as many as they want, provided each has a bounded task and file scope.
+- Prefer one level of delegation. If a subagent needs more help, it reports to its parent, and the parent creates another subagent.
 - Each subagent gets one bounded task and one file scope.
 - Subagent branch: `j/sub-j1-t02`, `a/sub-a1-t08`, `d/sub-d1-t14`.
 - Subagent cannot merge to `main`.
 - Parent writes the `results/Txx.md` report.
+- Parent is accountable for every subagent it creates.
 
 ## Phase 0 — Setup
 
@@ -240,6 +241,25 @@ At phase start, each agent reads:
 git fetch --all
 git log --all --oneline --decorate -20
 git show origin/main:plan/TASKS.md
+```
+
+## Continuous planning
+
+Plans are living documents. When a finding changes future work:
+
+- Update the relevant plan file if the change is clear and local to your task.
+- Create `plan/learnings/Txx-topic.md` if it is a new important finding.
+- Use `plan/learnings/_template.md`.
+- J owns `plan/TASKS.md` and `plan/DECISIONS.md`.
+- If it changes a locked decision, write the learning file and ask J/human.
+- J reviews and merges learnings with the task branch.
+
+Examples:
+
+```text
+plan/learnings/T04-dinov2-resolution-limit.md
+plan/learnings/T10-upper-arlington-cloud-cover.md
+plan/learnings/general-procrustes-centering-bug.md
 ```
 
 ## Scope cuts

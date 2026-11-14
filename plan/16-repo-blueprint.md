@@ -43,6 +43,11 @@ veritas/
     T02.md
     ...
     T17.md
+  plan/
+    learnings/
+      README.md
+      _template.md
+      T04-dinov2-resolution-limit.md
   src/
     __init__.py
     config.py
@@ -294,6 +299,7 @@ The implementation README must include:
 - How to run the demo.
 - Where artifacts go.
 - Where task reports go (`results/Txx.md`).
+- Where learnings go (`plan/learnings/`).
 - Known limitations.
 - Credits.
 
@@ -311,6 +317,7 @@ The implementation README must include:
 - [ ] Local manifest has 50 rows.
 - [ ] Local categories have 10 each.
 - [ ] Every completed task has `results/Txx.md`.
+- [ ] Important findings have a file under `plan/learnings/`.
 
 ### Integration checks
 

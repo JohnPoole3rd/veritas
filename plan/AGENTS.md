@@ -32,21 +32,22 @@ J, A, and D can each create subagents to improve speed.
 ### Names
 
 ```text
-J1, J2
-A1, A2
-D1, D2
+J1, J2, J3, ...
+A1, A2, A3, ...
+D1, D2, D3, ...
 ```
 
 ### Rules
 
-- Maximum **2 active subagents** per primary.
-- **One level deep.** Subagents cannot create subagents.
+- **No fixed cap.** Create as many as they want, provided each has a bounded task and file scope.
+- Prefer one level of delegation. If a subagent needs more help, it reports to its parent, and the parent creates another subagent.
 - Each subagent gets one bounded task and one file scope.
 - Subagent branch: `j/sub-j1-t02`, `a/sub-a1-t08`, `d/sub-d1-t14`.
 - Subagents cannot merge to `main`.
 - The parent writes the `results/Txx.md` report.
 - No two subagents edit the same file.
 - If a subagent is blocked for more than 30 minutes, the parent stops it and reassigns the work.
+- The parent is accountable for every subagent it creates.
 
 ## 3. Non-negotiable project decisions
 
@@ -279,3 +280,60 @@ If no human is available:
 - Pull before work.
 - Small commits.
 - If blocked, commit `Txx: BLOCKED ...` on the task branch and push.
+
+## 17. Continuous planning
+
+Plans are living documents. Update them when new information changes future work.
+
+### When to update
+
+Update a plan file when:
+
+- A task reveals a constraint that changes later tasks.
+- A dataset turns out to be unusable or different from expected.
+- A model behaves differently than planned.
+- A metric changes the interpretation of the project.
+- A failure mode becomes important enough to document.
+- A new artifact or script becomes part of the workflow.
+
+### What to update
+
+- `plan/TASKS.md` — J updates task ownership, status, dependencies, acceptance after a finding.
+- `plan/DECISIONS.md` — only J changes locked decisions.
+- `plan/08-48-hour-runbook.md` — any agent may update if the change is local to their task.
+- `plan/15-agent-work-plan.md` — J updates agent/subagent assignments; agents may add their own subagent notes.
+- `plan/05-data-plan.md` — A updates local-tile details; J updates EuroSAT details.
+- `plan/06-alignment-and-model-plan.md` — J updates model/alignment details.
+- `plan/07-evaluation-plan.md` — A updates metrics/evaluation details.
+- `plan/14-upper-arlington-data-collection.md` — A updates local tile details.
+- Cross-cutting or uncertain findings — create a learning file instead of editing shared plans.
+
+### Create a learning file when
+
+Create a new file under `plan/learnings/` when the finding is important but does not fit cleanly into an existing plan section.
+
+Naming:
+
+```text
+plan/learnings/Txx-topic.md
+plan/learnings/general-topic.md
+```
+
+Examples:
+
+```text
+plan/learnings/T04-dinov2-resolution-limit.md
+plan/learnings/T10-upper-arlington-cloud-cover.md
+plan/learnings/general-procrustes-centering-bug.md
+```
+
+Use the template in `plan/learnings/_template.md`.
+
+### Rules
+
+- Any agent may create a learning file.
+- Do not edit another agent's learning file.
+- Keep the finding short: what happened, evidence, impact, next action.
+- If the finding changes a locked decision, do not change the decision yourself. Write the learning file and ask J/human.
+- J reviews and merges learnings with the task branch.
+- Learning files are a durable knowledge base, not a chat board.

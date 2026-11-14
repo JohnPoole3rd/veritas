@@ -2,7 +2,7 @@
 
 Fill this in during the build. Do not reconstruct from memory.
 
-Owner values: `J`, `A`, `D`, `J1`, `J2`, `A1`, `A2`, `D1`, `D2`.
+Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 
 ## 1. Run log
 

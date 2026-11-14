@@ -32,9 +32,10 @@ Status: **Accepted**. Revisit only with a human decision.
 | D026 | Integrator | **J** | J merges to `main` and runs final evaluation. |
 | D027 | Baselines/local lead | **A** | A owns ResNet-18, majority, Upper Arlington tiles, local eval. |
 | D028 | Demo/docs lead | **D** | D owns Gradio, write-up, video. |
-| D029 | Subagents | **J1/J2, A1/A2, D1/D2** | Max 2 active per primary; one level deep; one file scope. |
+| D029 | Subagents | **J1/J2/…, A1/A2/…, D1/D2/…** | No fixed cap; parent-created; one file scope; parent accountable. |
 | D030 | Message board | **Not used** | Handoffs use per-task `results/Txx.md` and commit messages. |
 | D031 | Git model | **Plain Git feature branches; J merges** | No GitHub CLI, no board branch, no orphan branch. |
+| D032 | Continuous planning | **Update plans; create `plan/learnings/` files** | Important findings become durable knowledge, not chat. |
 
 ## Canonical values
 
@@ -46,7 +47,7 @@ team:
   integrator: J
   baselines_local: A
   demo_docs: D
-  subagents: [J1, J2, A1, A2, D1, D2]
+  subagents: unlimited  # J1..., A1..., D1...
 city_center:
   lat: 40.02056
   lon: -83.06639
@@ -83,7 +84,7 @@ Revisit a decision only if:
 - **D012:** ResNet-18 cannot train in time; use logistic regression or majority only.
 - **D017:** Gradio is blocked; use Streamlit.
 - **D024:** Video is optional; cut it before cutting the write-up.
-- **D029:** Subagents collide; reduce to one active subagent per primary.
+- **D029:** Subagents collide; enforce one file scope and parent accountability; reduce active count if needed.
 
 ## Archived alternatives
 

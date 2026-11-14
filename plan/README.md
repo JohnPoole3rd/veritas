@@ -17,15 +17,17 @@
 
 **J is the only agent who merges to `main` and pushes `main`.**
 
-J, A, and D can each create subagents to improve speed:
+J, A, and D can each create as many subagents as they want to improve speed:
 
 ```text
-J1, J2
-A1, A2
-D1, D2
+J1, J2, J3, ...
+A1, A2, A3, ...
+D1, D2, D3, ...
 ```
 
 Subagent rules are in [`AGENTS.md`](AGENTS.md) and [`15-agent-work-plan.md`](15-agent-work-plan.md).
+
+When something important is learned, create a durable note under [`learnings/`](learnings/README.md) and update the relevant plan if beneficial.
 
 ## Working method
 
@@ -41,6 +43,7 @@ Subagent rules are in [`AGENTS.md`](AGENTS.md) and [`15-agent-work-plan.md`](15-
 - No GitHub CLI.
 - Handoff through per-task reports in `results/Txx.md` and commit messages.
 - J merges at phase boundaries.
+- Update plans when useful; create `plan/learnings/Txx-topic.md` for important findings.
 
 ## The project
 
@@ -96,6 +99,7 @@ Subagent rules are in [`AGENTS.md`](AGENTS.md) and [`15-agent-work-plan.md`](15-
 15. [`14-upper-arlington-data-collection.md`](14-upper-arlington-data-collection.md) — local tile guide.
 16. [`15-agent-work-plan.md`](15-agent-work-plan.md) — J/A/D phase plan.
 17. [`16-repo-blueprint.md`](16-repo-blueprint.md) — repo layout.
+18. [`learnings/README.md`](learnings/README.md) — durable findings and plan updates.
 
 ## Phase overview
 
@@ -119,6 +123,7 @@ No clock times. Start when the human gives the signal.
 - [x] J/A/D roles assigned.
 - [x] Task ownership assigned.
 - [x] Subagent rules defined.
+- [x] Continuous planning and learnings defined.
 - [x] Plain Git workflow defined.
 - [ ] Implementation started.
 

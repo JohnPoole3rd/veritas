@@ -55,17 +55,18 @@ Track, project, test site, and roles are locked. These are the remaining unknown
 
 | Primary | Subagents | Suggested work |
 |---|---|---|
-| J | J1, J2 | J1 EuroSAT loader; J2 embedding extraction |
-| A | A1, A2 | A1 ResNet-18; A2 local tile collection |
-| D | D1, D2 | D1 Gradio UI; D2 visuals/video |
+| J | J1, J2, J3, … | J1 EuroSAT loader; J2 embedding extraction |
+| A | A1, A2, A3, … | A1 ResNet-18; A2 local tile collection |
+| D | D1, D2, D3, … | D1 Gradio UI; D2 visuals/video |
 
 Rules:
 
-- Max 2 active per primary.
-- One level deep.
+- No fixed cap: create as many as they want.
+- Prefer one level of delegation. If a subagent needs more help, it reports to its parent, and the parent creates another subagent.
 - One bounded task and file scope per subagent.
 - Subagent cannot merge to `main`.
 - Parent writes `results/Txx.md`.
+- Parent is accountable for every subagent.
 
 ## 5. Local tile collection decisions
 
@@ -103,7 +104,17 @@ Proceed with:
 - No real user contact required; design for the role.
 - Submit before the final hour.
 
-## 8. Questions for the human
+## 8. Continuous planning
+
+- Update the relevant plan file when a finding changes future work and is local to your task.
+- Create `plan/learnings/Txx-topic.md` for important findings.
+- Use `plan/learnings/_template.md`.
+- Any agent may create a learning file; do not edit another agent's.
+- J owns `plan/TASKS.md` and `plan/DECISIONS.md`.
+- If it changes a locked decision, write the learning and ask J/human.
+- J reviews and merges learnings with the task branch.
+
+## 9. Questions for the human
 
 - When should everyone start?
 - Do you want to include the CLIP baseline?
