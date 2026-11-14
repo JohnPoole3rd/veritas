@@ -86,10 +86,11 @@ disagree.
 T08–T13 are DONE on A's branches (reports in `results/T08.md` … `results/T13.md`), but TASKS.md
 shows TODO. A cannot edit TASKS.md (J only).
 
-**Request:** merge `a/t13-failures` and update the board. It contains, stacked:
-`a/t10-local-tiles` → `a/t11-local-labels` → `a/t08-resnet18-v2` → `a/t12-local-eval-v2` →
-`a/t13-failures`. It merges cleanly into `main` at `c331402` (checked with `git merge-tree`).
-`a/sub-a1-t08` is history only; do not merge it separately.
+**Request:** merge **`a/final`** and update the board. It is the single branch with all of A's
+work: `a/t10-local-tiles` → `a/t11-local-labels` → `a/t08-resnet18-v2` → `a/t12-local-eval-v2` →
+`a/t13-failures` + `a/notes-for-j`. It merges cleanly into `main` at `c331402` (checked with
+`git merge-tree`). The individual task branches are already inside it, so do not merge them
+separately. `a/sub-a1-t08` is history only.
 
 ## 6. `requirements.txt` is missing A's dependencies
 
@@ -119,5 +120,5 @@ are done correctly. Random rotation vs Procrustes (0.16 vs 0.81 per image) is a 
 2. Report per-image Procrustes accuracy (0.81) next to ResNet (0.98); label 0.94/0.96 as text→image search with N = 50 queries.
 3. Remove or avoid "zero-shot" wording; tell D.
 4. Re-run or adopt the full-split T06/T07 numbers; update the T06/T07 reports and the experiment log.
-5. Merge `a/t13-failures`; mark T08–T13 DONE in TASKS.md.
+5. Merge `a/final`; mark T08–T13 DONE in TASKS.md.
 6. Add the collection dependencies to requirements.txt.
