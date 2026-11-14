@@ -132,3 +132,22 @@ def sample_caption(grouped: dict[str, list[str]], label: str, rng: random.Random
     if label not in grouped or not grouped[label]:
         raise KeyError(f"No captions for label: {label}")
     return rng.choice(grouped[label])
+
+
+def sample_caption_indices(items: Iterable[dict[str, Any]], captions: list[dict[str, Any]], seed: int) -> list[int]:
+    """For each split item, the index (into `captions`) of one caption of its label.
+
+    This is the single definition of the Procrustes training pairs. It draws exactly what
+    `sample_caption` draws with `random.Random(seed)` in item order, so
+    `caption_embeddings[sample_caption_indices(...)]` equals re-encoding the sampled texts.
+    """
+    by_label: dict[str, list[int]] = defaultdict(list)
+    for i, record in enumerate(captions):
+        by_label[record["label"]].append(i)
+    rng = random.Random(seed)
+    out = []
+    for item in items:
+        if not by_label.get(item["label"]):
+            raise KeyError(f"No captions for label: {item['label']}")
+        out.append(rng.choice(by_label[item["label"]]))
+    return out

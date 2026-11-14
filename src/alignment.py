@@ -114,3 +114,33 @@ def load_procrustes(path: str | os.PathLike[str]) -> dict[str, Any]:
     }
     params.update(metadata)
     return params
+
+
+def training_pairs(
+    config: dict[str, Any],
+    caption_embeddings: np.ndarray,
+    captions: list[dict[str, Any]],
+    limit: int | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """(train image embeddings, caption embedding of each image's label): the Procrustes pairs.
+
+    Shared by scripts/fit_alignment.py and both random-rotation baselines, so they all fit on
+    exactly the same pairs (`src.captions.sample_caption_indices`, seeded by config["seed"]).
+    """
+    from src.captions import sample_caption_indices
+    from src.config import load_json, resolve_path
+    from src.data import load_split
+    from src.encoders import check_split_embeddings, load_embeddings
+
+    emb_dir = resolve_path("artifacts/embeddings", config)
+    items = load_split(resolve_path(config["data"]["splits_dir"], config) / "train.json")["items"][:limit]
+    X = load_embeddings(emb_dir / "dinov2_train.npy")[:limit]
+    meta_path = emb_dir / "dinov2_meta.json"
+    check_split_embeddings(X, items, "train", load_json(meta_path) if meta_path.exists() else None)
+    idx = sample_caption_indices(items, captions, int(config.get("seed", 42)))
+    return X, np.asarray(caption_embeddings, dtype=np.float32)[idx]
+
+
+def random_rotation_params(X: np.ndarray, Y: np.ndarray, seeds: list[int], center: bool = True) -> list[dict[str, Any]]:
+    """Null baseline: Procrustes on shuffled (image, caption) pairs, one fit per seed."""
+    return [fit_procrustes(X, Y, center=center, shuffle_y=True, seed=s) for s in seeds]

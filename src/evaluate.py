@@ -11,6 +11,7 @@ from typing import Any, Iterable
 import numpy as np
 
 from src.alignment import l2_normalize
+from src.retrieval import class_scores
 
 
 def _topk_hit(scores: np.ndarray, labels: list[str], correct_label: str, k: int) -> bool:
@@ -59,46 +60,6 @@ def evaluate_retrieval(
     return results
 
 
-def evaluate_image_to_text(
-    image_embeddings: np.ndarray,
-    caption_embeddings: np.ndarray,
-    image_labels: Iterable[str],
-    caption_labels: Iterable[str],
-    k_values: tuple[int, ...] = (1, 5),
-) -> dict[str, Any]:
-    """Evaluate image->text classification/retrieval."""
-    images = l2_normalize(np.asarray(image_embeddings, dtype=np.float32))
-    captions = l2_normalize(np.asarray(caption_embeddings, dtype=np.float32))
-    image_labels = list(image_labels)
-    caption_labels = list(caption_labels)
-    similarity = images @ captions.T
-    results: dict[str, Any] = {
-        "n_images": len(images),
-        "n_captions": len(captions),
-    }
-    for k in k_values:
-        hits = [
-            _topk_hit(similarity[row], caption_labels, label, k)
-            for row, label in enumerate(image_labels)
-        ]
-        results[f"top{k}"] = float(np.mean(hits)) if hits else 0.0
-    return results
-
-
-def confusion_matrix(
-    y_true: Iterable[str],
-    y_pred: Iterable[str],
-    labels: Iterable[str] | None = None,
-) -> tuple[np.ndarray, list[str]]:
-    from sklearn.metrics import confusion_matrix as sklearn_confusion_matrix
-
-    y_true = list(y_true)
-    y_pred = list(y_pred)
-    label_list = list(labels) if labels is not None else sorted(set(y_true) | set(y_pred))
-    matrix = sklearn_confusion_matrix(y_true, y_pred, labels=label_list)
-    return matrix, label_list
-
-
 def classification_metrics(
     y_true: Iterable,
     y_pred: Iterable,
@@ -119,7 +80,11 @@ def classification_metrics(
     to_idx = {c: i for i, c in enumerate(class_names)}
 
     def idx(v):
-        return to_idx[v] if v in to_idx else int(v)
+        if v in to_idx:
+            return to_idx[v]
+        if isinstance(v, str):
+            raise ValueError(f"label {v!r} is not in class_names {list(class_names)}")
+        return int(v)
 
     yt = np.array([idx(v) for v in y_true], dtype=int)
     yp = np.array([idx(v) for v in y_pred], dtype=int)
@@ -133,22 +98,6 @@ def classification_metrics(
         "class_names": [str(c) for c in class_names],
         "n": int(len(yt)),
     }
-
-
-def majority_baseline(
-    train_labels: Iterable[str],
-    test_labels: Iterable[str],
-) -> dict[str, Any]:
-    from collections import Counter
-
-    train_labels = list(train_labels)
-    test_labels = list(test_labels)
-    most_common = Counter(train_labels).most_common(1)[0][0]
-    predictions = [most_common] * len(test_labels)
-    metrics = classification_metrics(test_labels, predictions)
-    metrics["majority_class"] = most_common
-    metrics["test_n"] = len(test_labels)
-    return metrics
 
 
 def save_metrics_csv(path: str | os.PathLike[str], rows: list[dict[str, Any]]) -> None:
@@ -167,32 +116,6 @@ def save_metrics_csv(path: str | os.PathLike[str], rows: list[dict[str, Any]]) -
         writer.writerows(rows)
 
 
-def save_confusion_matrix_figure(
-    matrix: np.ndarray,
-    labels: list[str],
-    path: str | os.PathLike[str],
-    title: str = "Confusion matrix",
-) -> None:
-    import matplotlib.pyplot as plt
-
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(8, 7))
-    image = ax.imshow(matrix, cmap="Blues")
-    ax.set_title(title)
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("True")
-    ax.set_xticks(range(len(labels)))
-    ax.set_yticks(range(len(labels)))
-    ax.set_xticklabels(labels, rotation=45, ha="right")
-    ax.set_yticklabels(labels)
-    fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
-    fig.tight_layout()
-    fig.savefig(target, dpi=160)
-    plt.close(fig)
-
-
-# ---------------------------------------------------------------- A (T08/T12) additions
 def evaluate_classifier(model, loader, device=None, class_names: list[str] | None = None) -> dict:
     """Run a torch classifier over a loader yielding (images, int_labels).
 
@@ -253,11 +176,7 @@ def evaluate_caption_classification(
         raise ValueError(f"caption_labels ({len(caption_labels)}) != caption rows {Y.shape}")
     if class_names is None:
         class_names = sorted(set(caption_labels))
-    sims = l2_normalize(X) @ l2_normalize(Y).T  # (N, num_captions)
-
-    cap_lab = np.asarray(caption_labels)
-    reduce = {"max": np.max, "mean": np.mean}[agg]
-    scores = np.stack([reduce(sims[:, cap_lab == c], axis=1) for c in class_names], axis=1)
+    scores = class_scores(X, Y, caption_labels, class_names, agg=agg)  # (N, C), shared rule
 
     to_idx = {c: i for i, c in enumerate(class_names)}
     y_true = np.array([to_idx[y] for y in labels])
@@ -309,69 +228,70 @@ def save_confusion_matrix_png(cm, class_names: list[str], path, title: str = "")
 
 
 # ---------------------------------------------------------------- A: per-image comparison CLI
-def run_caption_classification(split: str = "test", agg: str = "max", seed: int = 42) -> list[dict]:
+def run_caption_classification(split: str = "test", agg: str = "max", n_random_seeds: int = 5) -> list[dict]:
     """Per-image accuracy / macro-F1 for Procrustes, random rotation and unaligned cosine on a
     EuroSAT split. This is the metric comparable with ResNet-18 (N = images, not caption queries).
 
-    Uses J's artifacts as-is: artifacts/embeddings/dinov2_{train,<split>}.npy,
-    minilm_captions.npy (+ index) and artifacts/alignment/procrustes.npz. The random-rotation
-    baseline is J's definition (Procrustes on shuffled train pairs, `fit_procrustes(shuffle_y=True)`),
-    rebuilt with the same caption sampling as scripts/fit_alignment.py.
-    `agg` (max over a class's captions) is fixed in advance, never chosen on test.
+    Uses the T04-T06 artifacts and the same training pairs as scripts/fit_alignment.py
+    (`src.alignment.training_pairs`). Random rotation = mean over `n_random_seeds` shuffles,
+    as in scripts/evaluate_retrieval.py. `agg` is fixed in advance, never chosen on test.
     """
-    import json
-    import random
-
-    from src.alignment import fit_procrustes, load_procrustes, transform_images, transform_texts
-    from src.captions import captions_by_label, load_captions, sample_caption
-    from src.config import load_config, resolve_path
+    from src.alignment import load_procrustes, random_rotation_params, training_pairs, transform_images, transform_texts
+    from src.captions import load_captions
+    from src.config import load_config, load_json, resolve_path
     from src.data import load_split
+    from src.encoders import check_split_embeddings, load_embeddings
 
     cfg = load_config()
+    seed = int(cfg.get("seed", 42))
     emb = resolve_path("artifacts/embeddings", cfg)
     split_payload = load_split(resolve_path(cfg["data"]["splits_dir"], cfg) / f"{split}.json")
-    train_payload = load_split(resolve_path(cfg["data"]["splits_dir"], cfg) / "train.json")
     class_names = split_payload["class_names"]
-    X = np.load(emb / f"dinov2_{split}.npy")
+    X = load_embeddings(emb / f"dinov2_{split}.npy")
+    meta_path = emb / "dinov2_meta.json"
+    check_split_embeddings(X, split_payload["items"], split, load_json(meta_path) if meta_path.exists() else None)
     labels = [it["label"] for it in split_payload["items"]]
-    if len(X) != len(labels):
-        raise ValueError(f"dinov2_{split}.npy {X.shape} != {split} split ({len(labels)})")
-    Y = np.load(emb / "minilm_captions.npy")
-    index = json.loads((emb / "minilm_caption_index.json").read_text())
+    Y = load_embeddings(emb / "minilm_captions.npy")
+    index = load_json(emb / "minilm_caption_index.json")
     cap_labels = [index[str(i)]["label"] for i in range(len(index))]
 
     params = load_procrustes(resolve_path("artifacts/alignment/procrustes.npz", cfg))
-
-    # Random rotation, exactly as J's T07 null baseline.
     captions = load_captions(resolve_path(cfg["data"]["captions_path"], cfg))
-    text_to_idx = {c["text"]: i for i, c in enumerate(captions)}
-    rng = random.Random(seed)
-    grouped = captions_by_label(captions)
-    sampled = [text_to_idx[sample_caption(grouped, it["label"], rng)] for it in train_payload["items"]]
-    X_train = np.load(emb / "dinov2_train.npy")
-    rand = fit_procrustes(X_train, Y[sampled], center=True, shuffle_y=True, seed=seed)
+    X_train, Y_train = training_pairs(cfg, Y, captions)
+    seeds = list(range(seed, seed + n_random_seeds))
 
-    variants = {
-        "procrustes": (transform_images(X, params), transform_texts(Y, params)),
-        "random_rotation": (transform_images(X, rand), transform_texts(Y, rand)),
-        "unaligned": (X, Y),
-    }
+    def run(Xi, Yi):
+        return evaluate_caption_classification(Xi, Yi, labels, cap_labels, class_names=class_names, agg=agg)
+
+    results = {"procrustes": [run(transform_images(X, params), transform_texts(Y, params))]}
+    results["random_rotation"] = [run(transform_images(X, p), transform_texts(Y, p))
+                                  for p in random_rotation_params(X_train, Y_train, seeds, center=bool(cfg["alignment"]["center"]))]
+    if X.shape[1] == Y.shape[1]:  # raw cosine needs equal dims (not ViT-B)
+        results["unaligned"] = [run(X, Y)]
+
     rows = []
-    for name, (Xi, Yi) in variants.items():
-        r = evaluate_caption_classification(Xi, Yi, labels, cap_labels, class_names=class_names, agg=agg)
-        rows.append({"method": name, "split": split, "accuracy": round(r["accuracy"], 4),
-                     "top5": round(r["top5"], 4), "macro_f1": round(r["macro_f1"], 4),
-                     "n_images": r["n"], "n_captions": len(cap_labels),
-                     "notes": f"image->class, agg={agg}"})
-        if name == "procrustes":
-            save_confusion_matrix_png(r["confusion_matrix"], class_names,
-                                      resolve_path(f"artifacts/figures/procrustes_{split}_confusion_matrix.png", cfg),
-                                      title=f"Procrustes image->class, {split} (acc {r['accuracy']:.3f})")
-            per = [{"class": c, "recall": round(r["per_class"][c], 4)} for c in class_names]
-            save_metrics_csv(resolve_path(f"artifacts/metrics/procrustes_{split}_per_class.csv", cfg), per)
+    for name, rs in results.items():
+        note = f"image->class, agg={agg}"
+        if len(rs) > 1:
+            note += (f"; mean of {len(rs)} seeds {seeds[0]}-{seeds[-1]}, "
+                     f"std acc {np.std([r['accuracy'] for r in rs]):.4f}")
+        rows.append({"method": name, "split": split,
+                     "accuracy": round(float(np.mean([r["accuracy"] for r in rs])), 4),
+                     "top5": round(float(np.mean([r["top5"] for r in rs])), 4),
+                     "macro_f1": round(float(np.mean([r["macro_f1"] for r in rs])), 4),
+                     "n_images": rs[0]["n"], "n_captions": len(cap_labels), "notes": note})
+    r = results["procrustes"][0]
+    save_confusion_matrix_png(r["confusion_matrix"], class_names,
+                              resolve_path(f"artifacts/figures/procrustes_{split}_confusion_matrix.png", cfg),
+                              title=f"Procrustes image->class, {split} (acc {r['accuracy']:.3f})")
+    save_metrics_csv(resolve_path(f"artifacts/metrics/procrustes_{split}_per_class.csv", cfg),
+                     [{"class": c, "recall": round(r["per_class"][c], 4)} for c in class_names])
+    cm = r["confusion_matrix"]  # rows = true class, columns = predicted class
+    save_metrics_csv(resolve_path(f"artifacts/metrics/procrustes_{split}_confusion.csv", cfg),
+                     [{"true": t, **{c: int(cm[i, j]) for j, c in enumerate(class_names)}}
+                      for i, t in enumerate(class_names)])
     save_metrics_csv(resolve_path(f"artifacts/metrics/caption_classification_{split}.csv", cfg), rows)
     return rows
-
 
 if __name__ == "__main__":
     import argparse

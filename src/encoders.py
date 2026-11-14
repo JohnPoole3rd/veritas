@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from typing import Any, Iterable
@@ -61,12 +60,7 @@ def extract_image_embeddings(
     model.eval()
     with torch.no_grad():
         for batch in loader:
-            if isinstance(batch, (list, tuple)) and len(batch) == 3:
-                images = batch[0]
-            elif isinstance(batch, (list, tuple)) and len(batch) == 2:
-                images = batch[0]
-            else:
-                images = batch
+            images = batch[0] if isinstance(batch, (list, tuple)) else batch
             images = images.to(device)
             outputs = model(pixel_values=images)
             if getattr(outputs, "pooler_output", None) is not None:
@@ -79,11 +73,11 @@ def extract_image_embeddings(
     return np.concatenate(chunks, axis=0).astype(np.float32)
 
 
-def load_minilm(model_name: str):
+def load_minilm(model_name: str, device: str | None = None):
     """Load a frozen sentence-transformer."""
     from sentence_transformers import SentenceTransformer
 
-    model = SentenceTransformer(model_name)
+    model = SentenceTransformer(model_name, device=device)
     model.eval()
     return model
 
@@ -115,13 +109,24 @@ def load_embeddings(path: str | os.PathLike[str]) -> np.ndarray:
     return np.load(Path(path)).astype(np.float32)
 
 
-def save_metadata(path: str | os.PathLike[str], payload: dict[str, Any]) -> None:
-    target = ensure_parent(path)
-    with target.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2)
-        handle.write("\n")
+def check_split_embeddings(
+    embeddings: np.ndarray,
+    items: list[dict[str, Any]],
+    split: str,
+    meta: dict[str, Any] | None = None,
+) -> None:
+    """Fail loudly (INTERFACES §9) if embeddings do not line up with split items.
 
-
-def load_metadata(path: str | os.PathLike[str]) -> dict[str, Any]:
-    with Path(path).open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    Checks the row count and, when `dinov2_meta.json` recorded them, the tile_ids in order.
+    """
+    if len(embeddings) != len(items):
+        raise ValueError(
+            f"{split}: embeddings {tuple(embeddings.shape)} vs {len(items)} split items. "
+            "Re-run scripts/extract_embeddings.py with the same --limit."
+        )
+    ids = ((meta or {}).get("tile_ids") or {}).get(split)
+    if ids is not None and ids != [item["tile_id"] for item in items]:
+        raise ValueError(
+            f"{split}: dinov2_meta.json tile_ids do not match data/splits/{split}.json; "
+            "the splits changed after extraction. Re-run scripts/extract_embeddings.py."
+        )

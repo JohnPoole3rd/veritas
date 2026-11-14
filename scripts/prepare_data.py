@@ -24,7 +24,7 @@ def main() -> None:
 
     config = load_config(args.config)
     set_seed(int(config.get("seed", 42)))
-    splits = make_splits(config, download=not args.no_download)
+    splits = make_splits(config, download=False if args.no_download else None)  # None: config data.download
     class_names = splits["train"]["class_names"]
     captions = build_captions(class_names)
     caption_path = resolve_path(config["data"]["captions_path"], config)

@@ -56,7 +56,7 @@ def load_local_manifest(path: str | Path = DEFAULT_MANIFEST, check_files: bool =
         bad = df[~df[col].isin(allowed)]
         if len(bad):
             errors.append(f"bad {col}: {dict(zip(bad.tile_id, bad[col]))}")
-    for col in ("lat", "lon", "date", "source"):
+    for col in ("path", "lat", "lon", "date", "source"):
         bad = df[df[col].isna()]
         if len(bad):
             errors.append(f"missing {col}: {list(bad.tile_id)}")
@@ -67,7 +67,7 @@ def load_local_manifest(path: str | Path = DEFAULT_MANIFEST, check_files: bool =
     if (pd.to_datetime(df.date, errors="coerce").isna()).any():
         errors.append("unparseable date values")
     if check_files:
-        absent = [p for p in df.path if not (ROOT / p).exists()]
+        absent = [p for p in df.path.dropna() if not (ROOT / p).exists()]
         if absent:
             errors.append(f"missing image files: {absent}")
     if errors:
@@ -78,6 +78,8 @@ def load_local_manifest(path: str | Path = DEFAULT_MANIFEST, check_files: bool =
 
 # --------------------------------------------------------------------------- T12 evaluation
 QA_PATH = "data/local_tiles/labels_qa.csv"
+LOCAL_EMB = "artifacts/embeddings/dinov2_local.npy"
+LOCAL_META = "artifacts/embeddings/dinov2_local_meta.json"
 
 
 def load_tile_images(df: pd.DataFrame) -> list:
@@ -88,10 +90,11 @@ def load_tile_images(df: pd.DataFrame) -> list:
 
 def _embed_images(image_model, manifest: pd.DataFrame, input_size: int = 224, device=None):
     """Return (N, D) DINOv2 embeddings for the manifest tiles. image_model may be:
-    - an (N, D) array of precomputed embeddings (J's original evaluate_local API),
+    - an (N, D) array of precomputed embeddings (INTERFACES §5 `image_embeddings`),
     - a callable list[PIL] -> (N, D) array (tests / custom encoders),
-    - the frozen DINOv2 model from J's `src.encoders.load_dinov2` (uses J's eval transforms,
-      i.e. the same 64->224 upscale as EuroSAT, so local and EuroSAT embeddings match)."""
+    - the frozen DINOv2 model from `src.encoders.load_dinov2`. This uses J's eval transforms
+      (`get_transforms(224)`: Resize(256) + CenterCrop(224), so the outer ~12.5 % border is cropped),
+      exactly as the EuroSAT tiles were embedded, so local and EuroSAT embeddings are comparable."""
     import numpy as np
 
     if isinstance(image_model, np.ndarray):
@@ -103,6 +106,60 @@ def _embed_images(image_model, manifest: pd.DataFrame, input_size: int = 224, de
 
     ds = LocalTileDataset(manifest, ROOT, transform=get_transforms(input_size, train=False))
     return extract_image_embeddings(image_model, ds, batch_size=32, device=device)
+
+
+def _cache_key(manifest: pd.DataFrame, config: dict) -> dict:
+    return {"model_name": config["image"]["model_name"], "input_size": int(config["image"]["input_size"]),
+            "tile_ids": manifest.tile_id.tolist()}
+
+
+def load_cached_local_embeddings(manifest: pd.DataFrame, config: dict):
+    """The cached (N, D) local embeddings, or None if absent or stale. Valid only if
+    dinov2_local_meta.json records the same tile_ids (in order), image model and input size."""
+    import json
+
+    import numpy as np
+
+    from src.config import resolve_path
+
+    emb, meta = resolve_path(LOCAL_EMB, config), resolve_path(LOCAL_META, config)
+    if not (emb.exists() and meta.exists()):
+        return None
+    m = json.loads(meta.read_text())
+    if any(m.get(k) != v for k, v in _cache_key(manifest, config).items()):
+        return None
+    X = np.load(emb)
+    return X if len(X) == len(manifest) else None
+
+
+def save_local_embeddings(X, manifest: pd.DataFrame, config: dict, manifest_path: str = DEFAULT_MANIFEST) -> None:
+    """Write dinov2_local.npy + dinov2_local_meta.json (the one cache format; INTERFACES §4)."""
+    import json
+
+    import numpy as np
+
+    from src.config import resolve_path
+
+    emb = resolve_path(LOCAL_EMB, config)
+    emb.parent.mkdir(parents=True, exist_ok=True)
+    np.save(emb, np.asarray(X, dtype=np.float32))
+    meta = {**_cache_key(manifest, config), "embedding_dim": int(np.asarray(X).shape[1]),
+            "n_tiles": int(len(X)), "manifest": str(manifest_path)}
+    resolve_path(LOCAL_META, config).write_text(json.dumps(meta, indent=2) + "\n")
+
+
+def local_embeddings(manifest: pd.DataFrame, config: dict, model=None, device=None):
+    """Cached local embeddings if valid, else embed with DINOv2 and refresh the cache."""
+    X = load_cached_local_embeddings(manifest, config)
+    if X is None:
+        if model is None:
+            from src.encoders import get_device, load_dinov2
+
+            device = device or get_device()
+            model = load_dinov2(config["image"]["model_name"], device=device)
+        X = _embed_images(model, manifest, int(config["image"]["input_size"]), device)
+        save_local_embeddings(X, manifest, config)
+    return X
 
 
 def load_caption_artifacts(emb_path="artifacts/embeddings/minilm_captions.npy",
@@ -135,7 +192,9 @@ def evaluate_local(manifest: pd.DataFrame, image_embeddings, procrustes_params: 
     callable (see `_embed_images`). Captions default to the T05 artifacts, so they match T06.
 
     Columns: the INTERFACES local.csv contract (tile_id, true_label, local_category,
-    predicted_label, score, correct) first, then A's extras (top-3, ResNet-18, scorable).
+    predicted_label, score, correct) for Procrustes, then `scorable`, `top3` and, with a
+    checkpoint, resnet18_pred / resnet18_prob / resnet18_correct. `Other` tiles are kept but
+    `scorable=False` and never counted as correct.
     """
     import numpy as np
 
@@ -144,64 +203,77 @@ def evaluate_local(manifest: pd.DataFrame, image_embeddings, procrustes_params: 
 
     if caption_embeddings is None:
         caption_embeddings, caption_labels = load_caption_artifacts()
-    params = procrustes_params
     X = np.asarray(_embed_images(image_embeddings, manifest, device=device), np.float32)
     if len(X) != len(manifest):
         raise ValueError(f"image embeddings {X.shape} != manifest rows {len(manifest)}")
-    Xa = transform_images(X, params)
-    Ya = transform_texts(caption_embeddings, params)
+    Xa = transform_images(X, procrustes_params)
+    Ya = transform_texts(caption_embeddings, procrustes_params)
 
-    # 'Other' tiles cannot be scored against EuroSAT classes; keep them, mark as not scorable.
     scorable = manifest.label.isin(EUROSAT_CLASSES).to_numpy()
-    true = manifest.label.where(scorable, EUROSAT_CLASSES[0]).tolist()
+    true = manifest.label.where(scorable, EUROSAT_CLASSES[0]).tolist()  # placeholder; masked below
     r = evaluate_caption_classification(Xa, Ya, true, caption_labels, class_names=EUROSAT_CLASSES, agg=agg)
     scores = r["class_scores"]
     order = np.argsort(-scores, axis=1)
+    pred = [EUROSAT_CLASSES[i] for i in order[:, 0]]
 
-    out = manifest[["tile_id", "label", "local_category"]].copy()
+    out = pd.DataFrame({
+        "tile_id": manifest.tile_id.to_numpy(), "true_label": manifest.label.to_numpy(),
+        "local_category": manifest.local_category.to_numpy(), "predicted_label": pred,
+        "score": scores[np.arange(len(manifest)), order[:, 0]].round(4),
+    })
+    out["correct"] = (out.predicted_label == out.true_label) & scorable
     out["scorable"] = scorable
-    out["procrustes_pred"] = [EUROSAT_CLASSES[i] for i in order[:, 0]]
-    out["procrustes_score"] = scores[np.arange(len(out)), order[:, 0]].round(4)
-    out["procrustes_top3"] = ["|".join(EUROSAT_CLASSES[j] for j in row[:3]) for row in order]
-    out["procrustes_correct"] = (out.procrustes_pred == out.label) & out.scorable
+    out["top3"] = ["|".join(EUROSAT_CLASSES[j] for j in row[:3]) for row in order]
     if resnet_checkpoint is not None:
         from src.baselines import predict_resnet18
 
         preds = predict_resnet18(resnet_checkpoint, load_tile_images(manifest))
         out["resnet18_pred"] = [p for p, _ in preds]
         out["resnet18_prob"] = [round(c, 4) for _, c in preds]
-        out["resnet18_correct"] = (out.resnet18_pred == out.label) & out.scorable
-    contract = pd.DataFrame({
-        "tile_id": out.tile_id, "true_label": out.label, "local_category": out.local_category,
-        "predicted_label": out.procrustes_pred, "score": out.procrustes_score,
-        "correct": out.procrustes_correct,
-    })
-    return pd.concat([contract, out.drop(columns=["tile_id", "local_category"])], axis=1)
+        out["resnet18_correct"] = (out.resnet18_pred == out.true_label) & scorable
+    return out
 
 
-def local_metrics(preds: pd.DataFrame, qa_path: str | Path = QA_PATH) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Method comparison (artifacts/metrics/local_summary.csv) plus a per-category table.
+def _as_bool(series: pd.Series) -> pd.Series:
+    return series.map(lambda v: str(v).strip().lower() in ("true", "1", "yes")).astype(bool)
 
-    Includes the LOCAL majority baseline (most common local label; T11: Residential, 31/50) and
-    accuracy on non-ambiguous tiles (labels_qa.csv `ambiguous` flag)."""
+
+def local_metrics(preds: pd.DataFrame, train_majority_class: str | None = None,
+                  qa_path: str | Path = QA_PATH) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Method comparison (local_summary.csv) and per-category table, on scorable tiles only.
+
+    Baselines:
+    - `majority_train`: the EuroSAT train majority class (T09), a real baseline fitted on train.
+    - `oracle_majority_local`: the most common *local* label. It reads the test labels, so it is an
+      oracle, not a model; it is the bar any model must clear to be better than a constant guess.
+    Also reports accuracy on tiles not flagged `ambiguous` in labels_qa.csv (fixed in T11, before T12).
+    """
     p = preds[preds.scorable].copy()
+    n_other = int((~preds.scorable).sum())
     qa = ROOT / qa_path if not Path(qa_path).is_absolute() else Path(qa_path)
     if qa.exists():
-        amb = pd.read_csv(qa).set_index("tile_id")["ambiguous"]
-        p["ambiguous"] = p.tile_id.map(amb).fillna(False).astype(bool)
+        amb = pd.read_csv(qa, dtype={"ambiguous": str}).set_index("tile_id")["ambiguous"]
+        p["ambiguous"] = _as_bool(p.tile_id.map(amb).fillna("False"))
     else:
         p["ambiguous"] = False
-    maj = p.label.mode().iloc[0]
-    p["majority_correct"] = p.label == maj
-    methods = [m for m in ("procrustes", "resnet18") if f"{m}_correct" in p] + ["majority"]
+    oracle = p.true_label.mode().iloc[0]
+    p["procrustes_correct"] = p["correct"]
+    p["oracle_majority_local_correct"] = p.true_label == oracle
+    methods = ["procrustes"] + (["resnet18"] if "resnet18_correct" in p else [])
+    notes = {"procrustes": "Upper Arlington OOD", "resnet18": "Upper Arlington OOD",
+             "oracle_majority_local": f"constant '{oracle}' = most common local label (uses test labels; oracle)"}
+    if train_majority_class:
+        p["majority_train_correct"] = p.true_label == train_majority_class
+        methods.append("majority_train")
+        notes["majority_train"] = f"constant '{train_majority_class}' = EuroSAT train majority (T09)"
+    methods.append("oracle_majority_local")
     rows = []
     for m in methods:
         c = p[f"{m}_correct"]
         clear = c[~p.ambiguous]
-        note = f"Upper Arlington OOD; constant '{maj}'" if m == "majority" else "Upper Arlington OOD"
-        rows.append({"method": m if m != "majority" else "majority_local", "accuracy": round(c.mean(), 4),
-                     "n": int(len(c)), "accuracy_unambiguous": round(clear.mean(), 4) if len(clear) else None,
-                     "n_unambiguous": int(len(clear)), "notes": note})
+        rows.append({"method": m, "accuracy": round(float(c.mean()), 4), "n": int(len(c)),
+                     "accuracy_unambiguous": round(float(clear.mean()), 4) if len(clear) else None,
+                     "n_unambiguous": int(len(clear)), "n_other_excluded": n_other, "notes": notes[m]})
     summary = pd.DataFrame(rows)
     per_cat = p.groupby("local_category").agg(
         n=("tile_id", "size"),
@@ -210,51 +282,51 @@ def local_metrics(preds: pd.DataFrame, qa_path: str | Path = QA_PATH) -> tuple[p
     return summary, per_cat
 
 
-def run_local_eval(out_dir: str | Path = "artifacts", resnet_checkpoint="artifacts/checkpoints/resnet18.pt",
-                   procrustes_path="artifacts/alignment/procrustes.npz", local_embeddings="auto"):
-    """T12 entry point: needs J's T05/T06 artifacts (caption embeddings, procrustes.npz) and
-    T08's ResNet-18 checkpoint (optional). Uses artifacts/embeddings/dinov2_local.npy if present,
-    else embeds the tiles with DINOv2 directly (identical transforms)."""
+def run_local_eval(config_path: str | Path | None = None, resnet_checkpoint="artifacts/checkpoints/resnet18.pt",
+                   out_dir: str | Path = "artifacts/metrics"):
+    """T12 entry point (scripts/evaluate_local.py, `python -m src.local_tiles evaluate`).
+
+    Needs J's T05/T06 artifacts and, optionally, T08's ResNet-18 checkpoint (its columns are
+    omitted with a warning if it is missing). Local embeddings come from the validated cache
+    (scripts/extract_local_embeddings.py) or are computed with DINOv2 and cached.
+    """
     import json
 
-    import numpy as np
+    from src.alignment import load_procrustes
+    from src.config import load_config, resolve_path
 
-    out_dir = ROOT / out_dir
-    pz = ROOT / procrustes_path
+    cfg = load_config(config_path)
+    manifest_path = cfg["data"]["local_manifest"]
+    pz = resolve_path("artifacts/alignment/procrustes.npz", cfg)
     if not pz.exists():
         raise FileNotFoundError(f"Procrustes artifact not found: {pz} (run T06 first)")
-    from src.alignment import load_procrustes
-    from src.config import load_config
-    from src.encoders import get_device, load_dinov2
-
     params = load_procrustes(pz)
-    cfg = load_config()
-    device = get_device()
-    ck = ROOT / resnet_checkpoint
-    df = load_local_manifest()
-    emb_path = ROOT / "artifacts/embeddings/dinov2_local.npy"
-    if local_embeddings == "auto":
-        local_embeddings = emb_path.exists()
-    if local_embeddings:  # from scripts/extract_local_embeddings.py (same transforms)
-        image_input = np.load(emb_path)
-    else:
-        image_input = load_dinov2(cfg["image"]["model_name"], device=device)
-    preds = evaluate_local(df, image_input, params, resnet_checkpoint=ck if ck.exists() else None,
-                           device=device)
-    summary, per_cat = local_metrics(preds)
-    m = out_dir / "metrics"
+    df = load_local_manifest(resolve_path(manifest_path, cfg))
+    X = local_embeddings(df, cfg)
+    ck = resolve_path(resnet_checkpoint, cfg)
+    if not ck.exists():
+        print(f"[warn] {ck} not found; ResNet-18 columns omitted (run T08)")
+    preds = evaluate_local(df, X, params, resnet_checkpoint=ck if ck.exists() else None)
+
+    maj_json = resolve_path("artifacts/metrics/majority.json", cfg)
+    train_majority = json.loads(maj_json.read_text()).get("majority_class") if maj_json.exists() else None
+    summary, per_cat = local_metrics(preds, train_majority_class=train_majority)
+
+    m = resolve_path(out_dir, cfg)
     m.mkdir(parents=True, exist_ok=True)
     contract_cols = ["tile_id", "true_label", "local_category", "predicted_label", "score", "correct"]
-    preds[contract_cols].to_csv(m / "local.csv", index=False)               # INTERFACES contract
-    preds.to_csv(m / "local_predictions.csv", index=False)                  # + top-3, ResNet-18
+    preds[contract_cols].to_csv(m / "local.csv", index=False)               # INTERFACES §4 contract
+    preds.to_csv(m / "local_predictions.csv", index=False)                  # + scorable, top-3, ResNet-18
     by_cat = per_cat.rename(columns={"procrustes_acc": "accuracy"})
-    by_cat.to_csv(m / "local_by_category.csv", index=False)                 # INTERFACES name
+    by_cat.to_csv(m / "local_by_category.csv", index=False)
     summary.to_csv(m / "local_summary.csv", index=False)                    # method comparison
+    p = summary.set_index("method")
     payload = {
-        "n": int(len(preds)),
-        "accuracy": float(preds["correct"].mean()),
+        "n": int(p.loc["procrustes", "n"]),
+        "accuracy": float(p.loc["procrustes", "accuracy"]),
+        "n_other_excluded": int(p.loc["procrustes", "n_other_excluded"]),
         "per_category": by_cat[["local_category", "n", "accuracy"]].to_dict("records"),
-        "manifest": DEFAULT_MANIFEST,
+        "manifest": str(manifest_path),
         "methods": summary.to_dict("records"),
     }
     (m / "local.json").write_text(json.dumps(payload, indent=2))

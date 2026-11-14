@@ -1,10 +1,14 @@
 #!/usr/bin/env python
-"""Extract DINOv2 embeddings for Upper Arlington local tiles (A: T10/T12)."""
+"""T12 — DINOv2 embeddings for the Upper Arlington tiles (owner: A).
+
+Same frozen encoder and eval transforms as the EuroSAT embeddings. Writes the one local cache
+format (artifacts/embeddings/dinov2_local.npy + dinov2_local_meta.json with tile_ids, model_name,
+input_size) that scripts/evaluate_local.py and app.py validate before reuse.
+"""
 
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -12,62 +16,32 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.config import load_config, resolve_path, save_json, set_seed
-from src.data import get_transforms
-from src.encoders import extract_image_embeddings, load_dinov2, save_embeddings
-from src.local_tiles import LocalTileDataset, load_manifest, validate_manifest
+from src.config import load_config, resolve_path  # noqa: E402
+from src.encoders import get_device, load_dinov2  # noqa: E402
+from src.local_tiles import _embed_images, load_local_manifest, save_local_embeddings, validate_manifest  # noqa: E402
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/default.yaml")
-    parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--device", default=None)
     parser.add_argument("--allow-partial", action="store_true")
     args = parser.parse_args()
 
-    import torch
-
     config = load_config(args.config)
-    set_seed(int(config.get("seed", 42)))
-    manifest_path = resolve_path(config["data"]["local_manifest"], config)
-    if not manifest_path.exists():
-        raise FileNotFoundError(
-            f"Local manifest not found: {manifest_path}. Run T10/T11 first."
-        )
-    manifest = load_manifest(manifest_path)
+    manifest_rel = config["data"]["local_manifest"]
+    manifest = load_local_manifest(resolve_path(manifest_rel, config))  # raises on bad rows / files
     summary = validate_manifest(manifest)
-    if not summary["ok"] and not args.allow_partial:
-        raise ValueError("Local manifest is incomplete:\n- " + "\n- ".join(summary["problems"]))
     if not summary["ok"]:
-        print("[warn] continuing with partial local manifest")
-        for problem in summary["problems"]:
-            print(f"  - {problem}")
+        if not args.allow_partial:
+            raise ValueError("Local manifest is incomplete:\n- " + "\n- ".join(summary["problems"]))
+        print("[warn] continuing with partial local manifest:\n  - " + "\n  - ".join(summary["problems"]))
 
-    root = Path(config["_repo_root"])
-    transform = get_transforms(int(config["image"]["input_size"]), train=False)
-    dataset = LocalTileDataset(manifest, root=root, transform=transform)
-    model = load_dinov2(config["image"]["model_name"], device=args.device)
-    embeddings = extract_image_embeddings(
-        model,
-        dataset,
-        batch_size=args.batch_size,
-        device=args.device,
-    )
-    embedding_dir = resolve_path("artifacts/embeddings", config)
-    save_embeddings(embedding_dir / "dinov2_local.npy", embeddings)
-    save_json(
-        embedding_dir / "dinov2_local_meta.json",
-        {
-            "model_name": config["image"]["model_name"],
-            "input_size": int(config["image"]["input_size"]),
-            "embedding_dim": int(embeddings.shape[1]),
-            "n_tiles": int(embeddings.shape[0]),
-            "tile_ids": manifest["tile_id"].tolist(),
-            "manifest": str(manifest_path),
-        },
-    )
-    print(f"local embeddings: {embeddings.shape}")
+    device = args.device or get_device()
+    model = load_dinov2(config["image"]["model_name"], device=device)
+    X = _embed_images(model, manifest, int(config["image"]["input_size"]), device)
+    save_local_embeddings(X, manifest, config, manifest_rel)
+    print(f"local embeddings: {X.shape}")
 
 
 if __name__ == "__main__":

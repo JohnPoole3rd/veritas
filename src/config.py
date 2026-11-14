@@ -47,7 +47,6 @@ def ensure_parent(path: str | os.PathLike[str]) -> Path:
 def set_seed(seed: int) -> None:
     """Set Python and NumPy seeds, plus Torch if available."""
     random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
     try:
         import numpy as np
 

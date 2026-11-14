@@ -23,9 +23,11 @@ CLASSES = ["AnnualCrop", "Forest", "HerbaceousVegetation", "Highway", "Industria
 
 
 def make_fake_eurosat(tmp: Path, per_class: int = 6):
-    """Images under <tmp>/raw/eurosat/2750/<Class>/ (torchvision layout) + split JSONs."""
+    """Images under <tmp>/raw/eurosat/eurosat/2750/<Class>/ (torchvision layout) + split JSONs whose
+    paths are relative to the EuroSAT root, exactly as J's T02 writes them."""
     rng = np.random.default_rng(0)
-    img_dir = tmp / "raw" / "eurosat" / "2750"
+    eurosat_root = tmp / "raw" / "eurosat"
+    img_dir = eurosat_root / "eurosat" / "2750"
     splits = {"train": [], "val": [], "test": []}
     n = 0
     for ci, c in enumerate(CLASSES):
@@ -33,8 +35,8 @@ def make_fake_eurosat(tmp: Path, per_class: int = 6):
         for k in range(per_class):
             arr = rng.integers(0, 255, (64, 64, 3), dtype=np.uint8)
             arr[..., ci % 3] = 25 * ci  # weak class signal
-            rel = f"{c}/{c}_{k + 1}.jpg"
-            Image.fromarray(arr).save(img_dir / rel)
+            rel = f"eurosat/2750/{c}/{c}_{k + 1}.jpg"
+            Image.fromarray(arr).save(eurosat_root / rel)
             n += 1
             s = "train" if k < per_class - 2 else ("val" if k == per_class - 2 else "test")
             splits[s].append({"tile_id": f"eurosat_{n:06d}", "path": rel, "label": c})
@@ -44,8 +46,7 @@ def make_fake_eurosat(tmp: Path, per_class: int = 6):
     sdir.mkdir()
     for s, items in splits.items():
         (sdir / f"{s}.json").write_text(json.dumps({"seed": 42, "class_names": CLASSES, "items": items}))
-    # image root deliberately points at the parent: SplitDataset must find eurosat/2750.
-    return sdir, tmp / "raw"
+    return sdir, eurosat_root
 
 
 def read_csv(path):

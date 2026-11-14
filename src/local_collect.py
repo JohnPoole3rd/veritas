@@ -28,7 +28,8 @@ from __future__ import annotations
 
 import warnings
 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+# Silence only shapely's deprecation notice for ops.transform (used below), not every warning in the process.
+warnings.filterwarnings("ignore", message=r".*shapely\.ops\.transform.*", category=DeprecationWarning)
 
 import argparse
 import json
@@ -402,6 +403,7 @@ def main(argv=None):
         picks[kind] = pick(kind, plan[kind][3], f, taken, rng)
         print(f"{kind:12s} picked {len(picks[kind])}/{plan[kind][3]}")
 
+    scores = {kind: score(kind, f)[0] for kind in PICK_ORDER}  # once per sub-type, not once per tile
     OUT_TILES.mkdir(parents=True, exist_ok=True)
     (OUT_TILES / "context").mkdir(exist_ok=True)
     OUT_META.mkdir(parents=True, exist_ok=True)
@@ -422,7 +424,7 @@ def main(argv=None):
             stats = {k: round(float(v[y, x]), 3) for k, v in f.items()}
             rows.append({"tile_id": tid, "local_category": cat, "subtype": kind, "lat": round(lat, 5),
                          "lon": round(lon, 5), "utm_x": round(cx, 1), "utm_y": round(cy, 1),
-                         "scene_id": args.scene, "date": date, "overlap": round(ov, 3), "score": round(float(score(kind, f)[0][y, x]), 3),
+                         "scene_id": args.scene, "date": date, "overlap": round(ov, 3), "score": round(float(scores[kind][y, x]), 3),
                          **stats})
             manifest.append({"tile_id": tid, "path": f"data/raw/local_tiles/{tid}.png", "label": label,
                              "local_category": cat, "lat": round(lat, 5), "lon": round(lon, 5), "date": date,

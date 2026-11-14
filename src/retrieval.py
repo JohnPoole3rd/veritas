@@ -27,37 +27,27 @@ def retrieve_top_k_with_scores(
     query = l2_normalize(np.asarray(query_embedding, dtype=np.float32).reshape(1, -1))[0]
     gallery = l2_normalize(np.asarray(gallery_embeddings, dtype=np.float32))
     scores = gallery @ query
-    k = int(min(max(k, 1), len(gallery)))
+    k = int(min(max(k, 0), len(gallery)))
     order = np.argsort(-scores)[:k]
     return [int(i) for i in order], [float(scores[i]) for i in order]
 
 
-def classify_tile(
-    image_embedding: np.ndarray,
+def class_scores(
+    image_embeddings: np.ndarray,
     caption_embeddings: np.ndarray,
     caption_labels: Iterable[str],
-) -> list[tuple[str, float]]:
-    """Return labels and scores sorted by similarity."""
-    labels = list(caption_labels)
-    indices, scores = retrieve_top_k_with_scores(
-        image_embedding,
-        caption_embeddings,
-        k=len(labels),
-    )
-    return [(labels[i], score) for i, score in zip(indices, scores)]
+    class_names: list[str],
+    agg: str = "max",
+) -> np.ndarray:
+    """(N, C) image-to-class scores: cosine to each caption, reduced per class by max or mean.
 
-
-def class_centroids(
-    embeddings: np.ndarray,
-    labels: Iterable[str],
-) -> tuple[np.ndarray, list[str]]:
-    """Average embeddings per label, returning centroids and labels."""
-    labels = list(labels)
-    if len(labels) != len(embeddings):
-        raise ValueError("Label count does not match embedding count")
-    grouped: dict[str, list[np.ndarray]] = {}
-    for embedding, label in zip(embeddings, labels):
-        grouped.setdefault(label, []).append(np.asarray(embedding, dtype=np.float32))
-    class_names = sorted(grouped)
-    centroids = np.stack([np.mean(grouped[name], axis=0) for name in class_names], axis=0)
-    return centroids.astype(np.float32), class_names
+    The one classification rule shared by evaluation (`src.evaluate`), the local tiles and the demo.
+    """
+    X = l2_normalize(np.atleast_2d(np.asarray(image_embeddings, dtype=np.float32)))
+    Y = l2_normalize(np.asarray(caption_embeddings, dtype=np.float32))
+    if X.shape[1] != Y.shape[1]:
+        raise ValueError(f"embedding dims differ: images {X.shape} vs captions {Y.shape}")
+    sims = X @ Y.T
+    labels = np.asarray(list(caption_labels))
+    reduce = {"max": np.max, "mean": np.mean}[agg]
+    return np.stack([reduce(sims[:, labels == c], axis=1) for c in class_names], axis=1)

@@ -7,8 +7,8 @@ from src.alignment import fit_procrustes
 import os
 import tempfile
 
-from src.local_tiles import (EUROSAT_CLASSES, LOCAL_CATEGORIES, ManifestError, evaluate_local,
-                             load_local_manifest, local_metrics, validate_manifest)
+from src.local_tiles import (DEFAULT_MANIFEST, EUROSAT_CLASSES, LOCAL_CATEGORIES, ROOT, ManifestError,
+                             evaluate_local, load_local_manifest, local_metrics, validate_manifest)
 
 
 def _manifest(n_per_category=10):
@@ -80,9 +80,10 @@ class LocalTileTests(unittest.TestCase):
         self.assertTrue(validate_manifest(df)["ok"])
 
     def test_manifest_rejects_bad_rows(self):
-        m = pd.read_csv("data/local_tiles/manifest.csv")
+        m = pd.read_csv(ROOT / DEFAULT_MANIFEST)
         m.loc[0, "lat"] = None
         m.loc[1, "label"] = "Forrest"
+        m.loc[2, "path"] = None
         with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
             m.to_csv(f.name, index=False)
         try:
@@ -90,6 +91,7 @@ class LocalTileTests(unittest.TestCase):
                 load_local_manifest(f.name)
             self.assertIn("missing lat", str(ctx.exception))
             self.assertIn("Forrest", str(ctx.exception))
+            self.assertIn("missing path", str(ctx.exception))
         finally:
             os.unlink(f.name)
 
@@ -109,11 +111,26 @@ class LocalTileTests(unittest.TestCase):
         self.assertEqual(list(preds.columns[:6]),
                          ["tile_id", "true_label", "local_category", "predicted_label", "score", "correct"])
         self.assertEqual(int(preds.correct.sum()), 40)
-        summary, per_cat = local_metrics(preds)
+        summary, per_cat = local_metrics(preds, train_majority_class="AnnualCrop")
         s = summary.set_index("method")
         self.assertAlmostEqual(s.loc["procrustes", "accuracy"], 0.8)
-        self.assertAlmostEqual(s.loc["majority_local", "accuracy"], 0.62)  # 31/50 Residential
+        self.assertAlmostEqual(s.loc["majority_train", "accuracy"], 0.0)  # no AnnualCrop tiles locally
+        self.assertAlmostEqual(s.loc["oracle_majority_local", "accuracy"], 0.62)  # 31/50 Residential
         self.assertEqual(per_cat.set_index("local_category").loc["water_river", "procrustes_acc"], 0.0)
+
+    def test_other_tiles_are_excluded_not_wrong(self):
+        df = load_local_manifest().copy()
+        df.loc[:1, "label"] = "Other"
+        rng = np.random.default_rng(1)
+        X = rng.normal(size=(len(df), 8)).astype(np.float32)
+        caps = rng.normal(size=(10, 8)).astype(np.float32)
+        params = {"W": np.eye(8, dtype=np.float32), "mu_x": np.zeros(8, np.float32), "mu_y": np.zeros(8, np.float32)}
+        preds = evaluate_local(df, X, params, caps, EUROSAT_CLASSES)
+        self.assertFalse(preds.loc[:1, "correct"].any())
+        summary, _ = local_metrics(preds)
+        row = summary.set_index("method").loc["procrustes"]
+        self.assertEqual(row["n"], 48)
+        self.assertEqual(row["n_other_excluded"], 2)
 
 
 if __name__ == "__main__":

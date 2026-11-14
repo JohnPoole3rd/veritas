@@ -9,7 +9,7 @@ from typing import Any, Iterable
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from src.config import ensure_parent, load_json, resolve_path, save_json
+from src.config import load_json, resolve_path, save_json
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
@@ -61,10 +61,11 @@ def make_splits(config: dict[str, Any], download: bool | None = None) -> dict[st
         stratify=labels,
         random_state=seed,
     )
-    val_fraction = val_share / (val_share + test_share)
+    # train_test_split returns (keep, held_out); held_out is the *test* part of temp.
+    test_fraction = test_share / (val_share + test_share)
     val_idx, test_idx = train_test_split(
         temp_idx,
-        test_size=val_fraction,
+        test_size=test_fraction,
         stratify=labels[temp_idx],
         random_state=seed,
     )
@@ -106,18 +107,15 @@ def split_path(config: dict[str, Any], split: str) -> Path:
 
 
 def get_transforms(input_size: int = 224, train: bool = False):
-    """ImageNet-style transforms for DINOv2 and ResNet-18."""
+    """Eval transforms for the frozen DINOv2 encoder: Resize(256/224 * size) + CenterCrop(size) +
+    ImageNet normalisation. EuroSAT and local tiles both go through this, so they stay comparable
+    (the centre crop drops ~12.5 % of the border of a 64x64 tile; changing it would invalidate the
+    logged embeddings). Nothing is trained on these, so there is no train variant; ResNet-18 uses
+    `src.baselines.make_transforms`. `train` is kept for call-site compatibility and must be False."""
     from torchvision import transforms
 
     if train:
-        return transforms.Compose(
-            [
-                transforms.RandomResizedCrop(input_size, scale=(0.8, 1.0)),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
-            ]
-        )
+        raise ValueError("get_transforms is eval-only (frozen encoder); use src.baselines.make_transforms to train")
     return transforms.Compose(
         [
             transforms.Resize(int(input_size * 256 / 224)),
@@ -137,14 +135,12 @@ class SplitDataset:
         root: str | os.PathLike[str],
         class_names: list[str],
         transform=None,
-        return_id: bool = False,
     ) -> None:
         self.items = list(items)
         self.root = Path(root)
         self.class_names = list(class_names)
         self.class_to_idx = {name: i for i, name in enumerate(self.class_names)}
         self.transform = transform
-        self.return_id = return_id
 
     def __len__(self) -> int:
         return len(self.items)
@@ -153,12 +149,13 @@ class SplitDataset:
         from PIL import Image
 
         item = self.items[index]
-        image = Image.open(self.root / item["path"]).convert("RGB")
+        path = self.root / item["path"]
+        if not path.exists():
+            raise FileNotFoundError(f"Image not found: {path} (check data.eurosat_root / split paths)")
+        image = Image.open(path).convert("RGB")
         if self.transform is not None:
             image = self.transform(image)
         label = self.class_to_idx[item["label"]]
-        if self.return_id:
-            return image, label, item["tile_id"]
         return image, label
 
 
@@ -166,7 +163,6 @@ def dataset_from_split(
     config: dict[str, Any],
     split: str,
     transform=None,
-    return_id: bool = False,
 ) -> SplitDataset:
     payload = load_split(split_path(config, split))
     root = resolve_path(config["data"]["eurosat_root"], config)
@@ -177,9 +173,4 @@ def dataset_from_split(
         root=root,
         class_names=payload["class_names"],
         transform=transform,
-        return_id=return_id,
     )
-
-
-def split_labels(payload: dict[str, Any]) -> list[str]:
-    return [item["label"] for item in payload["items"]]

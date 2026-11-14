@@ -9,7 +9,6 @@ Model selection uses val only; test is evaluated exactly once, with the best-val
 from __future__ import annotations
 
 import argparse
-import copy
 import csv
 import json
 import random
@@ -20,48 +19,12 @@ from pathlib import Path
 
 import numpy as np
 
+from src.config import load_config, resolve_path, save_json, set_seed
+from src.data import IMAGENET_MEAN, IMAGENET_STD, SplitDataset, load_split
+from src.encoders import get_device
 from src.evaluate import classification_metrics, evaluate_classifier, save_confusion_matrix_png
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-
-# Fallback when configs/default.yaml (owned by T01) does not exist yet. Mirrors INTERFACES §2.
-DEFAULT_CONFIG = {
-    "seed": 42,
-    "data": {"eurosat_root": "data/raw/eurosat", "splits_dir": "data/splits"},
-    "baseline": {"resnet18_epochs": 10, "resnet18_batch_size": 64, "resnet18_lr": 0.001},
-}
-
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
-# torchvision.datasets.EuroSAT extracts to <root>/eurosat/2750/<Class>/<Class>_N.jpg
-KNOWN_SUBDIRS = ("", "eurosat/2750", "2750", "EuroSAT", "EuroSAT_RGB")
-
-
-# ---------------------------------------------------------------- config / paths
-def _merge(base: dict, over: dict) -> dict:
-    out = copy.deepcopy(base)
-    for k, v in (over or {}).items():
-        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
-    return out
-
-
-def load_config(path: str | Path | None = None) -> dict:
-    """Read configs/default.yaml if present, merged over the INTERFACES §2 defaults."""
-    path = Path(path) if path else REPO_ROOT / "configs" / "default.yaml"
-    if not path.is_absolute():
-        path = REPO_ROOT / path
-    if path.exists():
-        import yaml
-
-        with open(path) as f:
-            return _merge(DEFAULT_CONFIG, yaml.safe_load(f) or {})
-    return copy.deepcopy(DEFAULT_CONFIG)
-
-
-def repo_path(p: str | Path) -> Path:
-    """Resolve a config path relative to the repo root (absolute paths pass through)."""
-    p = Path(p)
-    return p if p.is_absolute() else REPO_ROOT / p
 
 
 def _rel(p: Path) -> str:
@@ -71,12 +34,11 @@ def _rel(p: Path) -> str:
         return str(p)
 
 
-def load_split(path: str | Path) -> dict:
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(f"Split file not found: {path} (run T02 make_splits first)")
-    with open(path) as f:
-        split = json.load(f)
+def _load_split(path: Path) -> dict:
+    """J's split JSON (INTERFACES §3), with a clear error naming the path (INTERFACES §9)."""
+    if not Path(path).exists():
+        raise FileNotFoundError(f"Split file not found: {path} (run scripts/prepare_data.py first)")
+    split = load_split(path)
     for key in ("class_names", "items"):
         if key not in split:
             raise ValueError(f"{path} is missing key '{key}' (see INTERFACES §3)")
@@ -91,43 +53,6 @@ def limit_split(split: dict, limit: int | None, seed: int) -> dict:
     return {**split, "items": [split["items"][i] for i in idx]}
 
 
-def resolve_image_root(image_root: str | Path, rel_path: str) -> Path:
-    """Find the directory under image_root that contains rel_path (tries KNOWN_SUBDIRS)."""
-    image_root = Path(image_root)
-    for sub in KNOWN_SUBDIRS:
-        base = image_root / sub
-        if (base / rel_path).exists():
-            return base
-    tried = ", ".join(str(image_root / s / rel_path) for s in KNOWN_SUBDIRS)
-    raise FileNotFoundError(f"Image not found: {rel_path}. Tried: {tried}")
-
-
-# ---------------------------------------------------------------- dataset
-class SplitDataset:
-    """torch Dataset over a split JSON: yields (transformed image, int label)."""
-
-    def __init__(self, split: dict | str | Path, image_root: str | Path, transform=None):
-        self.split = split if isinstance(split, dict) else load_split(split)
-        self.class_names = list(self.split["class_names"])
-        self.items = self.split["items"]
-        self.transform = transform
-        self.class_to_idx = {c: i for i, c in enumerate(self.class_names)}
-        self.targets = [self.class_to_idx[it["label"]] for it in self.items]
-        self.root = resolve_image_root(image_root, self.items[0]["path"]) if self.items else Path(image_root)
-
-    def __len__(self):
-        return len(self.items)
-
-    def __getitem__(self, i):
-        from PIL import Image
-
-        path = self.root / self.items[i]["path"]
-        if not path.exists():
-            raise FileNotFoundError(f"Image not found: {path}")
-        img = Image.open(path).convert("RGB")
-        return (self.transform(img) if self.transform else img), self.targets[i]
-
-
 def make_transforms(input_size: int = 64, train: bool = False):
     from torchvision import transforms as T
 
@@ -139,24 +64,6 @@ def make_transforms(input_size: int = 64, train: bool = False):
 
 
 # ---------------------------------------------------------------- helpers
-def pick_device() -> str:
-    import torch
-
-    if torch.cuda.is_available():
-        return "cuda"
-    if torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
-
-
-def seed_everything(seed: int):
-    import torch
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-
-
 def _write_csv(path: Path, rows: list[dict], columns: list[str]):
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="") as f:
@@ -199,8 +106,9 @@ def majority_baseline(train_split: dict, test_split: dict) -> dict:
 
 
 def run_majority(splits_dir: Path, out_dir: Path) -> dict:
-    train = load_split(splits_dir / "train.json")
-    test = load_split(splits_dir / "test.json")
+    """T09. The only majority implementation; writes majority.csv (INTERFACES §4) and majority.json."""
+    train = _load_split(splits_dir / "train.json")
+    test = _load_split(splits_dir / "test.json")
     m = majority_baseline(train, test)
     row = {
         "method": "majority",
@@ -212,7 +120,11 @@ def run_majority(splits_dir: Path, out_dir: Path) -> dict:
     }
     path = out_dir / "metrics" / "majority.csv"
     _write_csv(path, [row], ["method", "accuracy", "macro_f1", "test_n", "most_common_class", "notes"])
-    print(f"majority: {row}\nwrote {_rel(path)}")
+    save_json(out_dir / "metrics" / "majority.json",
+              {"accuracy": m["accuracy"], "macro_f1": m["macro_f1"], "majority_class": m["most_common_class"],
+               "test_n": m["n"], "train_count": m["train_count"], "train_n": m["train_n"],
+               "tie_break": "class_names order"})
+    print(f"majority: {row}\nwrote {_rel(path)} and majority.json")
     return m
 
 
@@ -249,16 +161,19 @@ def train_resnet18(
     import torchvision
     from torch.utils.data import DataLoader
 
-    seed_everything(seed)
-    device = device or pick_device()
-    splits = {s: limit_split(load_split(splits_dir / f"{s}.json"), limit, seed)
+    if epochs < 1:
+        raise ValueError("epochs must be >= 1 (model selection needs at least one val epoch)")
+    set_seed(seed)
+    device = device or get_device()
+    splits = {s: limit_split(_load_split(splits_dir / f"{s}.json"), limit, seed)
               for s in ("train", "val", "test")}
     class_names = splits["train"]["class_names"]
     for s in ("val", "test"):
         if splits[s]["class_names"] != class_names:
             raise ValueError(f"class_names differ between train and {s} splits")
 
-    ds = {s: SplitDataset(splits[s], image_root, make_transforms(input_size, train=(s == "train")))
+    ds = {s: SplitDataset(splits[s]["items"], image_root, class_names,
+                          transform=make_transforms(input_size, train=(s == "train")))
           for s in splits}
     g = torch.Generator().manual_seed(seed)
     loaders = {s: DataLoader(ds[s], batch_size=batch_size, shuffle=(s == "train"), generator=g,
@@ -338,13 +253,13 @@ def train_resnet18(
 
 
 @lru_cache(maxsize=2)
-def _load_predictor(checkpoint_path: str):
+def _load_predictor(checkpoint_path: str, mtime: float):  # mtime: retrained file -> new cache entry
     import torch
 
     ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     model = build_resnet18(len(ckpt["class_names"]), pretrained=False)
     model.load_state_dict(ckpt["state_dict"])
-    device = pick_device()
+    device = get_device()
     return model.to(device).eval(), ckpt["class_names"], ckpt["input_size"], device
 
 
@@ -356,10 +271,10 @@ def predict_resnet18(checkpoint_path: str | Path, images: list) -> list[tuple[st
     import torch
     from torchvision import transforms as T
 
-    path = repo_path(checkpoint_path)
+    path = resolve_path(checkpoint_path)
     if not path.exists():
         raise FileNotFoundError(f"Checkpoint not found: {path} (run T08 first)")
-    model, class_names, size, device = _load_predictor(str(path))
+    model, class_names, size, device = _load_predictor(str(path), path.stat().st_mtime)
     tf = T.Compose([T.Resize((size, size), antialias=True), T.ToTensor(),
                     T.Normalize(IMAGENET_MEAN, IMAGENET_STD)])
     x = torch.stack([tf(im.convert("RGB")) for im in images]).to(device)
@@ -374,7 +289,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="python -m src.baselines", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("method", choices=["majority", "resnet18"])
-    ap.add_argument("--config", default=None, help="default: configs/default.yaml if present")
+    ap.add_argument("--config", default=None, help="default: configs/default.yaml")
     ap.add_argument("--splits-dir", default=None, help="override data.splits_dir")
     ap.add_argument("--image-root", default=None, help="override data.eurosat_root")
     ap.add_argument("--out-dir", default="artifacts")
@@ -389,14 +304,14 @@ def main(argv=None):
     a = ap.parse_args(argv)
 
     cfg = load_config(a.config)
-    splits_dir = repo_path(a.splits_dir or cfg["data"]["splits_dir"])
-    out_dir = repo_path(a.out_dir)
+    splits_dir = resolve_path(a.splits_dir or cfg["data"]["splits_dir"], cfg)
+    out_dir = resolve_path(a.out_dir, cfg)
     if a.method == "majority":
         return run_majority(splits_dir, out_dir)
     b = cfg["baseline"]
     return train_resnet18(
         splits_dir=splits_dir,
-        image_root=repo_path(a.image_root or cfg["data"]["eurosat_root"]),
+        image_root=resolve_path(a.image_root or cfg["data"]["eurosat_root"], cfg),
         out_dir=out_dir,
         epochs=a.epochs if a.epochs is not None else b["resnet18_epochs"],
         batch_size=a.batch_size or b["resnet18_batch_size"],
@@ -408,23 +323,6 @@ def main(argv=None):
         num_workers=a.workers,
         device=a.device,
     )
-
-
-
-# ---------------------------------------------------------------- compatibility (J's T01 helpers)
-def save_checkpoint(model, path) -> None:
-    import torch
-
-    path = repo_path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(), path)
-
-
-def load_checkpoint(model, path, device: str | None = None):
-    import torch
-
-    model.load_state_dict(torch.load(repo_path(path), map_location=device or "cpu"))
-    return model
 
 
 if __name__ == "__main__":

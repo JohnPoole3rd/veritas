@@ -1,12 +1,12 @@
+# Every key here is read by code (see plan/INTERFACES.md §2).
 seed: 42
 
 data:
   eurosat_root: data/raw/eurosat
-  local_tiles_root: data/raw/local_tiles
   splits_dir: data/splits
   captions_path: data/captions.jsonl
   local_manifest: data/local_tiles/manifest.csv
-  download: true
+  download: true            # prepare_data.py; --no-download overrides
 
 split:
   train: 0.70
@@ -17,26 +17,19 @@ image:
   model_name: facebook/dinov2-small
   input_size: 224
   batch_size: 32
-  embedding_dim: 384
+  embedding_dim: 384        # asserted by extract_embeddings.py
 
 text:
   model_name: sentence-transformers/all-MiniLM-L6-v2
-  embedding_dim: 384
+  embedding_dim: 384        # asserted by fit_alignment.py
 
 alignment:
-  center: true
-  normalize: true
-  method: orthogonal_procrustes
+  center: true              # fit + random-rotation baselines
 
 baseline:
   resnet18_epochs: 10
   resnet18_batch_size: 64
   resnet18_lr: 0.001
 
-local:
-  city: Upper Arlington, Ohio
-  tile_count: 50
-
 demo:
-  top_k: 3
-  confidence_threshold: null
+  top_k: 3                  # app.py
