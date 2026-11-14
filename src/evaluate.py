@@ -100,16 +100,38 @@ def confusion_matrix(
 
 
 def classification_metrics(
-    y_true: Iterable[str],
-    y_pred: Iterable[str],
-) -> dict[str, float]:
-    from sklearn.metrics import accuracy_score, f1_score
+    y_true: Iterable,
+    y_pred: Iterable,
+    class_names: list[str] | None = None,
+) -> dict[str, Any]:
+    """Accuracy, macro-F1, per-class recall, and confusion matrix.
 
-    y_true = list(y_true)
-    y_pred = list(y_pred)
+    y_true / y_pred are label strings or integer indices into class_names. With no class_names,
+    the sorted union of observed labels is used (backward compatible with the 2-argument form).
+    Confusion matrix rows are true classes, columns predicted, ordered as class_names.
+    """
+    from sklearn.metrics import accuracy_score, f1_score, recall_score
+    from sklearn.metrics import confusion_matrix as sk_confusion_matrix
+
+    y_true, y_pred = list(y_true), list(y_pred)
+    if class_names is None:
+        class_names = sorted(set(y_true) | set(y_pred), key=str)
+    to_idx = {c: i for i, c in enumerate(class_names)}
+
+    def idx(v):
+        return to_idx[v] if v in to_idx else int(v)
+
+    yt = np.array([idx(v) for v in y_true], dtype=int)
+    yp = np.array([idx(v) for v in y_pred], dtype=int)
+    labels = list(range(len(class_names)))
+    recall = recall_score(yt, yp, labels=labels, average=None, zero_division=0)
     return {
-        "accuracy": float(accuracy_score(y_true, y_pred)),
-        "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
+        "accuracy": float(accuracy_score(yt, yp)),
+        "macro_f1": float(f1_score(yt, yp, labels=labels, average="macro", zero_division=0)),
+        "per_class": {str(c): float(r) for c, r in zip(class_names, recall)},
+        "confusion_matrix": sk_confusion_matrix(yt, yp, labels=labels),
+        "class_names": [str(c) for c in class_names],
+        "n": int(len(yt)),
     }
 
 
@@ -168,3 +190,195 @@ def save_confusion_matrix_figure(
     fig.tight_layout()
     fig.savefig(target, dpi=160)
     plt.close(fig)
+
+
+# ---------------------------------------------------------------- A (T08/T12) additions
+def evaluate_classifier(model, loader, device=None, class_names: list[str] | None = None) -> dict:
+    """Run a torch classifier over a loader yielding (images, int_labels).
+
+    class_names defaults to loader.dataset.class_names. Also returns softmax `probs` (N, C)
+    and integer `y_true` / `y_pred` arrays for downstream analysis.
+    """
+    import torch
+
+    if class_names is None:
+        class_names = loader.dataset.class_names
+    if device is None:
+        device = next(model.parameters()).device
+    model.eval()
+    ys, probs = [], []
+    with torch.no_grad():
+        for x, y in loader:
+            logits = model(x.to(device))
+            probs.append(torch.softmax(logits.float(), dim=1).cpu().numpy())
+            ys.append(np.asarray(y))
+    probs = np.concatenate(probs)
+    y_true = np.concatenate(ys)
+    y_pred = probs.argmax(1)
+    out = classification_metrics(y_true, y_pred, class_names)
+    out.update(probs=probs, y_true=y_true, y_pred=y_pred)
+    return out
+
+
+def evaluate_caption_classification(
+    image_embeddings: np.ndarray,
+    caption_embeddings: np.ndarray,
+    labels: list[str],
+    caption_labels: list[str],
+    class_names: list[str] | None = None,
+    agg: str = "max",
+) -> dict:
+    """Image->class classification by caption similarity (A, T08/T12).
+
+    This is the per-image metric that is comparable with ResNet-18 accuracy: every test image
+    is classified, so N = number of images. (`evaluate_retrieval` above is J's T07
+    text->image metric, where N = number of caption queries.)
+
+    Each image is scored against every caption by cosine similarity (both sides are
+    L2-normalized here). Caption scores are aggregated to one score per class with
+    `agg` ("max" = best-matching caption for that class, the default; "mean" = average
+    over that class's captions, i.e. a prompt ensemble). Classes are ranked by score;
+    top1/top5 check whether the true label is in the first 1/5 classes.
+
+    Returns top1, top5, per_class (top-1 recall per class), confusion_matrix (top-1),
+    macro_f1, class_names, plus class_scores (N, C) and y_pred labels.
+    """
+    X = np.asarray(image_embeddings, dtype=np.float32)
+    Y = np.asarray(caption_embeddings, dtype=np.float32)
+    if X.shape[1] != Y.shape[1]:
+        raise ValueError(f"embedding dims differ: images {X.shape} vs captions {Y.shape}")
+    if len(labels) != len(X):
+        raise ValueError(f"labels ({len(labels)}) != image rows {X.shape}")
+    if len(caption_labels) != len(Y):
+        raise ValueError(f"caption_labels ({len(caption_labels)}) != caption rows {Y.shape}")
+    if class_names is None:
+        class_names = sorted(set(caption_labels))
+    sims = l2_normalize(X) @ l2_normalize(Y).T  # (N, num_captions)
+
+    cap_lab = np.asarray(caption_labels)
+    reduce = {"max": np.max, "mean": np.mean}[agg]
+    scores = np.stack([reduce(sims[:, cap_lab == c], axis=1) for c in class_names], axis=1)
+
+    to_idx = {c: i for i, c in enumerate(class_names)}
+    y_true = np.array([to_idx[y] for y in labels])
+    ranking = np.argsort(-scores, axis=1)
+    k = min(5, len(class_names))
+    top5 = float(np.mean([y_true[i] in ranking[i, :k] for i in range(len(y_true))]))
+
+    out = classification_metrics(y_true, ranking[:, 0], class_names)
+    out.update(
+        top1=out["accuracy"],
+        top5=top5,
+        agg=agg,
+        class_scores=scores,
+        y_pred=[class_names[i] for i in ranking[:, 0]],
+    )
+    return out
+
+
+def save_confusion_matrix_png(cm, class_names: list[str], path, title: str = "") -> Path:
+    """Row-normalized confusion matrix heatmap with raw counts annotated."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    cm = np.asarray(cm)
+    norm = cm / np.clip(cm.sum(1, keepdims=True), 1, None)
+    n = len(class_names)
+    fig, ax = plt.subplots(figsize=(1.0 + 0.7 * n, 0.8 + 0.6 * n))
+    im = ax.imshow(norm, cmap="Blues", vmin=0, vmax=1)
+    ax.set_xticks(range(n), class_names, rotation=45, ha="right")
+    ax.set_yticks(range(n), class_names)
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
+    if title:
+        ax.set_title(title)
+    for i in range(n):
+        for j in range(n):
+            if cm[i, j]:
+                ax.text(j, i, int(cm[i, j]), ha="center", va="center", fontsize=7,
+                        color="white" if norm[i, j] > 0.5 else "black")
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="row fraction")
+    fig.tight_layout()
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return path
+
+
+# ---------------------------------------------------------------- A: per-image comparison CLI
+def run_caption_classification(split: str = "test", agg: str = "max", seed: int = 42) -> list[dict]:
+    """Per-image accuracy / macro-F1 for Procrustes, random rotation and unaligned cosine on a
+    EuroSAT split. This is the metric comparable with ResNet-18 (N = images, not caption queries).
+
+    Uses J's artifacts as-is: artifacts/embeddings/dinov2_{train,<split>}.npy,
+    minilm_captions.npy (+ index) and artifacts/alignment/procrustes.npz. The random-rotation
+    baseline is J's definition (Procrustes on shuffled train pairs, `fit_procrustes(shuffle_y=True)`),
+    rebuilt with the same caption sampling as scripts/fit_alignment.py.
+    `agg` (max over a class's captions) is fixed in advance, never chosen on test.
+    """
+    import json
+    import random
+
+    from src.alignment import fit_procrustes, load_procrustes, transform_images, transform_texts
+    from src.captions import captions_by_label, load_captions, sample_caption
+    from src.config import load_config, resolve_path
+    from src.data import load_split
+
+    cfg = load_config()
+    emb = resolve_path("artifacts/embeddings", cfg)
+    split_payload = load_split(resolve_path(cfg["data"]["splits_dir"], cfg) / f"{split}.json")
+    train_payload = load_split(resolve_path(cfg["data"]["splits_dir"], cfg) / "train.json")
+    class_names = split_payload["class_names"]
+    X = np.load(emb / f"dinov2_{split}.npy")
+    labels = [it["label"] for it in split_payload["items"]]
+    if len(X) != len(labels):
+        raise ValueError(f"dinov2_{split}.npy {X.shape} != {split} split ({len(labels)})")
+    Y = np.load(emb / "minilm_captions.npy")
+    index = json.loads((emb / "minilm_caption_index.json").read_text())
+    cap_labels = [index[str(i)]["label"] for i in range(len(index))]
+
+    params = load_procrustes(resolve_path("artifacts/alignment/procrustes.npz", cfg))
+
+    # Random rotation, exactly as J's T07 null baseline.
+    captions = load_captions(resolve_path(cfg["data"]["captions_path"], cfg))
+    text_to_idx = {c["text"]: i for i, c in enumerate(captions)}
+    rng = random.Random(seed)
+    grouped = captions_by_label(captions)
+    sampled = [text_to_idx[sample_caption(grouped, it["label"], rng)] for it in train_payload["items"]]
+    X_train = np.load(emb / "dinov2_train.npy")
+    rand = fit_procrustes(X_train, Y[sampled], center=True, shuffle_y=True, seed=seed)
+
+    variants = {
+        "procrustes": (transform_images(X, params), transform_texts(Y, params)),
+        "random_rotation": (transform_images(X, rand), transform_texts(Y, rand)),
+        "unaligned": (X, Y),
+    }
+    rows = []
+    for name, (Xi, Yi) in variants.items():
+        r = evaluate_caption_classification(Xi, Yi, labels, cap_labels, class_names=class_names, agg=agg)
+        rows.append({"method": name, "split": split, "accuracy": round(r["accuracy"], 4),
+                     "top5": round(r["top5"], 4), "macro_f1": round(r["macro_f1"], 4),
+                     "n_images": r["n"], "n_captions": len(cap_labels),
+                     "notes": f"image->class, agg={agg}"})
+        if name == "procrustes":
+            save_confusion_matrix_png(r["confusion_matrix"], class_names,
+                                      resolve_path(f"artifacts/figures/procrustes_{split}_confusion_matrix.png", cfg),
+                                      title=f"Procrustes image->class, {split} (acc {r['accuracy']:.3f})")
+            per = [{"class": c, "recall": round(r["per_class"][c], 4)} for c in class_names]
+            save_metrics_csv(resolve_path(f"artifacts/metrics/procrustes_{split}_per_class.csv", cfg), per)
+    save_metrics_csv(resolve_path(f"artifacts/metrics/caption_classification_{split}.csv", cfg), rows)
+    return rows
+
+
+if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(prog="python -m src.evaluate")
+    ap.add_argument("command", choices=["caption-classification"])
+    ap.add_argument("--split", default="test", choices=["val", "test"])
+    args = ap.parse_args()
+    for row in run_caption_classification(args.split):
+        print(row)

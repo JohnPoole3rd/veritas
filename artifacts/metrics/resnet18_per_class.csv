@@ -1,0 +1,11 @@
+class,recall,n,most_confused_with,n_confused
+AnnualCrop,0.9644,450,PermanentCrop,10
+Forest,0.9978,450,Pasture,1
+HerbaceousVegetation,0.98,450,Pasture,4
+Highway,0.9867,375,River,3
+Industrial,0.9893,375,Residential,3
+Pasture,0.9733,300,AnnualCrop,4
+PermanentCrop,0.9547,375,AnnualCrop,8
+Residential,0.9956,450,Industrial,1
+River,0.9733,375,AnnualCrop,5
+SeaLake,0.9956,450,AnnualCrop,2

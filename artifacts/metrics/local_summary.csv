@@ -1,0 +1,4 @@
+method,accuracy,n,accuracy_unambiguous,n_unambiguous,notes
+procrustes,0.64,50,0.8108,37,Upper Arlington OOD
+resnet18,0.64,50,0.8108,37,Upper Arlington OOD
+majority_local,0.62,50,0.7838,37,Upper Arlington OOD; constant 'Residential'

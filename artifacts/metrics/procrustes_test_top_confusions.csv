@@ -1,0 +1,9 @@
+true,predicted,count,share_of_true
+River,Highway,122,0.325
+Pasture,Highway,58,0.193
+PermanentCrop,AnnualCrop,45,0.12
+Residential,Industrial,40,0.089
+PermanentCrop,Highway,38,0.101
+PermanentCrop,Industrial,30,0.08
+River,Industrial,23,0.061
+River,Pasture,22,0.059

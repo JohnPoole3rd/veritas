@@ -1,0 +1,58 @@
+{
+  "n": 50,
+  "accuracy": 0.64,
+  "per_category": [
+    {
+      "local_category": "commercial_industrial",
+      "n": 10,
+      "accuracy": 0.9
+    },
+    {
+      "local_category": "park_forest_herbaceous",
+      "n": 10,
+      "accuracy": 0.4
+    },
+    {
+      "local_category": "residential",
+      "n": 10,
+      "accuracy": 1.0
+    },
+    {
+      "local_category": "road_highway",
+      "n": 10,
+      "accuracy": 0.9
+    },
+    {
+      "local_category": "water_river",
+      "n": 10,
+      "accuracy": 0.0
+    }
+  ],
+  "manifest": "data/local_tiles/manifest.csv",
+  "methods": [
+    {
+      "method": "procrustes",
+      "accuracy": 0.64,
+      "n": 50,
+      "accuracy_unambiguous": 0.8108,
+      "n_unambiguous": 37,
+      "notes": "Upper Arlington OOD"
+    },
+    {
+      "method": "resnet18",
+      "accuracy": 0.64,
+      "n": 50,
+      "accuracy_unambiguous": 0.8108,
+      "n_unambiguous": 37,
+      "notes": "Upper Arlington OOD"
+    },
+    {
+      "method": "majority_local",
+      "accuracy": 0.62,
+      "n": 50,
+      "accuracy_unambiguous": 0.7838,
+      "n_unambiguous": 37,
+      "notes": "Upper Arlington OOD; constant 'Residential'"
+    }
+  ]
+}

@@ -4,7 +4,11 @@ import numpy as np
 import pandas as pd
 
 from src.alignment import fit_procrustes
-from src.local_tiles import LOCAL_CATEGORIES, evaluate_local, validate_manifest
+import os
+import tempfile
+
+from src.local_tiles import (EUROSAT_CLASSES, LOCAL_CATEGORIES, ManifestError, evaluate_local,
+                             load_local_manifest, local_metrics, validate_manifest)
 
 
 def _manifest(n_per_category=10):
@@ -66,6 +70,50 @@ class LocalTileTests(unittest.TestCase):
         self.assertEqual(len(result), 5)
         self.assertIn("predicted_label", result.columns)
         self.assertIn("correct", result.columns)
+
+    # ---- A's tests on the real 50-tile manifest (T11/T12)
+    def test_real_manifest_valid(self):
+        df = load_local_manifest()
+        self.assertEqual(len(df), 50)
+        self.assertTrue(df.tile_id.is_unique)
+        self.assertTrue(df.local_category.value_counts().eq(10).all())
+        self.assertTrue(validate_manifest(df)["ok"])
+
+    def test_manifest_rejects_bad_rows(self):
+        m = pd.read_csv("data/local_tiles/manifest.csv")
+        m.loc[0, "lat"] = None
+        m.loc[1, "label"] = "Forrest"
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+            m.to_csv(f.name, index=False)
+        try:
+            with self.assertRaises(ManifestError) as ctx:
+                load_local_manifest(f.name)
+            self.assertIn("missing lat", str(ctx.exception))
+            self.assertIn("Forrest", str(ctx.exception))
+        finally:
+            os.unlink(f.name)
+
+    def test_evaluate_local_synthetic_metrics(self):
+        rng = np.random.default_rng(0)
+        D = 16
+        centers = {c: rng.normal(size=D) for c in EUROSAT_CLASSES}
+        cap_labels = [c for c in EUROSAT_CLASSES for _ in range(3)]
+        caps = np.stack([centers[c] + 0.05 * rng.normal(size=D) for c in cap_labels])
+        df = load_local_manifest()
+        # First 40 tiles embed near their true class, last 10 (River) near Forest.
+        targets = [lab if i < 40 else "Forest" for i, lab in enumerate(df.label)]
+        X = np.stack([centers[t] + 0.05 * rng.normal(size=D) for t in targets]).astype(np.float32)
+        params = {"W": np.eye(D, dtype=np.float32), "mu_x": np.zeros(D, np.float32),
+                  "mu_y": np.zeros(D, np.float32)}
+        preds = evaluate_local(df, X, params, caps, cap_labels)
+        self.assertEqual(list(preds.columns[:6]),
+                         ["tile_id", "true_label", "local_category", "predicted_label", "score", "correct"])
+        self.assertEqual(int(preds.correct.sum()), 40)
+        summary, per_cat = local_metrics(preds)
+        s = summary.set_index("method")
+        self.assertAlmostEqual(s.loc["procrustes", "accuracy"], 0.8)
+        self.assertAlmostEqual(s.loc["majority_local", "accuracy"], 0.62)  # 31/50 Residential
+        self.assertEqual(per_cat.set_index("local_category").loc["water_river", "procrustes_acc"], 0.0)
 
 
 if __name__ == "__main__":
