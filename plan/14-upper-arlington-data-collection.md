@@ -59,6 +59,8 @@ If a tile includes Grandview Heights, Marble Cliff, or Columbus, move it or clip
 
 ## 3. Sampling design
 
+> **As collected (T10, 2026-11-14):** the city fits only ~61 disjoint 640 m tiles, so tiles may overlap earlier picks by ≤ 25 % (logged per tile). Collection is scripted with `python -m src.local_collect`. See `learnings/T10-upper-arlington-tile-budget-and-water.md`.
+
 - 10 tiles per category.
 - Spread across the city; do not cluster all 10 in one neighborhood.
 - Avoid overlapping tiles where possible.
@@ -144,6 +146,8 @@ If a tile includes Grandview Heights, Marble Cliff, or Columbus, move it or clip
 **Avoid:** a park with a large parking lot or pool dominating the tile.
 
 ### 4.5 Water/river (ua_041–ua_050)
+
+> **As collected (T10):** the OSM boundary follows the east bank, so the Scioto/Griggs water is just outside the city. The 10 water tiles straddle the boundary (25–37 % inside) and are the 10 most water-rich, non-overlapping tiles on the corridor. River vs SeaLake is assigned visually in T11, not fixed at 5/5.
 
 **Goal:** 5 river tiles, 5 lake/pond tiles.
 

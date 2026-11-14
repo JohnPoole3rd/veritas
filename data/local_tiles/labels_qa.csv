@@ -1,0 +1,51 @@
+tile_id,local_category,stratum_label,label_primary,confidence,notes,reviewer2_label,reviewer2_confidence,reviewer2_second,qa_reviewed,qa_agree,label,resolution,ambiguous
+ua_001,residential,Residential,Residential,high,"single-family grid, heavy canopy",Residential,high,Forest,True,True,Residential,,False
+ua_002,residential,Residential,Residential,high,single-family; school stadium/parking in lower-left corner (~10%),,,,False,,Residential,,False
+ua_003,residential,Residential,Residential,high,single-family grid,,,,False,,Residential,,False
+ua_004,residential,Residential,Residential,high,single-family under heavy canopy,,,,False,,Residential,,False
+ua_005,residential,Residential,Residential,high,single-family grid,,,,False,,Residential,,False
+ua_006,residential,Residential,Residential,high,single-family grid,,,,False,,Residential,,False
+ua_007,residential,Residential,Residential,high,single-family grid,Residential,high,Forest,True,True,Residential,,False
+ua_008,residential,Residential,Residential,high,single-family grid,,,,False,,Residential,,False
+ua_009,residential,Residential,Residential,high,single-family; one large white institutional roof (~5%),,,,False,,Residential,,False
+ua_010,residential,Residential,Residential,high,"single-family, curving streets, heavy canopy",,,,False,,Residential,,False
+ua_011,commercial_industrial,Industrial,Industrial,high,"big-box retail roofs + parking (~45% built), residential edges; commercial proxy",Industrial,high,Residential,True,True,Industrial,,False
+ua_012,commercial_industrial,Industrial,Industrial,medium,"commercial/office + multi-family blocks with parking, wooded; mixed",,,,False,,Industrial,,False
+ua_013,commercial_industrial,Industrial,Industrial,high,"strip shopping centre roofs + parking along arterial (~35%), residential behind",,,,False,,Industrial,,False
+ua_014,commercial_industrial,Industrial,Residential,medium,commercial building/parking only in top ~20%; houses dominate,,,,False,,Residential,,False
+ua_015,commercial_industrial,Industrial,Residential,medium,"large institutional roof + parking + fields (~30%, likely school); houses dominate",,,,False,,Residential,,False
+ua_016,commercial_industrial,Industrial,Residential,high,houses; small commercial cluster bottom-left (~10%),,,,False,,Residential,,False
+ua_017,commercial_industrial,Industrial,Residential,medium,houses; institutional building + pool + ballfield (~15%),,,,False,,Residential,,False
+ua_018,commercial_industrial,Industrial,Residential,medium,multi-family condos + arterials + trees,Residential,medium,Industrial,True,True,Residential,,False
+ua_019,commercial_industrial,Industrial,Residential,high,houses; two isolated white roofs,,,,False,,Residential,,False
+ua_020,commercial_industrial,Industrial,Residential,medium,houses; large church/school roof + parking (~15%),,,,False,,Residential,,False
+ua_021,road_highway,Highway,Residential,high,houses on curving streets; arterial not salient,Residential,high,Forest,True,True,Residential,,False
+ua_022,road_highway,Highway,Residential,high,street grid; arterial not distinguishable at 10 m,,,,False,,Residential,,False
+ua_023,road_highway,Highway,Residential,high,street grid under canopy,,,,False,,Residential,,False
+ua_024,road_highway,Highway,Residential,high,street grid,,,,False,,Residential,,False
+ua_025,road_highway,Highway,Residential,high,street grid; small parking lot top-right,,,,False,,Residential,,False
+ua_026,road_highway,Highway,Residential,high,street grid,Residential,high,Forest,True,True,Residential,,False
+ua_027,road_highway,Highway,Highway,medium,diagonal arterial intersection with commercial pads; roads are the salient feature,,,,False,,Highway,,False
+ua_028,road_highway,Highway,Residential,high,street grid,,,,False,,Residential,,False
+ua_029,road_highway,Highway,Residential,high,dense houses,,,,False,,Residential,,False
+ua_030,road_highway,Highway,Residential,high,houses under canopy,,,,False,,Residential,,False
+ua_031,park_forest_herbaceous,Forest,Forest,high,closed canopy woodland with few scattered houses,,,,False,,Forest,,False
+ua_032,park_forest_herbaceous,Forest,Residential,medium,street grid clearly visible under heavy canopy,,,,False,,Residential,,False
+ua_033,park_forest_herbaceous,Forest,Residential,medium,houses and streets under heavy canopy,,,,False,,Residential,,False
+ua_034,park_forest_herbaceous,Forest,Forest,low,"near-closed canopy, low-density houses on curving streets; Residential plausible",Residential,high,Forest,True,False,Residential,QA disagreement: primary Forest (low) vs reviewer Residential (high); adopted Residential,True
+ua_035,park_forest_herbaceous,Forest,Forest,low,"near-closed canopy, faint streets; Residential plausible",Residential,medium,Forest,True,False,Residential,QA disagreement: primary Forest (low) vs reviewer Residential (medium); adopted Residential,True
+ua_036,park_forest_herbaceous,HerbaceousVegetation,HerbaceousVegetation,high,golf-course turf fairways with tree lines; Pasture plausible,,,,False,,HerbaceousVegetation,,False
+ua_037,park_forest_herbaceous,HerbaceousVegetation,HerbaceousVegetation,high,golf-course turf; Pasture plausible,,,,False,,HerbaceousVegetation,,False
+ua_038,park_forest_herbaceous,HerbaceousVegetation,HerbaceousVegetation,high,golf-course turf; pond bottom-left (~5%),,,,False,,HerbaceousVegetation,,False
+ua_039,park_forest_herbaceous,HerbaceousVegetation,Residential,medium,park ballfields (~40%) + houses; built-up wins by priority rule,,,,False,,Residential,,False
+ua_040,park_forest_herbaceous,HerbaceousVegetation,HerbaceousVegetation,low,"park ballfields/grass (~50%) + school, pool, parking",,,,False,,HerbaceousVegetation,,True
+ua_041,water_river,River,River,medium,Griggs Reservoir channel (~40% water) + commercial/residential east bank,,,,False,,River,,True
+ua_042,water_river,River,River,medium,Griggs Reservoir channel (~34% water) + residential/park banks,,,,False,,River,,True
+ua_043,water_river,River,River,medium,Griggs Reservoir channel (~32% water) + wooded banks,,,,False,,River,,True
+ua_044,water_river,River,River,medium,Griggs Reservoir channel (~30% water) + bridge/roads + houses,,,,False,,River,,True
+ua_045,water_river,River,River,medium,Griggs Reservoir channel (~28% water) + Riverside Dr + houses,,,,False,,River,,True
+ua_046,water_river,River,River,medium,Griggs Reservoir channel (~28% water) + wooded banks + houses,,,,False,,River,,True
+ua_047,water_river,River,River,medium,Griggs Reservoir channel (~22% water) + houses,Residential,medium,River,True,False,River,"QA disagreement: reviewer Residential (medium, 2nd choice River); kept River per rubric priority Water > built-up",True
+ua_048,water_river,River,River,medium,Griggs Reservoir channel (~21% water) + park + houses,Residential,low,River,True,False,River,"QA disagreement: reviewer Residential (low, 2nd choice River); kept River per rubric priority Water > built-up",True
+ua_049,water_river,River,River,low,narrow Scioto below dam (~15% water) + highway interchange + buildings; Highway plausible,,,,False,,River,,True
+ua_050,water_river,River,River,low,"narrow Scioto below dam (~10% water), mostly riparian trees; Forest plausible",,,,False,,River,,True

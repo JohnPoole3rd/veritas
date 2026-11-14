@@ -1,2 +1,2 @@
-method,accuracy,macro_f1,test_n,notes
-majority,0.1111111111111111,0.02,4050,majority_class=SeaLake
+method,accuracy,macro_f1,test_n,most_common_class,notes
+majority,0.1111,0.02,4050,AnnualCrop,train count 2100/18900; seed 42
