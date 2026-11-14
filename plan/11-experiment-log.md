@@ -11,8 +11,8 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 | R001 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 64 | 64 | 64 | 0.72 | 0.98 | | smoke subset; val retrieval |
 | R002 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Random rotation | 64 | 64 | 64 | 0.14 | 0.36 | | smoke subset; test retrieval |
 | R003 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Unaligned cosine | 64 | 64 | 64 | 0.26 | 0.48 | | smoke subset; test retrieval |
-| R004 | | | | | ResNet-18 | | | | | | | supervised |
-| R005 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Majority | 18900 | 4050 | 4050 | 0.1111 | | 0.0200 | scaffold run; A owns T09 |
+| R004 | 2026-11-14 | A | ResNet-18 (ImageNet init) | — | — (supervised) | 18900 | 4050 | 4050 | 0.9817 | | 0.9812 | 10 ep, 64px, MPS, best ep 10 by val; results/T08.md |
+| R005 | 2026-11-14 | J, A | — | — | Majority | 18900 | 4050 | 4050 | 0.1111 | | 0.0200 | J scaffold run reproduced by A (T09); AnnualCrop, 5-way tie |
 | R006 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Procrustes | 512 | 512 | 512 | 0.94 | 0.98 | | 512 subset; val retrieval |
 | R007 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Random rotation | 512 | 512 | 512 | 0.10 | 0.32 | | 512 subset; test null baseline |
 | R008 | 2026-11-14 | J | DINOv2 ViT-S/14 | MiniLM-L6 | Unaligned cosine | 512 | 512 | 512 | 0.16 | 0.36 | | 512 subset; test baseline |
@@ -78,8 +78,8 @@ Owner values: `J`, `A`, `D`, `J1`, `J2`, … , `A1`, `A2`, … , `D1`, `D2`, …
 
 | Method | Top-1 | Top-5 | Macro-F1 | Test N | Notes |
 |---|---:|---:|---:|---:|---|
-| Majority | | | | | |
-| ResNet-18 | | | | | |
+| Majority | 0.1111 | | 0.0200 | 4050 | R005; constant AnnualCrop |
+| ResNet-18 | 0.9817 | | 0.9812 | 4050 | R004; per-image accuracy |
 | Random rotation | | | | | |
 | Unaligned cosine | | | | | |
 | Procrustes | | | | | |
