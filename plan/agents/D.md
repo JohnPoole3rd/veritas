@@ -14,8 +14,9 @@ Read `plan/AGENTS.md`, `plan/DECISIONS.md`, and `plan/INTERFACES.md` first.
 ## Current state
 
 - `app.py` has MockBackend and RealBackend.
-- J verified RealBackend with real artifacts: gallery N=512, `dense forest` returns Forest, upload works.
-- Current limitations: failure-gallery images are placeholders; local Upper Arlington tiles are not in the gallery.
+- RealBackend verified with J's artifacts + A's metrics: gallery N=512 of 4,050, `dense forest` returns Forest, upload works.
+- The Results tab now shows image→class Procrustes (81.2%) next to ResNet-18 (98.2%), and text search separately (50 queries, 96% top-1).
+- Current limitation: Upper Arlington tiles are not in the search gallery; local results are in the metrics/write-up.
 
 ## Exact commands
 
@@ -25,7 +26,7 @@ Read `plan/AGENTS.md`, `plan/DECISIONS.md`, and `plan/INTERFACES.md` first.
 python app.py --mock
 ```
 
-Use this while A's local metrics are missing. Do not screenshot mock data for the write-up.
+Use this only for UI rehearsal. Do not screenshot mock data for the write-up.
 
 ### Real mode
 
@@ -36,7 +37,7 @@ python app.py
 Expected:
 
 ```text
-[demo] REAL mode — gallery N=512, transforms from src.alignment
+[demo] REAL mode — gallery N=512 of 4050, transforms from src.alignment
 [demo] NOTE — using 512-tile stratified subset
 ```
 
@@ -47,11 +48,9 @@ If it says `MOCK mode`, the missing artifact list tells you what is absent.
 The demo needs MiniLM for new text queries and DINOv2 for uploads. Pre-warm both on the demo machine:
 
 ```sh
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
-python -c "from transformers import AutoModel, AutoImageProcessor; AutoModel.from_pretrained('facebook/dinov2-small'); AutoImageProcessor.from_pretrained('facebook/dinov2-small')"
+python app.py --prefetch
+HF_HUB_OFFLINE=1 python app.py
 ```
-
-Then run with Wi-Fi off and confirm Real mode still loads.
 
 ## Artifact contract the app reads
 
@@ -62,8 +61,11 @@ Then run with Wi-Fi off and confirm Real mode still loads.
 - `data/splits/test.json`
 - `artifacts/metrics/majority.csv`
 - `artifacts/metrics/resnet18.csv` (A)
-- `artifacts/metrics/retrieval.csv`
+- `artifacts/metrics/caption_classification_test.csv` — image→class rows
+- `artifacts/metrics/retrieval.csv` — text search rows (50 queries)
 - `artifacts/metrics/local.json` / `local.csv` (A, optional for the demo)
+
+The table shows image→class Procrustes separately from the 50-query text search row. Do not compare them.
 
 ## Write-up
 

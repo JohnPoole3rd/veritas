@@ -7,6 +7,8 @@ Read `plan/AGENTS.md`, `plan/DECISIONS.md`, and `plan/INTERFACES.md` first.
 - `src/baselines.py`
 - `src/evaluate.py` metrics helpers
 - `src/local_tiles.py`
+- `src/failures.py`
+- `src/local_collect.py`
 - `scripts/train_resnet.py`
 - `scripts/evaluate_majority.py`
 - `scripts/extract_local_embeddings.py`
@@ -58,7 +60,7 @@ Outputs:
 The app reads `resnet18.csv` columns:
 
 ```csv
-method,accuracy,macro_f1,test_n,notes
+method,accuracy,macro_f1,test_n,epochs,notes
 resnet18,0.96,0.95,4050,epochs=10
 ```
 
@@ -106,9 +108,13 @@ Outputs:
 - `artifacts/embeddings/dinov2_local.npy`
 - `artifacts/embeddings/dinov2_local_meta.json`
 - `artifacts/metrics/local.csv`
+- `artifacts/metrics/local_predictions.csv`
 - `artifacts/metrics/local_by_category.csv`
+- `artifacts/metrics/local_summary.csv`
 - `artifacts/metrics/local.json`
 - `results/T12.md`
+
+Current T12 result: Procrustes 0.64, ResNet-18 0.64, local majority 0.62 on 50 tiles; 0.8108 for both models on the 37 unambiguous tiles.
 
 `local.csv` columns:
 
@@ -142,6 +148,6 @@ Suggested types:
 - If a script fails, copy the exact error into `results/Txx.md` and `plan/learnings/`.
 - If you need a change in J's module, write a learning file and ask J.
 
-## Current blocker
+## Current status
 
-J's Procrustes artifacts are ready (N=512). A can start T08/T09 immediately. Local scripts are ready in `scripts/`.
+A's T08–T13 are merged into `main` via `a/final`. A's full-split metrics and local results are now the source for T07/T12/T15. No blocker for A; remaining work is review/support for D's write-up and demo.

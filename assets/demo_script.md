@@ -1,9 +1,12 @@
 # Demo Script — Platonic Earth (≤ 2 minutes)
 
-Owner: D · Source: `plan/09-demo-writeup-submission.md` §2 · Status: DRAFT (mock data)
+Owner: D · Source: `plan/09-demo-writeup-submission.md` §2 · Status: READY (full metrics)
 
-Every number in brackets must come from a logged run in `plan/11-experiment-log.md`
-before recording. Do not say a number that is not in `artifacts/metrics/`.
+Every number must come from `results/T07.md` and `artifacts/metrics/`. Do not invent a number.
+
+Numbers below use A's full-split rerun of J's scripts:
+- text→image search: 50 caption queries;
+- image→class: 4,050 test images.
 
 ## Setup (before recording)
 
@@ -32,33 +35,41 @@ before recording. Do not say a number that is not in `artifacts/metrics/`.
    > "Here is an Upper Arlington tile. It predicts [label], with a warning that local imagery is
    > outside the training distribution."
 4. **Results & limits tab.**
-   > "We compare with a supervised ResNet-18 classifier, which scored [Y] on the held-out test
-   > split. Our rotation scored [X] top-1, against [R] for a random rotation. ResNet is stronger
-   > at fixed classes, but it cannot answer a new text query without retraining. Our method can."
+   > "ResNet-18 is the supervised baseline: 98.2% per-image accuracy. Our rotation is 81.2% on the
+   > same 4,050 test images, with 99.0% top-5 and 79.5% macro-F1. That is the fair comparison.
+   > Separately, when we search with each of our 50 class captions, the correct class is top-1
+   > 96% of the time (48 of 50), versus 18% for a random rotation. Those are 50 queries, not
+   > 4,050 images. ResNet is stronger at fixed classes, but it cannot answer a new text query
+   > without retraining. Our method can."
 
 ## 1:15–1:45 — How it works
 
 > "We use frozen DINOv2 for images and frozen MiniLM for text. We fit one closed-form
-> Procrustes rotation on EuroSAT image–caption pairs, with no multimodal training. This tests
-> the Platonic Representation Hypothesis: do independently trained models share a geometry of
-> land cover?"
+> Procrustes rotation on labelled EuroSAT image–caption pairs, with no multimodal training.
+> This tests the Platonic Representation Hypothesis: do independently trained models share a
+> geometry of land cover?"
 
 ## 1:45–2:00 — Failure and next steps
 
-**Screen:** failure example on the Results tab.
+**Screen:** "Where it fails" on the Results tab (computed live; read what it actually shows).
 
-> "It fails on annual versus permanent crop, because the difference is crop lifecycle, not
-> appearance. On local Upper Arlington tiles, accuracy dropped to [L] on N=50. Next, we would
-> add local labels and temporal change detection."
+> "Ask it something abstract, like 'climate change', and it still returns tiles, with very low
+> scores and unrelated classes. It has no way to say 'I don't know.' It also mixes up permanent
+> and annual crops, because the difference is the crop lifecycle, not how one image looks.
+> On 50 local Upper Arlington tiles, accuracy dropped to 64% for both Procrustes and ResNet,
+> only 2 points above the local majority of 62%. Next, we would add local labels and temporal
+> change detection."
 
 ## Claims to avoid
 
 - "The AI understands land use."
 - "Accurate land-use determination." / "Replaces GIS."
 - "Beats the baseline" without a number.
+- Comparing the 50-query text search 96% directly with per-image ResNet 98.2%.
+- Calling the rotation "zero-shot."
 
 ## If results are weak
 
-> "Our top-1 retrieval was [X], close to the random-rotation baseline of [R]. A single global
-> rotation is not enough for fine-grained land-cover classes at this resolution. We report this
-> as a negative result for PRH."
+> "Our image→class accuracy was 81.2%, below ResNet's 98.2%. A single global rotation is not a
+> replacement for supervised classification. On local tiles both models dropped to 64%.
+> We report this honestly."

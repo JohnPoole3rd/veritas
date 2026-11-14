@@ -258,7 +258,7 @@ Full details in `07-evaluation-plan.md`.
 
 ## 13. Novelty statement
 
-> We apply the Platonic Representation Hypothesis to Upper Arlington land-cover search: a single closed-form rotation between a frozen vision encoder and a frozen text encoder enables zero-shot text-to-image retrieval, evaluated on EuroSAT and on 50 local Sentinel-2 tiles. Unlike the suggested supervised land-use project, the user can ask new questions in natural language without retraining.
+> We apply the Platonic Representation Hypothesis to Upper Arlington land-cover search: a single closed-form rotation fitted on labelled EuroSAT image–caption pairs enables natural-language text-to-image retrieval, evaluated on EuroSAT and on 50 local Sentinel-2 tiles. Unlike the suggested supervised land-use project, the user can ask new questions in natural language without retraining.
 
 ## 14. Ethical and accuracy notes
 

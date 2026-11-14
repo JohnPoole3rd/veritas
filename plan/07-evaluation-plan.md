@@ -5,7 +5,7 @@
 
 ## 1. Research questions
 
-**RQ1.** Does a closed-form Procrustes rotation between frozen DINOv2 and MiniLM embeddings support zero-shot text-to-satellite land-cover retrieval?
+**RQ1.** Does a closed-form Procrustes rotation between frozen DINOv2 and MiniLM embeddings support natural-language text-to-satellite land-cover retrieval after fitting on labelled image–caption pairs?
 
 **RQ2.** How does Procrustes retrieval compare with a supervised ResNet-18 classifier and a majority baseline?
 
@@ -114,15 +114,15 @@ Exact columns the demo reads:
 `artifacts/metrics/majority.csv`:
 
 ```csv
-method,accuracy,macro_f1,test_n,notes
-majority,0.1111,0.0200,4050,majority_class=SeaLake
+method,accuracy,macro_f1,test_n,most_common_class,notes
+majority,0.1111,0.0200,4050,AnnualCrop,train count 2100/18900; seed 42
 ```
 
 `artifacts/metrics/resnet18.csv`:
 
 ```csv
-method,accuracy,macro_f1,test_n,notes
-resnet18,0.96,0.95,4050,epochs=10
+method,accuracy,macro_f1,test_n,epochs,notes
+resnet18,0.9817,0.9812,4050,10,best_epoch=10
 ```
 
 `artifacts/metrics/retrieval.csv`:
@@ -130,6 +130,15 @@ resnet18,0.96,0.95,4050,epochs=10
 ```csv
 method,split,top1,top5,macro_f1,n_images,test_n,n_captions,notes
 procrustes,test,0.94,0.96,,512,512,50,512-tile subset
+```
+
+`artifacts/metrics/caption_classification_test.csv`:
+
+```csv
+method,split,accuracy,top5,macro_f1,n_images,n_captions,notes
+procrustes,test,0.8121,0.9901,0.7948,4050,50,"image->class, agg=max"
+random_rotation,test,0.1590,0.6588,0.1559,4050,50,"image->class, agg=max"
+unaligned,test,0.0827,0.5326,0.0720,4050,50,"image->class, agg=max"
 ```
 
 `artifacts/metrics/local.csv`:
@@ -143,42 +152,56 @@ If a file is missing, the demo shows `—`; do not invent a number.
 
 ## 8. Results tables
 
-### Table 1 — Main results
+### Table 1a — Text→image search (50 caption queries)
 
-| Method | Top-1 | Top-5 | Macro-F1 | Test N | Notes |
-|---|---:|---:|---:|---:|---|
-| Majority class | | | | | |
-| ResNet-18 | | | | | |
-| Unaligned cosine | | | | | |
-| Random rotation | | | | | |
-| Procrustes (ours) | | | | | |
-| CLIP zero-shot | | | | | optional |
+| Method | Top-1 | Top-5 | Queries |
+|---|---:|---:|---:|
+| Procrustes | 0.96 | 1.00 | 50 |
+| Random rotation | 0.18 | 0.34 | 50 |
+| Unaligned cosine | 0.10 | 0.34 | 50 |
 
-### Table 2 — Per-class retrieval
+### Table 1b — Image→class (4,050 test images)
 
-| Class | Top-1 | Top-5 | Most confused with |
-|---|---:|---:|---|
-| AnnualCrop | | | |
-| Forest | | | |
-| HerbaceousVegetation | | | |
-| Highway | | | |
-| Industrial | | | |
-| Pasture | | | |
-| PermanentCrop | | | |
-| Residential | | | |
-| River | | | |
-| SeaLake | | | |
+| Method | Accuracy | Top-5 | Macro-F1 | Test N |
+|---|---:|---:|---:|---:|
+| Majority class | 0.1111 | — | 0.0200 | 4050 |
+| ResNet-18 | 0.9817 | — | 0.9812 | 4050 |
+| Unaligned cosine | 0.0827 | 0.5326 | 0.0720 | 4050 |
+| Random rotation | 0.1590 | 0.6588 | 0.1559 | 4050 |
+| Procrustes (ours) | 0.8121 | 0.9901 | 0.7948 | 4050 |
+| CLIP zero-shot | — | — | — | optional |
+
+Do not compare the 50-query search table with the per-image classification table.
+
+### Table 2 — Per-class Procrustes image→class recall
+
+| Class | Recall | Most confused with |
+|---|---:|---|
+| AnnualCrop | 0.9200 | |
+| Forest | 0.9689 | |
+| HerbaceousVegetation | 0.9289 | |
+| Highway | 0.7840 | |
+| Industrial | 0.9653 | |
+| Pasture | 0.5867 | |
+| PermanentCrop | 0.5973 | |
+| Residential | 0.8489 | |
+| River | 0.4613 | Highway |
+| SeaLake | 0.9111 | |
+
+Detailed per-class files: `procrustes_test_per_class.csv`, `procrustes_test_top_confusions.csv`.
 
 ### Table 3 — Upper Arlington local results
 
-| Local category | N | Procrustes acc. | ResNet-18 acc. | Notes |
-|---|---:|---:|---:|---|
-| Residential | 10 | | | |
-| Commercial/industrial | 10 | | | |
-| Road/highway | 10 | | | |
-| Park/forest/herbaceous | 10 | | | |
-| Water/river | 10 | | | |
-| **Total** | **50** | | | |
+| Local category | N | Procrustes acc. | ResNet-18 acc. | Local majority |
+|---|---:|---:|---:|---:|
+| Residential | 10 | 1.00 | 1.00 | 1.00 |
+| Commercial/industrial | 10 | 0.90 | 1.00 | 0.70 |
+| Road/highway | 10 | 0.90 | 0.80 | 0.90 |
+| Park/forest/herbaceous | 10 | 0.40 | 0.30 | 0.50 |
+| Water/river | 10 | 0.00 | 0.10 | 0.00 |
+| **Total** | **50** | **0.64** | **0.64** | **0.62** |
+
+On the 37 unambiguous tiles, both Procrustes and ResNet-18 reach 0.8108; local majority reaches 0.7838.
 
 ### Table 4 — Local tile detail
 
@@ -214,7 +237,7 @@ Filled from real predictions (T13, `artifacts/metrics/failure_taxonomy.csv`; fig
 | Result | Interpretation |
 |---|---|
 | Procrustes top-1 ≤ random + 5 points | Alignment likely not working; debug |
-| Procrustes top-1 30–50% | Plausible for frozen zero-shot; report honestly |
+| Procrustes top-1 30–50% | Plausible for frozen, label-fitted alignment; report honestly |
 | Procrustes top-1 > 50% | Strong for this setup |
 | Procrustes close to ResNet-18 | Surprising; check leakage |
 | Procrustes beats ResNet-18 | Check leakage before celebrating |

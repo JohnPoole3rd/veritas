@@ -22,7 +22,7 @@ If your runbook and this file disagree, follow the runbook and tell J.
 | Agent | Role | Owns | Tasks |
 |---|---|---|---|
 | **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07 |
-| **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
+| **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, `src/failures.py`, `src/local_collect.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
 | **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T16 |
 
 **J is the only agent who merges to `main` and pushes `main`.**
@@ -218,13 +218,16 @@ Every claim in the write-up or demo must trace to a logged run.
 
 Allowed:
 
-- “Top-1 retrieval was X on the held-out test split.”
+- “Text→image search top-1 was X over 50 caption queries on the held-out test split.”
+- “Image→class accuracy was X over 4,050 test images; ResNet-18 reached Y.”
 - “The random-rotation baseline was Y.”
 - “ResNet-18 reached Z on fixed-class classification.”
 - “Local tiles showed a domain-shift drop.”
 
 Not allowed:
 
+- Comparing a 50-query search number directly to per-image ResNet accuracy.
+- Calling the rotation zero-shot.
 - “The AI understands land use.”
 - “Accurate land-use determination.”
 - “Replaces GIS.”
@@ -275,6 +278,7 @@ If no human is available:
 ## 16. Conflict rules
 
 - One owner per module.
+- If you need a function in another owner's module, add a stub with `TODO(owner)` or write a learning file. Do not implement it yourself.
 - J only writes `plan/TASKS.md`.
 - Each task owner writes only their own `results/Txx.md`.
 - No direct pushes to `main` except J.

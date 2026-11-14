@@ -1,4 +1,4 @@
 method,split,top1,top5,macro_f1,n_images,test_n,n_captions,notes
-procrustes,test,0.94,0.96,,512,512,50,512-tile subset
-random_rotation,test,0.1,0.32,,512,512,50,512-tile subset
-unaligned,test,0.16,0.36,,512,512,50,512-tile subset
+procrustes,test,0.96,1.0,,4050,4050,50,full test; A MPS rerun of J scripts
+random_rotation,test,0.18,0.34,,4050,4050,50,full test
+unaligned,test,0.10,0.34,,4050,4050,50,full test

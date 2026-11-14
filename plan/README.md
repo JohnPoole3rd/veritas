@@ -133,15 +133,15 @@ No clock times. Start when the human gives the signal.
 - [x] Continuous planning and learnings defined.
 - [x] Plain Git workflow defined.
 - [x] Implementation started.
-- [x] J T01–T07 complete on a 512-tile stratified subset.
-- [x] D T14 real backend verified against J's artifacts.
-- [ ] A T08–T13 baselines and Upper Arlington tiles.
+- [x] J T01–T07 complete; full-split metrics adopted from A.
+- [x] A T08–T13 complete and merged.
+- [x] D T14 real backend verified against J/A artifacts.
 - [ ] D T15/T16 write-up and video.
-- [ ] Final integration and submission.
+- [ ] J T17 submission.
 
 ## Next actions
 
-1. A runs T08/T09 and collects T10/T11.
-2. D replaces failure placeholders after A's T12/T13.
-3. J runs final integration and submission.
+1. D writes T15 using A's full-split and local results.
+2. D records T16 video with the real demo.
+3. J runs T17 submission checklist.
 4. Read your runbook before starting: `plan/agents/J.md`, `A.md`, `D.md`.

@@ -24,6 +24,8 @@
 | R18 | Plan files diverge from reality | Medium | Medium | Update plans when beneficial; create `plan/learnings/`; J reconciles at merge | J |
 | R19 | Artifact schema mismatch between agents | Medium | High | `plan/INTERFACES.md` is the contract; integration test with real artifacts; J fixes app fallback | J/D |
 | R20 | Subset artifacts break demo | Medium | High | App slices test items to embedding count; display subset N; do not claim full N | J/D |
+| R21 | Comparing 50-query search with per-image ResNet | High | High | Separate tables; image→class is the comparable metric | J/D |
+| R22 | Calling the method zero-shot | Medium | High | Say “rotation fitted on labelled image–caption pairs” | J/D |
 
 ## 2. Kill criteria
 

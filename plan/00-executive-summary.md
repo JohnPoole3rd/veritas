@@ -53,7 +53,7 @@ A sustainability or urban-forestry staff member who wants to find candidate area
 
 This is a direct test of the **Platonic Representation Hypothesis**:
 
-> Independently trained image and text models share enough geometry that one closed-form rotation can support zero-shot land-cover retrieval.
+> Independently trained image and text models share enough geometry that one closed-form rotation fitted on labelled EuroSAT pairs can support natural-language land-cover retrieval.
 
 ## Data
 
