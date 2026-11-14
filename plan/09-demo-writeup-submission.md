@@ -61,28 +61,29 @@ python app.py
 Expected real-mode log:
 
 ```text
-[demo] REAL mode — gallery N=512, transforms from src.alignment
+[demo] REAL mode — gallery N=512 of 4050, transforms from src.alignment
 [demo] NOTE — using 512-tile stratified subset
 ```
 
 If it says `MOCK mode`, the missing artifact list names the blocker.
 
-Pre-warm the runtime encoders:
+Pre-warm the runtime encoders and test offline:
 
 ```sh
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
-python -c "from transformers import AutoModel, AutoImageProcessor; AutoModel.from_pretrained('facebook/dinov2-small'); AutoImageProcessor.from_pretrained('facebook/dinov2-small')"
+python app.py --prefetch
+HF_HUB_OFFLINE=1 python app.py
 ```
 
 ### Baseline table source
 
 The demo reads:
 
-- `artifacts/metrics/majority.csv`
+- `artifacts/metrics/majority.csv` (fallback: `majority.json`)
 - `artifacts/metrics/resnet18.csv`
-- `artifacts/metrics/retrieval.csv`
+- `artifacts/metrics/caption_classification_test.csv` — image→class rows, comparable with ResNet
+- `artifacts/metrics/retrieval.csv` — text search row, 50 caption queries
 
-If a file is missing, the table shows `—`; do not replace it with a made-up number.
+If a file is missing, the table shows `—`; do not replace it with a made-up number. Do not compare the 50-query search row with per-image ResNet accuracy.
 
 ### Example queries
 
@@ -152,16 +153,31 @@ Data: EuroSAT (27,000 tiles, 10 classes). We used [N] training, [N] validation, 
 Model: DINOv2 ViT-S/14 (frozen), all-MiniLM-L6-v2 (frozen), orthogonal Procrustes. Baselines: majority class and ResNet-18.
 
 ## Results
-| Method | Top-1 | Top-5 | Macro-F1 |
-|---|---:|---:|---:|
-| Majority | | | |
-| ResNet-18 | | | |
-| Random rotation | | | |
-| Procrustes | | | |
 
-Our model scored X. The baseline scored Y on held-out test data. **State N.** J's current retrieval numbers use a stratified 512-tile subset because full DINOv2 extraction was too slow on CPU; do not describe them as full 4,050-tile results.
-Where it fails: annual vs. permanent crop; local domain shift; abstract queries.
-Why: [one sentence].
+### Image→class (4,050 test images)
+
+| Method | Accuracy | Top-5 | Macro-F1 |
+|---|---:|---:|---:|
+| Majority | 0.1111 | — | 0.0200 |
+| ResNet-18 | 0.9817 | — | 0.9812 |
+| Random rotation | 0.1590 | 0.6588 | 0.1559 |
+| Unaligned cosine | 0.0827 | 0.5326 | 0.0720 |
+| Procrustes | 0.8121 | 0.9901 | 0.7948 |
+
+### Text→image search (50 caption queries)
+
+| Method | Top-1 | Top-5 |
+|---|---:|---:|
+| Procrustes | 0.96 | 1.00 |
+| Random rotation | 0.18 | 0.34 |
+| Unaligned cosine | 0.10 | 0.34 |
+
+Procrustes is well above the null baselines but below supervised ResNet-18. The 50-query search numbers are not comparable with per-image ResNet accuracy.
+
+On 50 Upper Arlington tiles, Procrustes and ResNet-18 both reached 0.64 overall and 0.8108 on the 37 unambiguous tiles; local majority was 0.62.
+
+Where it fails: water read as road, managed turf vs forest/pasture, canopy vs residential, commercial strip vs residential, crop-type confusion, uninformative confidence.
+Why: at 10 m, thin water channels and mixed suburban land cover are ambiguous; EuroSAT classes do not match Upper Arlington exactly.
 
 ## What we'd do next
 1. Add more local labels.
@@ -241,7 +257,7 @@ Why: [one sentence].
 
 ### “Why is ResNet-18 better?”
 
-> “ResNet is trained on the exact labels and optimized for fixed-class classification. Our method is zero-shot text search. ResNet cannot answer a new query without retraining; ours can.”
+> “ResNet is trained on the exact labels and optimized for fixed-class classification. Our method fits one rotation on labelled EuroSAT image–caption pairs, but it can answer a new text query without retraining. ResNet cannot.”
 
 ### “Is this just a tutorial?”
 

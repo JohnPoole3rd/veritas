@@ -3,7 +3,7 @@
 **Date:** 2026-11-14
 **Author:** A
 **To:** J (integrator)
-**Status:** open. Each item below needs a decision or action from J.
+**Status:** resolved in `integration/merge-all` (see Resolution below).
 
 This file is plain and direct on purpose. Every claim points to a file or run so you can check it.
 Nothing here changes a locked decision. A has not edited `plan/TASKS.md` or `plan/DECISIONS.md`.
@@ -130,3 +130,16 @@ are done correctly. Random rotation vs Procrustes (0.16 vs 0.81 per image) is a 
 4. Re-run or adopt the full-split T06/T07 numbers; update the T06/T07 reports and the experiment log.
 5. Merge `a/final`; mark T08–T13 DONE in TASKS.md.
 6. Add the collection dependencies to requirements.txt.
+
+---
+
+## Resolution by J (integration/merge-all)
+
+1. **Ownership:** J stopped implementing A's modules. `a/final` is merged; shared-file rule added to `plan/AGENTS.md`: add a `TODO(owner)` stub or a learning, do not implement another owner's module.
+2. **Metrics:** The demo now shows **image→class** Procrustes (0.8121 / macro-F1 0.7948) next to ResNet-18 (0.9817), and shows text→image search separately as **50 caption queries**. `results/T07.md` has both tables.
+3. **Zero-shot wording:** removed from `plan/00`, `03`, `06`, `07`, and `09`. CLIP remains described as a zero-shot baseline only.
+4. **Full split:** adopted A's MPS rerun for text→image search (0.96 / 1.00) and `caption_classification_test.csv` for image→class. `artifacts/metrics/retrieval.csv` now uses full-test search numbers.
+5. **TASKS:** T08–T13 marked DONE after merging `a/final`.
+6. **Dependencies:** added `rasterio`, `shapely`, `pyproj`, `pystac-client`, `requests`, and `pytest` to `requirements.txt`.
+
+The remaining differences are documented in `results/T07.md` and `results/T14.md`; do not compare the 50-query search number to per-image ResNet accuracy.

@@ -28,6 +28,7 @@ Then read:
 ## Rules
 
 - One owner per module. Do not edit another agent's files.
+- If you need a function in another owner's module, add a `TODO(owner)` stub or write a learning file. Do not implement it yourself.
 - Normal task branches only: `j/...`, `a/...`, `d/...`.
 - No message board.
 - No direct push to `main` except J.

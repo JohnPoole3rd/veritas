@@ -232,15 +232,24 @@ unaligned,test,0.16,0.36,,512,512,50,512-tile subset
 `artifacts/metrics/majority.csv`:
 
 ```csv
-method,accuracy,macro_f1,test_n,notes
-majority,0.1111,0.0200,4050,majority_class=SeaLake
+method,accuracy,macro_f1,test_n,most_common_class,notes
+majority,0.1111,0.0200,4050,AnnualCrop,train count 2100/18900; seed 42
 ```
 
 `artifacts/metrics/resnet18.csv`:
 
 ```csv
-method,accuracy,macro_f1,test_n,notes
-resnet18,0.96,0.95,4050,epochs=10
+method,accuracy,macro_f1,test_n,epochs,notes
+resnet18,0.9817,0.9812,4050,10,best_epoch=10
+```
+
+`artifacts/metrics/caption_classification_test.csv`:
+
+```csv
+method,split,accuracy,top5,macro_f1,n_images,n_captions,notes
+procrustes,test,0.8121,0.9901,0.7948,4050,50,"image->class, agg=max"
+random_rotation,test,0.1590,0.6588,0.1559,4050,50,"image->class, agg=max"
+unaligned,test,0.0827,0.5326,0.0720,4050,50,"image->class, agg=max"
 ```
 
 `artifacts/metrics/local.csv`:
@@ -273,9 +282,12 @@ ua_001,Residential,residential,Residential,0.74,True
 
 Optional metrics for the Results tab:
 
-- `artifacts/metrics/majority.csv`
+- `artifacts/metrics/majority.csv` (fallback: `majority.json`)
 - `artifacts/metrics/resnet18.csv`
-- `artifacts/metrics/retrieval.csv`
+- `artifacts/metrics/caption_classification_test.csv` — image→class, comparable with ResNet
+- `artifacts/metrics/retrieval.csv` — text→image search, 50 caption queries
+
+The demo shows image→class Procrustes next to ResNet, and text search as a separate 50-query row. Do not compare the two Ns.
 
 The demo loads MiniLM and DINOv2 at runtime for new queries/uploads. Pre-warm both models and run once with Wi-Fi off before recording.
 

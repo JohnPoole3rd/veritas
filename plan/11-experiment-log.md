@@ -137,13 +137,13 @@ Every claim in the write-up must trace to a run.
 
 | Phase | Planned outcome | Actual | Status | Notes |
 |---|---|---|---|---|
-| Phase 0 — Setup | T01 scaffold; A starts T10; D mock UI | J T01 done; A/D in progress | J done | J |
-| Phase 1 — Data | T02 splits; T03 captions; T10/T11 tiles | J T02/T03 done; A tiles in progress | J done | J |
-| Phase 2 — Alignment | T04/T05 embeddings; T06 Procrustes; T08/T09 baselines | J T04-T06 done on 512 subset; A baselines pending | J done | J |
-| Phase 3 — Retrieval | T07 retrieval; T12 local eval; T13 failures; T14 demo | J T07 done; D T14 real backend verified; A local pending | partial | J/D |
-| Phase 4 — Integration | Merge branches; final eval; T15 draft | Main synced; app verified with N=512 | partial | J |
-| Phase 5 — Docs | T15 write-up; T16 video | Pending A local results | pending | D |
-| Phase 6 — Submit | T17 checklist; submit | | | |
+| Phase 0 — Setup | T01 scaffold; A starts T10; D mock UI | J/A/D done | done | J/A/D |
+| Phase 1 — Data | T02 splits; T03 captions; T10/T11 tiles | J/A done | done | J/A |
+| Phase 2 — Alignment | T04/T05 embeddings; T06 Procrustes; T08/T09 baselines | J/A done; full metrics from A MPS | done | J/A |
+| Phase 3 — Retrieval | T07 retrieval; T12 local eval; T13 failures; T14 demo | J/A/D done | done | J/A/D |
+| Phase 4 — Integration | Merge branches; final eval; T15 draft | main merged; app verified; T15 draft started | partial | J/D |
+| Phase 5 — Docs | T15 write-up; T16 video | pending | pending | D |
+| Phase 6 — Submit | T17 checklist; submit | pending | pending | J |
 
 ## 10. Post-mortem
 

@@ -29,12 +29,12 @@ Do not start a downstream task until the upstream artifact exists.
 | T05 | MiniLM caption embeddings | J2 | J | DONE | T03 | `artifacts/embeddings/minilm_captions.npy`, `results/T05.md` |
 | T06 | Procrustes fit and save | J | — | DONE | T04, T05 | `artifacts/alignment/procrustes.npz`, `results/T06.md` |
 | T07 | Retrieval evaluation + random baseline | J | — | DONE | T06 | `artifacts/metrics/retrieval.csv`, `results/T07.md` |
-| T08 | ResNet-18 baseline | A1 | A | TODO | T02 | `artifacts/metrics/resnet18.csv`, `results/T08.md` |
-| T09 | Majority baseline | A | — | TODO | T02 | `artifacts/metrics/majority.csv`, `results/T09.md` |
-| T10 | Upper Arlington tile collection | A2 | A | TODO | T01 | `data/raw/local_tiles/`, `results/T10.md` |
-| T11 | Local tile labeling + QA | A | — | TODO | T10 | `data/local_tiles/manifest.csv`, `results/T11.md` |
-| T12 | Local OOD evaluation | A | — | TODO | T11, T06 | `artifacts/metrics/local.csv`, `results/T12.md` |
-| T13 | Failure taxonomy + figures | A | — | TODO | T07, T12 | `artifacts/figures/`, failure table, `results/T13.md` |
+| T08 | ResNet-18 baseline | A1 | A | DONE | T02 | `artifacts/metrics/resnet18.csv`, `results/T08.md` |
+| T09 | Majority baseline | A | — | DONE | T02 | `artifacts/metrics/majority.csv`, `results/T09.md` |
+| T10 | Upper Arlington tile collection | A2 | A | DONE | T01 | `data/raw/local_tiles/`, `results/T10.md` |
+| T11 | Local tile labeling + QA | A | — | DONE | T10 | `data/local_tiles/manifest.csv`, `results/T11.md` |
+| T12 | Local OOD evaluation | A | — | DONE | T11, T06 | `artifacts/metrics/local.csv`, `results/T12.md` |
+| T13 | Failure taxonomy + figures | A | — | DONE | T07, T12 | `artifacts/figures/`, failure table, `results/T13.md` |
 | T14 | Gradio demo | D1 | D | DONE | T06, T07 | `app.py`, `results/T14.md` |
 | T15 | Write-up | D | — | TODO | T07, T12, T13 | one-page write-up, `results/T15.md` |
 | T16 | Demo video | D2 | D | TODO | T14, T15 | unlisted video link, `results/T16.md` |

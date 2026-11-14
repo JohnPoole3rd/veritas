@@ -9,7 +9,7 @@ This file defines what each primary agent does, what they own, and how subagents
 | Agent | Role | Owns | Tasks |
 |---|---|---|---|
 | **J** | Integrator + data/alignment lead | `configs/`, `src/data.py`, `src/captions.py`, `src/encoders.py`, `src/alignment.py`, `src/retrieval.py`, notebooks 01–03, integration | T01–T07 |
-| **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
+| **A** | Baselines + local validation lead | `src/baselines.py`, `src/evaluate.py`, `src/local_tiles.py`, `src/failures.py`, `src/local_collect.py`, notebooks 04–05, `data/local_tiles/`, `artifacts/metrics/` | T08–T13 |
 | **D** | Demo + documentation lead | `app.py`, `assets/`, implementation `README.md`, write-up, video | T14–T16 |
 
 J is the only agent who merges to `main` and pushes `main`.

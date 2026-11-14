@@ -350,6 +350,9 @@ def metrics_table(root: Path = REPO_ROOT) -> tuple[list[list[str]], str]:
         maj_src = "majority.csv"
     resnet = _read_csv("resnet18.csv", root)
     retrieval = {r.get("method"): r for r in _read_csv("retrieval.csv", root)}
+    image_class = {
+        r.get("method"): r for r in _read_csv("caption_classification_test.csv", root)
+    }
 
     def add(method, top1, top5, f1, n, src):
         rows.append([method, _fmt(top1), _fmt(top5), _fmt(f1), n or "—"])
@@ -365,12 +368,45 @@ def metrics_table(root: Path = REPO_ROOT) -> tuple[list[list[str]], str]:
     add("Majority class", m.get("accuracy"), None, m.get("macro_f1"), m.get("test_n"), maj_src if m else None)
     r = resnet[0] if resnet else {}
     add("ResNet-18 (supervised)", r.get("accuracy"), None, r.get("macro_f1"), r.get("test_n"), "resnet18.csv" if r else None)
-    for key, label in [("unaligned", "Unaligned cosine"), ("random_rotation", "Random rotation"), ("procrustes", "Procrustes (ours)")]:
-        x = retrieval.get(key, {})
-        add(label, x.get("top1"), x.get("top5"), x.get("macro_f1"), x.get("test_n") or x.get("n_images"), "retrieval.csv" if x else None)
+    if image_class:
+        for key, label in [
+            ("unaligned", "Unaligned cosine (image→class)"),
+            ("random_rotation", "Random rotation (image→class)"),
+            ("procrustes", "Procrustes (image→class)"),
+        ]:
+            x = image_class.get(key, {})
+            add(
+                label,
+                x.get("accuracy"),
+                x.get("top5"),
+                x.get("macro_f1"),
+                x.get("n_images"),
+                "caption_classification_test.csv" if x else None,
+            )
+    else:
+        for key, label in [
+            ("unaligned", "Unaligned cosine"),
+            ("random_rotation", "Random rotation"),
+            ("procrustes", "Procrustes (ours)"),
+        ]:
+            x = retrieval.get(key, {})
+            add(label, x.get("top1"), x.get("top5"), x.get("macro_f1"), x.get("test_n") or x.get("n_images"), "retrieval.csv" if x else None)
+
+    search = retrieval.get("procrustes", {})
+    if search:
+        n_queries = search.get("n_captions") or 50
+        add(
+            "Procrustes text search (50 queries)",
+            search.get("top1"),
+            search.get("top5"),
+            None,
+            f"{n_queries} queries",
+            "retrieval.csv",
+        )
 
     if sources:
         note = f"Loaded from `artifacts/metrics/` ({', '.join(sorted(set(sources)))}). Held-out EuroSAT test split."
+        note += " Image→class rows use 4,050 test images; the text-search row uses 50 caption queries."
         if subset_ns and min(subset_ns) < 4050:
             note += f" The smallest reported N is {min(subset_ns)}; this is a stratified subset, not the full 4,050-tile test split."
     else:

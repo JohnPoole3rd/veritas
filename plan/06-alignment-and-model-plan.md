@@ -7,7 +7,7 @@
 
 The **Platonic Representation Hypothesis (PRH)** proposes that independently trained models converge toward a shared representation of reality. This project tests a practical version:
 
-> A single closed-form rotation can align frozen DINOv2 satellite-image embeddings to frozen MiniLM text embeddings well enough for zero-shot land-cover retrieval.
+> A single closed-form rotation can align frozen DINOv2 satellite-image embeddings to frozen MiniLM text embeddings well enough for natural-language land-cover retrieval after fitting on labelled image–caption pairs.
 
 If true, text search works without multimodal training. If false, the negative result is still informative.
 

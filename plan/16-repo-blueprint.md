@@ -35,15 +35,23 @@ veritas/
       resnet18.pt
     metrics/
       retrieval.csv
+      retrieval_test_full.json
+      caption_classification_test.csv
+      caption_classification_val.csv
       resnet18.csv
       majority.csv
       local.csv
       local_by_category.csv
       local.json
+      local_summary.csv
+      failure_taxonomy.csv
+      procrustes_test_per_class.csv
+      procrustes_test_top_confusions.csv
     figures/
       confusion_matrix.png
       retrieval_examples.png
       failure_gallery.png
+      local_confusion.png
   results/
     T01.md
     T02.md
@@ -80,6 +88,8 @@ veritas/
     evaluate.py
     baselines.py
     local_tiles.py
+    failures.py
+    local_collect.py
   notebooks/
     01_data.ipynb
     02_embeddings.ipynb
@@ -88,6 +98,7 @@ veritas/
     05_local_tiles.ipynb
   tests/
     test_core.py
+    test_baselines.py
     test_local_tiles.py
   app.py
   README.md
@@ -164,6 +175,17 @@ veritas/
 - Load local images.
 - Evaluate Procrustes and ResNet.
 - Save local CSV.
+
+### `src/local_collect.py`
+
+- Collect Upper Arlington Sentinel-2 tiles via STAC.
+- Build the manifest and collection log.
+- Used for T10, not the demo.
+
+### `src/failures.py`
+
+- Build failure taxonomy, per-class confusions, and failure gallery figures.
+- Used for T13.
 
 ### `app.py`
 
@@ -341,6 +363,7 @@ The implementation README must include:
 - [ ] Local manifest has 50 rows.
 - [ ] Local categories have 10 each.
 - [ ] `tests/test_local_tiles.py` passes.
+- [ ] `pytest -q` passes the full suite.
 - [ ] Every completed task has `results/Txx.md`.
 - [ ] Important findings have a file under `plan/learnings/`.
 

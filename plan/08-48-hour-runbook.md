@@ -49,14 +49,14 @@ Rules:
 
 ### A
 
-- [ ] Read plan docs.
-- [ ] Start T10: collect 50 Upper Arlington tiles.
-- [ ] Prepare T08 ResNet-18 script against the expected split format.
-- [ ] Post `results/T10.md` when collection is done.
+- [x] Read plan docs.
+- [x] Start T10: collect 50 Upper Arlington tiles.
+- [x] Prepare T08 ResNet-18 script against the expected split format.
+- [x] Post `results/T10.md` when collection is done.
 
 ### D
 
-- [ ] Read plan docs.
+- [x] Read plan docs.
 - [x] Build mock Gradio shell with placeholder tiles and scores.
 - [x] Write the two-minute demo script.
 - [x] Start `results/T14.md`; real backend verified in Phase 3.
@@ -73,16 +73,16 @@ Rules:
 
 ### A
 
-- [ ] T10: finish tile collection.
-- [ ] T11: label and QA 50 tiles.
-- [ ] T08: prepare ResNet-18, wait for T02 if needed.
-- [ ] Post `results/T10.md`, `results/T11.md`.
+- [x] T10: finish tile collection.
+- [x] T11: label and QA 50 tiles.
+- [x] T08: prepare ResNet-18, wait for T02 if needed.
+- [x] Post `results/T10.md`, `results/T11.md`.
 
 ### D
 
-- [ ] Refine mock UI.
-- [ ] Prepare example queries and screenshot placeholders.
-- [ ] Keep `results/T14.md` current.
+- [x] Refine mock UI.
+- [x] Prepare example queries and screenshot placeholders.
+- [x] Keep `results/T14.md` current.
 
 **Phase exit:** splits and captions exist; local tiles are collected; mock UI is ready for real data.
 
@@ -97,15 +97,15 @@ Rules:
 
 ### A
 
-- [ ] T08: ResNet-18 baseline.
-- [ ] T09: majority baseline.
-- [ ] Post `results/T08.md`, `results/T09.md`.
+- [x] T08: ResNet-18 baseline.
+- [x] T09: majority baseline.
+- [x] Post `results/T08.md`, `results/T09.md`.
 
 ### D
 
-- [ ] Prepare assets.
-- [ ] Do not block J.
-- [ ] Update mock UI with the final layout.
+- [x] Prepare assets.
+- [x] Do not block J.
+- [x] Update mock UI with the final layout.
 
 **Phase exit:** Procrustes beats random rotation on validation; A’s baselines run; D’s UI is ready to wire.
 
@@ -119,16 +119,16 @@ Rules:
 
 ### A
 
-- [ ] T12: local out-of-distribution evaluation.
-- [ ] T13: failure taxonomy and figures.
-- [ ] Post `results/T12.md`, `results/T13.md`.
+- [x] T12: local out-of-distribution evaluation.
+- [x] T13: failure taxonomy and figures.
+- [x] Post `results/T12.md`, `results/T13.md`.
 
 ### D
 
 - [x] T14: real backend verified with J's artifacts (N=512).
-- [ ] Replace failure-gallery placeholders after A's T13.
-- [ ] Add baseline comparison and failure example.
-- [ ] Post `results/T14.md`.
+- [x] Failure probes are live; no placeholder failure gallery.
+- [x] Baseline comparison and failure example added.
+- [x] Post `results/T14.md`.
 
 **Phase exit:** retrieval metrics exist; local N=50 metrics exist; failure example selected; demo uses real data.
 
@@ -136,21 +136,21 @@ Rules:
 
 ### J
 
-- [ ] Merge J, A, and D branches.
-- [ ] Run final evaluation on `main`.
-- [ ] Update `plan/TASKS.md`.
-- [ ] Check for leakage and split consistency.
+- [x] Merge J, A, and D branches.
+- [x] Run final evaluation on `main`.
+- [x] Update `plan/TASKS.md`.
+- [x] Check for leakage and split consistency.
 
 ### A
 
-- [ ] Finish metrics and figures.
-- [ ] Review claims against logged runs.
+- [x] Finish metrics and figures.
+- [x] Review claims against logged runs.
 
 ### D
 
-- [ ] Polish demo.
-- [ ] Start T15 write-up.
-- [ ] Prepare screenshots.
+- [x] Polish demo.
+- [x] Start T15 write-up.
+- [x] Prepare screenshots.
 
 **Phase exit:** `main` contains working code; final metrics are stable; demo runs end-to-end; write-up draft exists.
 

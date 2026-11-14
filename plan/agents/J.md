@@ -22,7 +22,7 @@ Read `plan/AGENTS.md`, `plan/DECISIONS.md`, and `plan/INTERFACES.md` first.
 
 | Task | Command / action | Report |
 |---|---|---|
-| T01 scaffold | `python -m compileall -q src scripts`; `python -m unittest discover -s tests -v` | `results/T01.md` |
+| T01 scaffold | `python -m compileall -q src scripts`; `pytest -q` | `results/T01.md` |
 | T02 EuroSAT | `python scripts/prepare_data.py` | `results/T02.md` |
 | T03 captions | same as T02 | `results/T03.md` |
 | T04 DINOv2 | CPU smoke: `python scripts/extract_embeddings.py --limit 512`; GPU: no `--limit` | `results/T04.md` |
@@ -33,9 +33,12 @@ Read `plan/AGENTS.md`, `plan/DECISIONS.md`, and `plan/INTERFACES.md` first.
 
 ## Current status
 
-- T01–T07 are done on a **512-tile stratified subset**.
-- Full 27k extraction was stopped on CPU because it was too slow. Use a GPU for the full run.
-- D's `app.py` RealBackend is verified against J's artifacts with N=512.
+- T01–T07 are done. A's full-split rerun provides the headline numbers:
+  - text→image search: **0.96 top-1 / 1.00 top-5** over 50 caption queries;
+  - image→class: **0.8121 accuracy / 0.7948 macro-F1** over 4,050 test images.
+- J's CPU run used a 512-tile stratified subset and is retained as a smoke test.
+- A's `a/final` and D's `d/t14-gradio` are merged.
+- D's `app.py` RealBackend is verified against J's artifacts with N=512 and A's metrics.
 
 ## Integration
 
@@ -52,24 +55,26 @@ Only J merges or pushes `main`.
 ## App integration check
 
 ```sh
-python -c 'import sys, types; sys.modules["gradio"] = types.ModuleType("gradio"); from app import load_backend; b=load_backend(); print(b.name, len(b.items), b.subset_note)'
+python -c 'import sys, types; sys.modules["gradio"] = types.ModuleType("gradio"); from app import load_backend; b=load_backend(); print(b.name, len(b.items), b.full_test_n, b.subset_note)'
 ```
 
 Expected with current artifacts:
 
 ```text
-[demo] REAL mode — gallery N=512
-backend REAL 512 512-tile stratified subset
+[demo] REAL mode — gallery N=512 of 4050
+backend REAL 512 4050 512-tile stratified subset
 ```
 
 ## Do not
 
+- Do not implement A's or D's modules. Add a `TODO(owner)` stub or a learning file instead.
 - Do not edit A's local tile manifest or data.
 - Do not edit D's write-up or video script.
 - Do not change `app.py` unless fixing an integration bug; record the fix in `results/T14.md`.
-- Do not claim full-split results when N=512.
+- Do not compare the 50-query text search number with per-image ResNet accuracy.
+- Do not call the method zero-shot; the rotation is fitted on labelled pairs.
 - Do not hide a failed merge or test.
 
 ## Current blocker
 
-A's T08/T09/T10–T13 are still pending. D's T14 real backend is verified; failure gallery and local examples wait on A.
+None for J. A's T08–T13 are merged; D's T14 is verified. D still needs T15/T16 after reviewing A's local results.
