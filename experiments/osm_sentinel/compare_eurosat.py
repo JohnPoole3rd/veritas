@@ -83,7 +83,9 @@ def main() -> None:
     rows = [r for r in osm_train.load_rows(Path(args.data)) if Path(r["path"]).exists() and r["caption"]]
     by = {s: [r for r in rows if r["split"] == s] for s in ("train", "val", "test")}
     model = load_dinov2(cfg["image"]["model_name"], device=args.device_resolved)
-    X_osm = {s: osm_train.embed(model, by[s], f"{osm_train.BACKBONE}_{args.tag}", s, args) for s in ("train", "test")}
+    # Image embeddings depend only on the images, so share train.py's cache (validated by tile_ids):
+    # after train.py on the same data this is a cache hit instead of re-embedding every chip.
+    X_osm = {s: osm_train.embed(model, by[s], osm_train.BACKBONE, s, args) for s in ("train", "test")}
     text_model = load_minilm(cfg["text"]["model_name"], device=args.device_resolved)
     Y_osm_train = encode_texts(text_model, [r["caption"] for r in by["train"]])
     osm_classes = sorted({r["label"] for r in rows})
