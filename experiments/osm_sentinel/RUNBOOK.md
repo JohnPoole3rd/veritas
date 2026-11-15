@@ -1,6 +1,7 @@
 # OSM-Sentinel Runbook — Apple Silicon
 
 **Branch:** `j/exp-osm-sentinel`  
+**Minimum revision for the authoritative run:** `1bc18d4`  
 **Owner for this run:** A or D  
 **Backbone:** DINOv2-small, public and auto-downloaded  
 **Method:** frozen DINOv2 + frozen MiniLM + one Procrustes rotation fitted on OSM-captioned Sentinel-2 chips
@@ -29,10 +30,15 @@ symlink, resume, or recaption anything from `data/raw/osm_sentinel` (the old 77k
 If an old **128 px** 1M build is still running, stop it before starting this one. The 64 px build is
 the scale-matched run; do not mix manifests or images from the 128 px run.
 
+If a 64 px build was started before `1bc18d4` (for example from `5c5a33b`), stop it and restart from
+scratch. Those runs predate the boundless scene georeferencing fix, the `build_meta.json` resume
+guard, and the OSM prefetch. Do not reuse their images, manifest, interim snapshot, or caches.
+
 ```sh
 cd /home/john/veritas
 git switch j/exp-osm-sentinel
 git pull --ff-only origin j/exp-osm-sentinel
+git rev-parse --short HEAD   # must be 1bc18d4 or newer
 ```
 
 Use Python 3.12+ (3.14.5 already works on A's machine):
@@ -49,10 +55,11 @@ print("rasterio", rasterio.__version__)
 PY
 ```
 
-Remove only the fresh 1M directory if it exists. Leave the 77k build alone:
+Remove only the fresh 1M directory and any snapshot made from a pre-fix run. Leave the 77k build
+alone:
 
 ```sh
-rm -rf data/raw/osm_sentinel_1m_640
+rm -rf data/raw/osm_sentinel_1m_640 data/raw/osm_sentinel_1m_640_interim
 ```
 
 Run the full grid + WorldCover build:
@@ -71,9 +78,11 @@ python experiments/osm_sentinel/build_dataset.py \
 Defaults are intentional:
 
 - `grid`: non-overlapping cells, stable IDs, resume-safe
+- OSM prefetch on: downloads/parses the next region while the current region crops chips
 - WorldCover on (loaded lazily as a fallback)
 - 399 regions / 125 countries
 - fresh PBF and GeoParquet caches under `data/raw/osm_sentinel_1m_640/_cache/`
+- pyrosm reuses full provider extracts in that cache for neighbouring regions
 - `build_meta.json` pins chip size, sampler, and `regions.csv`; a legacy manifest without it is
   refused instead of silently mixing the old 128 px build
 
@@ -405,11 +414,14 @@ metric.
 
 ## 7. What to report
 
-Create a short report, for example:
+The authoritative 64 px run writes:
 
 ```text
-results/T19-osm-sentinel.md
+results/T21-osm-1m-640.md
 ```
+
+`results/T19-osm-sentinel.md` is the historical 77k report; `results/T20-osm-1m.md` is the old
+128 px run. Do not merge their numbers into T21.
 
 Include:
 
@@ -428,7 +440,7 @@ Include:
 Do not commit:
 
 ```text
-data/raw/osm_sentinel/
+data/raw/osm_sentinel*/
 .venv/
 *.npy
 *.npz
@@ -442,8 +454,10 @@ data/raw/osm_sentinel/
 - [ ] 100-chip multi-region run exercises the expected regions (the five example regions are all
       train; use the val/test region IDs if you need a split smoke test)
 - [ ] full run stops at `--max-chips 1000000`
+- [ ] the run used `--chips-per-region 3500`, not 8000
+- [ ] `build_meta.json` exists and matches the 640 m / 64 px / grid command
 - [ ] `dataset_stats.json` reports the actual `n` and it is at most 1,000,000
-- [ ] `failed_regions` and `skipped_chips` are recorded
+- [ ] `failed_regions`, `skipped_chips`, and `worldcover_missing` are recorded
 - [ ] captions are plain visible-feature sentences
 - [ ] training run produces `results_dinov2-small_full_1m_640.json`
 - [ ] random-rotation control is present
