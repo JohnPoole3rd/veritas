@@ -57,6 +57,8 @@ def main() -> None:
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--num-workers", type=int, default=0)
     ap.add_argument("--dtype", default="fp32")
+    ap.add_argument("--exclude-fit-region", action="append", default=None,
+                    help="Drop this region's train rows from the OSM fit (default: us_columbus, contains UA)")
     args = ap.parse_args()
     args.force = False
     args.device_resolved = get_device(None)
@@ -82,7 +84,9 @@ def main() -> None:
     clear = ~manifest.tile_id.map(qa).str.lower().eq("true").to_numpy()
 
     # ---- OSM side ----
-    rows = [r for r in osm_train.load_rows(Path(args.data)) if Path(r["path"]).exists() and r["caption"]]
+    exclude = args.exclude_fit_region if args.exclude_fit_region is not None else list(osm_train.DEFAULT_EXCLUDE_FIT)
+    rows = [r for r in osm_train.drop_fit_regions(osm_train.load_rows(Path(args.data)), exclude)
+            if Path(r["path"]).exists() and r["caption"]]
     by = {s: [r for r in rows if r["split"] == s] for s in ("train", "val", "test")}
     model = load_dinov2(cfg["image"]["model_name"], device=args.device_resolved)
     # Image embeddings depend only on the images, so share train.py's cache (validated by tile_ids):
@@ -99,11 +103,13 @@ def main() -> None:
     fits = {
         "eurosat": load_procrustes(resolve_path("artifacts/alignment/procrustes.npz", cfg)),
         "osm": fit_procrustes(X_osm["train"], Y_osm_train, center=center),
-        "combined": fit_procrustes(np.vstack([X_eu_train, X_osm["train"]]),
-                                   np.vstack([Y_eu_train, Y_osm_train]), center=center),
+        "combined": None,  # filled below from the single stacked copy
     }
+    # A: build the combined pairs once (was stacked twice: ~5 GB transient at 1M)
+    X_comb, Y_comb = np.vstack([X_eu_train, X_osm["train"]]), np.vstack([Y_eu_train, Y_osm_train])
+    fits["combined"] = fit_procrustes(X_comb, Y_comb, center=center)
     train_pairs = {"eurosat": (X_eu_train, Y_eu_train), "osm": (X_osm["train"], Y_osm_train),
-                   "combined": (np.vstack([X_eu_train, X_osm["train"]]), np.vstack([Y_eu_train, Y_osm_train]))}
+                   "combined": (X_comb, Y_comb)}
 
     def score(fit) -> dict:
         def clf(X, Y, caplab, classes, y, mask=None):
@@ -124,7 +130,7 @@ def main() -> None:
         out["eurosat_text_search"] = {"top1": round(r["top1"], 4), "top5": round(r["top5"], 4), "queries": r["n_captions"]}
         return out
 
-    results = {"tag": args.tag, "data": str(args.data),
+    results = {"tag": args.tag, "data": str(args.data), "excluded_from_fit": exclude,
                "n": {"osm_train": len(by["train"]), "osm_val": len(by["val"]), "osm_test": len(by["test"]),
                      "eurosat_train": len(X_eu_train), "eurosat_test": len(X_eu_test), "upper_arlington": len(X_ua)},
                "osm_test_regions": sorted({r["region_id"] for r in by["test"]}),

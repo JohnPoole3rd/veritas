@@ -71,21 +71,94 @@ def region_geometry(region: dict[str, Any], args) -> tuple[float, float, float, 
     return lat, lon, radius_km, bbox_from_center(lat, lon, radius_km)
 
 
-def find_scene(bbox: tuple[float, float, float, float], start: str, end: str, max_cloud: float):
-    from pystac_client import Client
+# --- A (a/osm-1m-fixes): scene selection ------------------------------------------------
+# One shared STAC client, retries with backoff, and a ranked candidate list instead of the single
+# lowest-cloud item. The old rule picked s3:// placeholder items (100 % nodata, cloud = 0) and winter
+# scenes; it also ignored how much of the region a granule covers.
+_STAC_CLIENT = None
+SCENE_POLICY = 2  # bump when scene selection changes; recorded in region_status.json
 
-    catalog = Client.open(STAC_URL)
-    search = catalog.search(
-        collections=["sentinel-2-l2a"],
-        bbox=list(bbox),
-        datetime=f"{start}/{end}",
-        query={"eo:cloud_cover": {"lt": max_cloud}},
-        limit=50,
-    )
-    items = list(search.items())
-    if not items:
-        return None
-    return min(items, key=lambda item: float(item.properties.get("eo:cloud_cover", 100)))
+
+def _stac_client():
+    global _STAC_CLIENT
+    if _STAC_CLIENT is None:
+        from pystac_client import Client
+
+        _STAC_CLIENT = Client.open(STAC_URL)
+    return _STAC_CLIENT
+
+
+def _with_retry(fn, what: str, tries: int = 4, base_s: float = 5.0):
+    """Call fn(); on failure wait 5, 15, 45 s and retry (polite to the STAC API)."""
+    for attempt in range(tries):
+        try:
+            return fn()
+        except Exception as exc:  # network / 403 / 5xx
+            if attempt == tries - 1:
+                raise
+            wait = base_s * (3 ** attempt)
+            print(f"[stac] {what} failed ({type(exc).__name__}: {exc}); retry in {wait:.0f}s", flush=True)
+            time.sleep(wait)
+
+
+def _mgrs_tile(item) -> str:
+    p = item.properties
+    tile = f"{p.get('mgrs:utm_zone', '')}{p.get('mgrs:latitude_band', '')}{p.get('mgrs:grid_square', '')}"
+    return tile or item.id.split("_")[1]
+
+
+def _in_season(item, lat: float) -> bool:
+    """Leaf-on months: May–Sep north of 30°N, Nov–Mar south of 30°S, any month in between."""
+    month = int(str(item.datetime)[5:7])
+    if lat > 30:
+        return 5 <= month <= 9
+    if lat < -30:
+        return month >= 11 or month <= 3
+    return True
+
+
+def find_scenes(bbox: tuple[float, float, float, float], start: str, end: str, max_cloud: float,
+                max_items: int = 80, max_nodata: float = 50.0) -> list[tuple[Any, float]]:
+    """Readable Sentinel-2 L2A items for a region, best first, as (item, region_coverage).
+
+    Only https COGs (the s3:// sentinel-s2-l2a JP2 items need credentials and are empty
+    placeholders) with nodata below `max_nodata` %. Ranked by region coverage (0.1 buckets),
+    then growing season for the region's latitude, then cloud cover.
+    """
+    from shapely.geometry import box, shape
+
+    region = box(*bbox)
+    lat = (bbox[1] + bbox[3]) / 2
+
+    def search():
+        return list(_stac_client().search(
+            collections=["sentinel-2-l2a"],
+            bbox=list(bbox),
+            datetime=f"{start}/{end}",
+            query={"eo:cloud_cover": {"lt": max_cloud}, "s2:nodata_pixel_percentage": {"lt": max_nodata}},
+            sortby=[{"field": "properties.eo:cloud_cover", "direction": "asc"}],
+            max_items=max_items,
+        ).items())
+
+    ranked = []
+    for item in _with_retry(search, "scene search"):
+        asset = item.assets.get("visual")
+        if asset is None or not str(asset.href).startswith("http"):
+            continue
+        try:
+            coverage = shape(item.geometry).intersection(region).area / region.area
+        except Exception:
+            coverage = 0.0
+        ranked.append((item, coverage))
+    ranked.sort(key=lambda t: (-round(t[1], 1), not _in_season(t[0], lat),
+                               float(t[0].properties.get("eo:cloud_cover", 100))))
+    return ranked
+
+
+def find_scene(bbox: tuple[float, float, float, float], start: str, end: str, max_cloud: float):
+    """Best single readable item (kept for compatibility; see find_scenes)."""
+    ranked = find_scenes(bbox, start, end, max_cloud)
+    return ranked[0][0] if ranked else None
 
 
 def read_region(src, bbox: tuple[float, float, float, float]):
@@ -119,6 +192,87 @@ def read_region(src, bbox: tuple[float, float, float, float]):
     if rgb.max() < 5:
         return None
     return np.ascontiguousarray(rgb), src.window_transform(window), src.crs
+
+
+def read_region_mosaic(ranked, scene_bbox, max_scenes: int = 4, target_valid: float = 0.97, log=print):
+    """Region raster mosaicked from up to `max_scenes` granules (A, a/osm-1m-fixes).
+
+    One MGRS granule is ~110 km, so a single scene covered a median ~4 % of a 60 km region. The first
+    usable candidate defines the grid; further candidates on *other* MGRS tiles in the same CRS (same
+    10 m UTM grid, so windows align exactly) fill its nodata pixels. Unreadable or empty granules
+    (e.g. s3:// placeholders) are skipped instead of failing the region.
+
+    Returns (rgb, transform, crs, source_index, used_items) or None; source_index[r, c] = k means
+    the pixel came from used_items[k-1] (0 = nodata).
+    """
+    import numpy as np
+    import rasterio
+    from rasterio.transform import array_bounds
+    from rasterio.windows import from_bounds
+
+    base = None
+    used: list = []
+    tiles: set[str] = set()
+    for item, _coverage in ranked:
+        if len(used) >= max_scenes:
+            break
+        tile = _mgrs_tile(item)
+        if tile in tiles:
+            continue
+        try:
+            with rasterio.open(item.assets["visual"].href) as src:
+                if base is None:
+                    res = read_region(src, scene_bbox)
+                    if res is None:
+                        continue
+                    rgb, transform, crs = res
+                    valid = rgb.max(axis=2) > 0
+                    if valid.mean() < 0.02:
+                        log(f"[scene] {item.id} covers <2 % of the region window; trying the next candidate")
+                        continue
+                    base = [np.array(rgb), transform, crs, valid.astype(np.uint8)]
+                else:
+                    rgb, transform, crs, src_idx = base
+                    if src.crs != crs:
+                        continue  # different UTM zone: grids do not align
+                    h, w = src_idx.shape
+                    window = from_bounds(*array_bounds(h, w, transform), src.transform)
+                    window = window.round_offsets().round_lengths()
+                    if (int(window.height), int(window.width)) != (h, w) or not src.window_transform(
+                        window
+                    ).almost_equals(transform, precision=1e-3):
+                        continue
+                    data = src.read(window=window, boundless=True, fill_value=0)
+                    add = np.transpose(data[:3], (1, 2, 0))
+                    if add.dtype != np.uint8:
+                        add = np.clip(add.astype("float32") / 4000.0 * 255.0, 0, 255).astype("uint8")
+                    gap = (src_idx == 0) & (add.max(axis=2) > 0)
+                    if not gap.any():
+                        continue
+                    rgb[gap] = add[gap]
+                    src_idx[gap] = len(used) + 1
+        except Exception as exc:  # unreadable granule: try the next candidate
+            log(f"[scene] {item.id} unreadable, trying next: {type(exc).__name__}: {exc}")
+            continue
+        used.append(item)
+        tiles.add(tile)
+        if (base[3] > 0).mean() >= target_valid:
+            break
+    if base is None:
+        return None
+    return base[0], base[1], base[2], base[3], used
+
+
+def chip_source(source_index, transform, crs, lat: float, lon: float) -> int:
+    """Index (1-based) of the mosaic scene at the chip centre; 0 if outside/nodata."""
+    from rasterio.warp import transform as warp_transform
+
+    xs, ys = warp_transform("EPSG:4326", crs, [lon], [lat])
+    col, row = ~transform * (xs[0], ys[0])
+    r, c = int(row), int(col)
+    if 0 <= r < source_index.shape[0] and 0 <= c < source_index.shape[1]:
+        return int(source_index[r, c])
+    return 0
 
 
 def read_chip(region_rgb, region_transform, region_crs, lat: float, lon: float, chip_m: float, chip_px: int):
@@ -354,8 +508,6 @@ def append_chip(
 
 
 def main() -> None:
-    import rasterio
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--regions-csv", default=str(THIS / "regions.csv"))
     parser.add_argument("--out-dir", default=str(ROOT / "data" / "raw" / "osm_sentinel"))
@@ -424,95 +576,122 @@ def main() -> None:
     if not regions:
         raise SystemExit("No regions selected")
 
-    rng = random.Random(args.seed)
-    all_timings: Counter[str] = Counter()
-    executor: ThreadPoolExecutor | None = None
-    prefetched: dict[str, Future] = {}
-    if not args.no_prefetch and len(regions) > 1:
-        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="osm-prefetch")
+    # --- A (a/osm-1m-fixes): resume skip, per-region RNG/cap, full-setup prefetch -----------------
+    status_path = out_dir / "region_status.json"
+    try:
+        region_status: dict[str, Any] = json.loads(status_path.read_text()) if status_path.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        region_status = {}
+    per_region: Counter[str] = Counter()  # chips already in the manifest, per region (cap + resume skip)
+    if manifest_path.exists():
+        with manifest_path.open(newline="") as handle:
+            for row in csv.DictReader(handle):
+                if row.get("region_id"):
+                    per_region[row["region_id"]] += 1
 
-    def prefetch_next(index: int) -> None:
-        """Download/parse the next region's OSM while this region crops chips."""
-        if executor is None or index >= len(regions):
-            return
-        nxt = regions[index]
-        nxt_id = nxt["region_id"]
-        if nxt_id in prefetched:
-            return
-        _, _, _, nxt_bbox = region_geometry(nxt, args)
-        prefetched[nxt_id] = executor.submit(load_region_features, nxt_id, nxt_bbox, cache_dir)
+    def region_cap(region: dict[str, Any]) -> tuple[int, int]:
+        lat, lon, radius_km, _ = region_geometry(region, args)
+        if args.sample_mode != "grid":
+            return args.chips_per_region, args.chips_per_region
+        n_cells = sum(1 for _ in grid_candidates(region["region_id"], lat, lon, radius_km, args.chip_m))
+        return min(args.chips_per_region, n_cells), n_cells
 
-    for index, region in enumerate(regions):
-        region_id = region["region_id"]
-        future = prefetched.pop(region_id, None)
+    todo = []
+    for region in regions:
+        rid = region["region_id"]
+        cap, _ = region_cap(region)
+        st = region_status.get(rid, {})
+        if per_region[rid] >= cap:
+            continue  # quota already in the manifest: no STAC/OSM/scene I/O on resume
+        if st.get("policy") == SCENE_POLICY and st.get("attempted"):
+            continue  # already tried every cell with the current scene policy
+        todo.append(region)
+    print(f"[resume] {len(regions) - len(todo)} regions complete or already attempted; {len(todo)} to process",
+          flush=True)
+
+    def prepare_region(region: dict[str, Any]) -> dict[str, Any]:
+        """Scene search + OSM load + mosaic read for one region (runs in the prefetch thread)."""
+        rid = region["region_id"]
         lat, lon, radius_km, bbox = region_geometry(region, args)
         scene_bbox = bbox_from_center(lat, lon, radius_km + args.chip_m / 1000.0)
-        timings: Counter[str] = Counter()
+        t: Counter[str] = Counter()
+        t0 = time.perf_counter()
+        ranked = find_scenes(bbox, args.date_start, args.date_end, args.max_cloud)
+        t["scene_search"] += time.perf_counter() - t0
+        if not ranked:
+            return {"ranked": [], "timings": t}
+        t0 = time.perf_counter()
+        features = load_region_features(rid, bbox, cache_dir)
+        t["osm_load"] += time.perf_counter() - t0
+        t0 = time.perf_counter()
+        mosaic = read_region_mosaic(ranked, scene_bbox, log=lambda m: print(f"[{rid}] {m}", flush=True))
+        t["scene_read"] += time.perf_counter() - t0
+        return {"ranked": ranked, "features": features, "mosaic": mosaic, "timings": t}
+
+    def save_region_status() -> None:
+        tmp = status_path.with_name(status_path.name + ".tmp")
+        tmp.write_text(json.dumps(region_status, indent=1, sort_keys=True) + "\n")
+        tmp.replace(status_path)
+
+    all_timings: Counter[str] = Counter()
+    executor: ThreadPoolExecutor | None = None
+    if not args.no_prefetch and len(todo) > 1:
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="region-prefetch")
+    next_future: Future | None = executor.submit(prepare_region, todo[0]) if executor and todo else None
+
+    for index, region in enumerate(todo):
+        region_id = region["region_id"]
+        lat, lon, radius_km, bbox = region_geometry(region, args)
+        cap, n_cells = region_cap(region)
+        existing = per_region[region_id]
         region_start = time.perf_counter()
-        print(f"[{region_id}] searching Sentinel-2 scene", flush=True)
+        print(f"[{region_id}] preparing (have {existing}/{cap} chips, {n_cells} cells)", flush=True)
         try:
-            t0 = time.perf_counter()
-            item = find_scene(bbox, args.date_start, args.date_end, args.max_cloud)
-            timings["scene_search"] += time.perf_counter() - t0
-            if item is None:
-                print(f"[{region_id}] no scene below {args.max_cloud}% cloud; skipped", flush=True)
-                stats["failed_regions"].add(region_id)
-                continue
-            print(f"[{region_id}] scene {item.id} cloud={item.properties.get('eo:cloud_cover')}", flush=True)
-            asset = item.assets.get("visual")
-            if asset is None:
-                raise RuntimeError(f"Scene {item.id} has no visual asset")
-            t0 = time.perf_counter()
-            if future is not None:
-                try:
-                    region_features = future.result()
-                except Exception as exc:
-                    print(
-                        f"[{region_id}] OSM prefetch failed ({type(exc).__name__}: {exc}); retrying synchronously",
-                        flush=True,
-                    )
-                    region_features = load_region_features(region_id, bbox, cache_dir)
+            if next_future is not None:
+                prepared = next_future.result()
             else:
-                region_features = load_region_features(region_id, bbox, cache_dir)
-            timings["osm_load"] += time.perf_counter() - t0
-        except Exception as exc:  # STAC/Geofabrik/pyrosm failure: skip the region (rerun to retry it)
+                prepared = prepare_region(region)
+        except Exception as exc:  # STAC/Geofabrik/pyrosm/scene failure: rerun retries the region
             print(f"[{region_id}] REGION FAILED, skipped: {type(exc).__name__}: {exc}", flush=True)
             stats["failed_regions"].add(region_id)
+            prepared = None
+        # start the next region's setup now so it overlaps this region's chip loop
+        next_future = (executor.submit(prepare_region, todo[index + 1])
+                       if executor is not None and index + 1 < len(todo) else None)
+        if prepared is None:
             continue
-        stats["failed_regions"].discard(region_id)
-        print(f"[{region_id}] pyrosm region loaded", flush=True)
-        prefetch_next(index + 1)
-        # WorldCover is a fallback: load it lazily the first time a chip has
-        # no OSM land-cover polygon. Natural/farm regions then pay zero
-        # WorldCover I/O, while sparse urban chips still get a fallback.
-        region_wc = None
-        region_wc_attempted = bool(args.no_worldcover)
-
-        try:
-            t0 = time.perf_counter()
-            scene = rasterio.open(asset.href)
-            timings["scene_open"] += time.perf_counter() - t0
-            t0 = time.perf_counter()
-            region_rgb, region_transform, region_crs = read_region(scene, scene_bbox)
-            timings["scene_read"] += time.perf_counter() - t0
-            scene.close()
-            if region_rgb is None:
-                raise RuntimeError("empty Sentinel region window")
-        except Exception as exc:
-            print(f"[{region_id}] scene read failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+        timings: Counter[str] = Counter(prepared["timings"])
+        if not prepared["ranked"]:
+            print(f"[{region_id}] no readable scene below {args.max_cloud}% cloud; skipped", flush=True)
             stats["failed_regions"].add(region_id)
             continue
+        if prepared["mosaic"] is None:
+            print(f"[{region_id}] REGION FAILED, skipped: no usable scene among {len(prepared['ranked'])} candidates",
+                  flush=True)
+            stats["failed_regions"].add(region_id)
+            continue
+        region_features = prepared["features"]
+        region_rgb, region_transform, region_crs, source_index, used_items = prepared["mosaic"]
+        valid_pct = 100.0 * float((source_index > 0).mean())
+        print(f"[{region_id}] scenes {[it.id for it in used_items]} valid={valid_pct:.0f}%", flush=True)
+        stats["failed_regions"].discard(region_id)
+        # WorldCover is a fallback: load it lazily the first time a chip has no OSM land-cover polygon.
+        region_wc = None
+        region_wc_attempted = bool(args.no_worldcover)
 
         added = 0
         chip_t0 = time.perf_counter()
         if args.sample_mode == "grid":
             candidates = list(grid_candidates(region_id, lat, lon, radius_km, args.chip_m))
-            rng.shuffle(candidates)
-            candidates = candidates[: args.chips_per_region]
+            # per-region RNG: a region's order no longer depends on which earlier regions ran or failed
+            random.Random(f"{args.seed}:{region_id}").shuffle(candidates)
         else:
-            candidates = random_candidates(region_id, lat, lon, radius_km, args.chips_per_region, rng)
+            candidates = random_candidates(region_id, lat, lon, radius_km, args.chips_per_region,
+                                           random.Random(f"{args.seed}:{region_id}"))
         for tid, chip_lat, chip_lon in candidates:
             if args.max_chips and stats["n"] >= args.max_chips:
+                break
+            if existing + added >= cap:
                 break
             if tid in done:
                 continue
@@ -544,6 +723,8 @@ def main() -> None:
                 print(f"[{region_id}] {tid} caption failed, skipped: {type(exc).__name__}: {exc}", flush=True)
                 stats["skipped_chips"] += 1
                 continue
+            k = chip_source(source_index, region_transform, region_crs, chip_lat, chip_lon)
+            chip_item = used_items[k - 1] if k > 0 else used_items[0]
             wc = None
             needs_worldcover = not any(p in AREA_SUBJECTS for p in counts)
             if needs_worldcover and not region_wc_attempted:
@@ -596,9 +777,9 @@ def main() -> None:
                 "split": region["split"],
                 "lat": f"{chip_lat:.6f}",
                 "lon": f"{chip_lon:.6f}",
-                "scene_id": item.id,
-                "datetime": str(item.datetime)[:10],
-                "cloud_cover": item.properties.get("eo:cloud_cover", ""),
+                "scene_id": chip_item.id,
+                "datetime": str(chip_item.datetime)[:10],
+                "cloud_cover": chip_item.properties.get("eo:cloud_cover", ""),
                 "label": label,
                 "caption": caption,
                 "n_features": len(counts),
@@ -620,6 +801,7 @@ def main() -> None:
         rate = added / elapsed if elapsed > 0 else 0.0
         wall_rate = added / wall_elapsed if wall_elapsed > 0 else 0.0
         all_timings.update(timings)
+        per_region[region_id] += added
         print(
             f"[{region_id}] timing: {added} chips, chip={rate:.1f}/s, wall={wall_rate:.1f}/s, "
             f"chips_time={elapsed:.1f}s, setup={wall_elapsed - elapsed:.1f}s, "
@@ -629,6 +811,11 @@ def main() -> None:
         write_stats(stats_path, stats)
         if args.max_chips and stats["n"] >= args.max_chips:
             break
+        region_status[region_id] = {
+            "policy": SCENE_POLICY, "attempted": True, "chips": per_region[region_id], "cap": cap,
+            "cells": n_cells, "valid_pct": round(valid_pct, 1), "scenes": [it.id for it in used_items],
+        }
+        save_region_status()
 
     if executor is not None:
         executor.shutdown(wait=False, cancel_futures=True)

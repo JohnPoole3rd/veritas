@@ -57,6 +57,17 @@ def image_transform(input_size: int = 224):
     return get_transforms(input_size, train=False)
 
 
+# A (a/osm-1m-fixes): all 50 Upper Arlington test tiles lie inside the us_columbus *train* region,
+# so it is left out of every OSM fit by default; otherwise "UA" would not be out of distribution.
+DEFAULT_EXCLUDE_FIT = ("us_columbus",)
+
+
+def drop_fit_regions(rows: list[dict], exclude: list[str] | tuple[str, ...]) -> list[dict]:
+    """Remove train rows from excluded regions (val/test rows are untouched)."""
+    excluded = set(exclude or ())
+    return [r for r in rows if not (r["split"] == "train" and r.get("region_id") in excluded)]
+
+
 def load_rows(data_dir: Path) -> list[dict]:
     manifest = data_dir / "manifest.csv"
     if not manifest.exists():
@@ -188,6 +199,8 @@ def main() -> None:
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--force", action="store_true", help="Recompute cached embeddings")
     parser.add_argument("--eval-eurosat", action="store_true", help="Also score EuroSAT test (slower)")
+    parser.add_argument("--exclude-fit-region", action="append", default=None,
+                        help="Drop this region's train rows from the fit (default: us_columbus, which contains UA)")
     args = parser.parse_args()
 
     from src.alignment import fit_procrustes, orthogonality_error, save_procrustes, transform_images, transform_texts
@@ -206,7 +219,9 @@ def main() -> None:
     model_label = config["image"]["model_name"]
     model = load_dinov2(model_label, device=args.device_resolved)
 
-    rows = load_rows(Path(args.data))
+    exclude = args.exclude_fit_region if args.exclude_fit_region is not None else list(DEFAULT_EXCLUDE_FIT)
+    rows = drop_fit_regions(load_rows(Path(args.data)), exclude)
+    print(f"excluded from the OSM fit: {exclude}", flush=True)
     by_split = {split: [row for row in rows if row["split"] == split] for split in ("train", "val", "test")}
     for split, items in by_split.items():
         if not items:
@@ -241,6 +256,7 @@ def main() -> None:
     Y_classes = encode_texts(text_model, prompt_text)
 
     results = {
+        "excluded_from_fit": exclude,
         "backbone": BACKBONE,
         "model_name": model_label,
         "device": device_summary(args.device_resolved),
