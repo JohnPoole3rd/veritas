@@ -27,8 +27,8 @@
   restart skips completed tile IDs. This is required for 100k–1M runs.
 - `fit_procrustes` accumulates the cross-covariance in chunks; 1M rows do not allocate full centered
   copies of both embedding matrices.
-- The 28-region default list contains only a few thousand non-overlapping 1.28 km chips. A 1M run
-  needs many more regions or a larger sampling radius; otherwise it is mostly overlapping crops.
+- The default list has 199 regions across 93 countries, roughly 77,000 non-overlapping 1.28 km chips.
+  A 1M run needs more regions or a larger sampling radius; otherwise it is mostly overlapping crops.
 
 ## DINOv2
 

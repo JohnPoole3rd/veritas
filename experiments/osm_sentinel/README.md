@@ -68,7 +68,7 @@ python experiments/osm_sentinel/build_dataset.py \
   --region us_columbus --chips-per-region 1 --max-chips 1
 ```
 
-Scale to the 28-region default list (about 224 chips at 8/region):
+Scale to the 199-region default list (about 1,592 chips at 8/region):
 
 ```sh
 python experiments/osm_sentinel/build_dataset.py \
@@ -156,11 +156,11 @@ Practical recommendation: prototype at 20k–50k chips, scale to 250k for a real
 
 ## Data scale and leakage
 
-- The default `regions.csv` has 28 regions across 16 countries and six continents. At 1.28 km per
-  chip that is only a few thousand **non-overlapping** chips. A 1M-chip run is technically possible
-  by drawing many random crops per region, but those crops overlap heavily and do not add geographic
-  diversity. For a real 1M run, expand `regions.csv` to hundreds/thousands of locations or use a
-  larger sampling radius per region.
+- The default `regions.csv` has 199 regions across 93 countries and six continents. At 1.28 km per
+  chip that is roughly 77,000 **non-overlapping** chips. A 1M-chip run is technically possible by
+  drawing many random crops per region, but those crops overlap heavily and do not add geographic
+  diversity. For a real 1M run, expand `regions.csv` further or use a larger sampling radius per
+  region.
 - Splits are by **region**, not random chip, so nearby tiles cannot leak between train and test.
 - `build_dataset.py` appends `manifest.csv` and `captions.jsonl` after each chip. On restart it skips
   completed tile IDs and repairs captions from the manifest.

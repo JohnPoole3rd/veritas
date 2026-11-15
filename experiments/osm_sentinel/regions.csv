@@ -1,29 +1,200 @@
 region_id,country,biome,split,lat,lon,radius_km,notes
-us_columbus,United States,temperate_suburban,train,40.0270,-83.0630,6,Upper Arlington / Columbus
-us_iowa,United States,temperate_cropland,train,42.0300,-93.6400,8,Iowa corn and soybean fields
-us_colorado,United States,mountain_forest,train,39.5500,-105.4500,7,Front Range foothills
-us_arizona,United States,desert_urban,train,33.4500,-112.0700,7,Phoenix desert edge
-us_florida_coast,United States,subtropical_coast,val,25.7600,-80.1900,6,Miami / Biscayne Bay
-ca_toronto,Canada,temperate_urban,train,43.6500,-79.3800,6,Toronto
-ca_saskatchewan,Canada,boreal_cropland,train,52.1300,-106.6700,9,Saskatoon farmland
-br_amazon,Brazil,tropical_forest,train,-3.4700,-62.2200,10,Central Amazon
-br_sao_paulo,Brazil,tropical_urban,train,-23.5500,-46.6300,6,Sao Paulo
-ar_pampas,Argentina,temperate_grassland,train,-34.6000,-58.3800,9,Pampas around Buenos Aires
-gb_scotland,United Kingdom,moorland_coast,train,57.1500,-2.0900,7,Aberdeenshire coast and moor
-fr_bordeaux,France,vineyard_forest,train,44.8400,-0.5800,7,Bordeaux vineyards and pine forest
-nl_rotterdam,Netherlands,port_coast,train,51.9200,4.4800,6,Rotterdam port and coast
-es_madrid,Spain,dryland_urban,train,40.4160,-3.7040,7,Madrid dryland edge
-ke_nairobi,Kenya,savanna_urban,train,-1.2920,36.8220,7,Nairobi and savanna edge
-in_delhi,India,monsoon_urban,train,28.6130,77.2090,7,Delhi
-in_kerala,India,tropical_coast,train,9.9700,76.2800,6,Kochi backwaters and coast
-cn_shanghai,China,subtropical_urban,train,31.2300,121.4740,7,Shanghai
-cn_inner_mongolia,China,steppe_grassland,train,40.8400,111.7500,10,Hohhot grassland edge
-jp_tokyo,Japan,temperate_urban,train,35.6760,139.6500,6,Tokyo
-jp_hokkaido,Japan,boreal_forest,train,43.0600,141.3500,9,Sapporo forest edge
-gb_london,United Kingdom,temperate_urban,val,51.5070,-0.1280,6,London
-za_cape_town,South Africa,mediterranean_coast,val,-33.9250,18.4240,7,Cape Town
-au_sydney,Australia,temperate_coast,val,-33.8700,151.2100,7,Sydney
-id_jakarta,Indonesia,tropical_urban,val,-6.2080,106.8450,7,Jakarta
-au_outback,Australia,arid,test,-23.7000,133.8700,10,Alice Springs outback
-id_borneo,Indonesia,tropical_forest,test,-0.5000,114.0000,10,Central Kalimantan
-eg_nile,Egypt,irrigated_desert,test,30.0400,31.2400,7,Nile Delta and desert edge
+us_columbus,United States,temperate_suburban,train,40.0270,-83.0630,8,Upper Arlington and Columbus
+us_iowa,United States,temperate_cropland,train,42.0300,-93.6400,10,Iowa corn and soybean fields
+us_colorado,United States,mountain_forest,train,39.5500,-105.4500,10,Front Range foothills
+us_arizona,United States,desert_urban,train,33.4500,-112.0700,10,Phoenix desert edge
+us_california_central,United States,mediterranean_cropland,train,36.7500,-119.8000,12,Central Valley farmland
+us_pacific_northwest,United States,temperate_forest,train,45.5000,-122.6000,12,Portland and Cascades
+us_great_plains,United States,temperate_grassland,train,39.0000,-99.0000,15,Kansas plains
+us_california_coast,United States,mediterranean_coast,train,36.6000,-121.8900,10,Monterey Bay
+us_louisiana_delta,United States,wetland_delta,val,29.9500,-90.1000,10,Mississippi delta
+us_florida_coast,United States,subtropical_coast,val,25.7600,-80.1900,10,Miami and Biscayne Bay
+us_alaska_boreal,United States,boreal_forest,train,64.8400,-147.7200,15,Fairbanks boreal forest
+ca_toronto,Canada,temperate_urban,train,43.6500,-79.3800,10,Toronto
+ca_saskatchewan,Canada,boreal_cropland,train,52.1300,-106.6700,15,Saskatoon farmland
+ca_bc_forest,Canada,temperate_rainforest,train,49.3000,-123.1000,12,BC coast and forest
+ca_alberta_prairie,Canada,temperate_grassland,train,51.0000,-113.5000,15,Alberta prairie
+ca_quebec_boreal,Canada,boreal_forest,val,47.5000,-72.5000,15,Quebec boreal
+ca_nova_scotia_coast,Canada,temperate_coast,train,44.6500,-63.6000,10,Nova Scotia coast
+mx_mexico_city,Mexico,tropical_urban,train,19.4300,-99.1300,10,Mexico City
+mx_yucatan,Mexico,tropical_forest,train,20.9000,-89.5000,12,Yucatan forest
+mx_sonora,Mexico,desert,val,29.1000,-110.9000,12,Sonora desert
+mx_veracruz,Mexico,tropical_coast,train,19.2000,-96.1000,10,Veracruz coast
+cr_tortuguero,Costa Rica,tropical_rainforest,test,10.5400,-83.5000,10,Tortuguero rainforest
+pa_canal,Panama,tropical_rainforest,train,9.1000,-79.7000,10,Panama Canal forest
+cu_havana_coast,Cuba,tropical_coast,test,23.1300,-82.3800,8,Havana coast
+do_punta_cana,Dominican Republic,tropical_coast,val,18.5600,-68.3700,8,Punta Cana coast
+br_amazon,Brazil,tropical_forest,train,-3.4700,-62.2200,15,Central Amazon
+br_sao_paulo,Brazil,tropical_urban,train,-23.5500,-46.6300,10,Sao Paulo
+br_cerrado,Brazil,tropical_savanna,train,-15.8000,-47.9000,15,Cerrado
+br_pantanal,Brazil,tropical_wetland,train,-16.5000,-56.5000,15,Pantanal
+br_atlantic_forest,Brazil,tropical_forest,train,-22.5000,-42.0000,12,Atlantic forest
+br_northeast,Brazil,semiarid_scrub,val,-8.0000,-38.0000,15,Northeast semiarid
+ar_pampas,Argentina,temperate_grassland,train,-34.6000,-58.3800,15,Pampas
+ar_patagonia,Argentina,cold_steppe,train,-45.0000,-70.0000,20,Patagonia
+ar_andes,Argentina,alpine,train,-33.0000,-69.5000,15,Andes foothills
+cl_central_valley,Chile,mediterranean_cropland,val,-33.5000,-70.8000,12,Central Valley
+cl_atacama,Chile,desert,test,-23.5000,-69.0000,20,Atacama
+cl_patagonia,Chile,cold_rainforest,val,-50.0000,-73.0000,20,Patagonia fjords
+pe_amazon,Peru,tropical_forest,test,-4.0000,-73.0000,15,Iquitos Amazon
+pe_lima_coast,Peru,desert_coast,val,-12.0500,-77.0500,10,Lima coast
+pe_andes,Peru,alpine,val,-13.5000,-72.0000,15,Cusco highlands
+co_andes,Colombia,tropical_montane,train,4.7000,-74.1000,12,Bogota and Andes
+co_amazon,Colombia,tropical_forest,train,-1.0000,-73.0000,15,Colombian Amazon
+co_caribbean,Colombia,tropical_coast,train,10.4000,-75.5000,10,Caribbean coast
+ec_andes,Ecuador,tropical_montane,test,-0.2000,-78.5000,12,Quito highlands
+ec_coast,Ecuador,tropical_coast,val,-2.2000,-80.9000,10,Guayaquil coast
+bo_altiplano,Bolivia,alpine,train,-16.5000,-68.1000,15,Altiplano
+bo_amazon,Bolivia,tropical_forest,train,-14.0000,-65.0000,15,Bolivian Amazon
+uy_pampas,Uruguay,temperate_grassland,train,-33.0000,-56.0000,12,Uruguayan pampas
+py_chaco,Paraguay,tropical_dry_forest,train,-22.0000,-60.0000,15,Chaco
+gb_london,United Kingdom,temperate_urban,val,51.5070,-0.1280,10,London
+gb_scotland,United Kingdom,moorland_coast,train,57.1500,-2.0900,12,Aberdeenshire coast and moor
+gb_wales,United Kingdom,upland_pasture,train,52.4000,-3.8000,12,Welsh uplands
+gb_england_farm,United Kingdom,temperate_cropland,train,52.2000,-1.0000,12,English farmland
+ie_pasture,Ireland,temperate_pasture,train,53.3000,-8.0000,12,Ireland pasture
+fr_bordeaux,France,vineyard_forest,train,44.8400,-0.5800,12,Bordeaux vineyards
+fr_paris,France,temperate_urban,train,48.8566,2.3522,10,Paris
+fr_alps,France,alpine,train,45.2000,6.5000,15,French Alps
+fr_brittany,France,temperate_coast,train,48.2000,-4.5000,12,Brittany coast
+fr_camargue,France,wetland_delta,train,43.5000,4.5000,12,Camargue
+nl_rotterdam,Netherlands,port_coast,train,51.9200,4.4800,10,Rotterdam port
+nl_polder,Netherlands,temperate_cropland,train,52.3000,5.3000,12,Polder farmland
+es_madrid,Spain,dryland_urban,train,40.4160,-3.7040,12,Madrid dryland edge
+es_valencia,Spain,mediterranean_coast,train,39.4700,-0.3300,10,Valencia coast
+es_andalusia,Spain,mediterranean_cropland,train,37.4000,-4.5000,15,Andalusian olive country
+es_pyrenees,Spain,alpine,train,42.6000,0.5000,15,Pyrenees
+pt_coast,Portugal,mediterranean_coast,train,38.7000,-9.4000,10,Lisbon coast
+pt_cork_oak,Portugal,mediterranean_forest,train,38.0000,-8.0000,15,Cork oak woodland
+it_po_valley,Italy,temperate_cropland,train,45.1000,9.5000,15,Po Valley
+it_tuscany,Italy,mediterranean_cropland,train,43.3000,11.3000,12,Tuscany
+it_sicily,Italy,mediterranean_coast,val,37.5000,14.0000,12,Sicily
+it_alps,Italy,alpine,train,46.5000,11.5000,15,Italian Alps
+de_berlin,Germany,temperate_urban,train,52.5200,13.4050,10,Berlin
+de_bavaria,Germany,temperate_forest,val,48.5000,11.5000,15,Bavaria
+de_north_sea,Germany,temperate_coast,train,54.0000,8.5000,12,North Sea coast
+pl_farmland,Poland,temperate_cropland,train,52.2000,19.0000,15,Polish farmland
+pl_bialowieza,Poland,temperate_forest,train,52.7000,23.8000,12,Bialowieza forest
+se_forest,Sweden,boreal_forest,train,60.0000,15.0000,15,Swedish forest
+se_coast,Sweden,boreal_coast,train,58.0000,18.0000,12,Stockholm archipelago
+no_fjord,Norway,boreal_fjord,val,61.0000,6.5000,15,Norwegian fjords
+fi_boreal,Finland,boreal_forest,train,63.0000,27.0000,15,Finnish forest and lakes
+dk_coast,Denmark,temperate_coast,train,55.5000,10.0000,10,Danish coast
+is_volcanic,Iceland,volcanic_tundra,test,64.1000,-21.9000,15,Reykjavik volcanic landscape
+gr_islands,Greece,mediterranean_coast,test,37.5000,25.0000,12,Cyclades
+gr_crete,Greece,mediterranean_coast,val,35.3000,25.1000,12,Crete
+tr_istanbul,Turkey,mediterranean_urban,train,41.0100,29.0000,10,Istanbul
+tr_anatolia,Turkey,dryland_steppe,train,39.0000,33.0000,15,Anatolian steppe
+tr_black_sea,Turkey,temperate_coast,train,41.5000,36.0000,12,Black Sea coast
+ua_steppe,Ukraine,steppe_cropland,train,48.5000,35.0000,15,Ukrainian steppe
+ro_carpathian,Romania,temperate_forest,train,45.5000,25.0000,12,Carpathians
+ro_danube_delta,Romania,wetland_delta,train,45.2000,29.0000,12,Danube delta
+hu_plains,Hungary,steppe_cropland,train,47.0000,19.5000,15,Hungarian plains
+cz_forest,Czechia,temperate_forest,train,49.5000,15.0000,12,Czech forest
+at_alps,Austria,alpine,train,47.0000,12.0000,15,Austrian Alps
+ch_alps,Switzerland,alpine,test,46.5000,8.0000,12,Swiss Alps
+hr_coast,Croatia,mediterranean_coast,train,43.5000,16.0000,10,Croatian coast
+rs_farmland,Serbia,temperate_cropland,train,45.0000,20.0000,15,Serbian farmland
+ma_atlas,Morocco,mediterranean_montane,val,31.5000,-7.5000,15,Atlas foothills
+ma_sahara,Morocco,desert,test,30.0000,-5.0000,20,Sahara edge
+eg_nile,Egypt,irrigated_desert,test,30.0400,31.2400,12,Nile Delta
+eg_red_sea,Egypt,desert_coast,val,27.2000,33.8000,15,Red Sea coast
+ke_nairobi,Kenya,savanna_urban,train,-1.2920,36.8220,12,Nairobi and savanna
+ke_coast,Kenya,tropical_coast,train,-4.0000,39.7000,12,Kenyan coast
+tz_serengeti,Tanzania,savanna,test,-2.5000,34.8000,20,Serengeti
+tz_zanzibar,Tanzania,tropical_coast,val,-6.1000,39.2000,10,Zanzibar
+et_highlands,Ethiopia,alpine,train,9.0000,38.7000,15,Ethiopian highlands
+et_rift,Ethiopia,rift_valley,train,8.0000,38.5000,15,Ethiopian Rift
+za_cape_town,South Africa,mediterranean_coast,val,-33.9250,18.4240,10,Cape Town
+za_karoo,South Africa,semiarid_scrub,train,-32.0000,23.0000,20,Karoo
+za_kzn_coast,South Africa,subtropical_coast,train,-29.8000,31.0000,12,KwaZulu-Natal coast
+za_highveld,South Africa,grassland,train,-26.2000,28.0000,15,Highveld
+na_desert,Namibia,desert,test,-22.5000,17.0000,20,Namib desert
+na_coast,Namibia,desert_coast,val,-22.9000,14.5000,15,Skeleton Coast
+bw_okavango,Botswana,tropical_wetland,train,-19.5000,22.5000,15,Okavango Delta
+bw_kalahari,Botswana,savanna,train,-23.0000,22.0000,20,Kalahari
+zm_savanna,Zambia,savanna,train,-15.4000,28.3000,15,Zambian savanna
+mz_coast,Mozambique,tropical_coast,train,-19.8000,34.8000,12,Mozambique coast
+mg_rainforest,Madagascar,tropical_rainforest,test,-18.9000,48.0000,15,Madagascar rainforest
+ng_lagos,Nigeria,tropical_urban,train,6.5000,3.4000,10,Lagos
+ng_niger_delta,Nigeria,mangrove_delta,train,5.0000,6.0000,15,Niger Delta
+gh_coast,Ghana,tropical_coast,train,5.5000,-0.2000,10,Ghana coast
+sn_sahel,Senegal,sahel,train,14.7000,-17.5000,15,Senegal Sahel
+ml_niger,Mali,sahel_river,train,16.0000,-3.0000,20,Niger River
+td_sahel,Chad,sahel,train,15.0000,18.0000,20,Chad Sahel
+sd_nile,Sudan,desert_river,test,15.5000,32.5000,15,Khartoum Nile
+ug_lake,Uganda,tropical_lake,train,0.3000,32.5000,12,Lake Victoria
+rw_highlands,Rwanda,alpine,train,-1.9000,29.9000,10,Rwandan highlands
+cd_congo,DR Congo,tropical_forest,train,-2.5000,23.0000,20,Congo rainforest
+ao_savanna,Angola,savanna,train,-12.0000,17.0000,20,Angolan savanna
+zw_savanna,Zimbabwe,savanna,train,-19.0000,29.0000,15,Zimbabwe savanna
+tn_coast,Tunisia,mediterranean_coast,train,36.8000,10.2000,10,Tunisian coast
+in_delhi,India,monsoon_urban,train,28.6130,77.2090,10,Delhi
+in_kerala,India,tropical_coast,train,9.9700,76.2800,10,Kochi backwaters and coast
+in_punjab,India,monsoon_cropland,train,30.9000,75.8000,15,Punjab farmland
+in_rajasthan,India,desert,train,26.9000,73.0000,20,Thar desert
+in_western_ghats,India,tropical_forest,train,13.0000,75.0000,15,Western Ghats
+in_ganges_delta,India,mangrove_delta,train,22.0000,90.0000,15,Ganges delta
+in_himalayan_foothills,India,alpine,val,30.0000,78.0000,15,Himalayan foothills
+pk_indus,Pakistan,irrigated_cropland,train,30.0000,71.5000,15,Indus valley
+pk_balochistan,Pakistan,desert,train,25.0000,66.0000,20,Balochistan
+bd_delta,Bangladesh,mangrove_delta,train,22.0000,90.0000,12,Ganges-Brahmaputra delta
+bd_coast,Bangladesh,tropical_coast,train,21.8000,90.0000,10,Bay of Bengal coast
+np_himalaya,Nepal,alpine,train,27.7000,85.3000,12,Kathmandu valley
+lk_wet_zone,Sri Lanka,tropical_forest,test,6.9000,80.6000,12,Sri Lankan wet zone
+lk_coast,Sri Lanka,tropical_coast,val,6.0000,80.0000,10,Sri Lankan coast
+cn_shanghai,China,subtropical_urban,train,31.2300,121.4740,12,Shanghai
+cn_inner_mongolia,China,steppe_grassland,train,40.8400,111.7500,15,Hohhot grassland edge
+cn_sichuan,China,subtropical_cropland,train,30.6000,104.0000,15,Sichuan basin
+cn_yunnan,China,subtropical_forest,train,25.0000,102.7000,15,Yunnan
+cn_gobi,China,desert,train,42.0000,105.0000,20,Gobi
+cn_pearl_delta,China,subtropical_urban,train,22.5000,113.0000,10,Pearl River Delta
+cn_hainan,China,tropical_coast,train,19.2000,109.7000,10,Hainan
+cn_tibet,China,alpine,test,29.6500,91.1000,15,Tibetan plateau
+jp_tokyo,Japan,temperate_urban,train,35.6760,139.6500,10,Tokyo
+jp_hokkaido,Japan,boreal_forest,train,43.0600,141.3500,15,Hokkaido
+jp_kyushu,Japan,subtropical_coast,val,31.6000,130.5000,12,Kyushu
+jp_alps,Japan,alpine,train,36.2000,137.6000,15,Japan Alps
+kr_seoul,South Korea,temperate_urban,train,37.5600,126.9800,10,Seoul
+kr_jeju,South Korea,subtropical_coast,train,33.5000,126.5000,10,Jeju
+tw_coast,Taiwan,subtropical_coast,val,23.5000,120.5000,10,Taiwan coast
+ph_manila,Philippines,tropical_urban,test,14.6000,120.9800,10,Manila
+ph_palawan,Philippines,tropical_coast,test,9.8000,118.7000,12,Palawan
+ph_mindanao,Philippines,tropical_forest,test,7.5000,125.0000,15,Mindanao
+vn_mekong,Vietnam,tropical_delta,test,10.0000,105.8000,12,Mekong Delta
+vn_hanoi,Vietnam,tropical_urban,test,21.0300,105.8500,10,Hanoi
+vn_central_coast,Vietnam,tropical_coast,val,16.0000,108.0000,12,Central coast
+th_bangkok,Thailand,tropical_urban,train,13.7500,100.5000,10,Bangkok
+th_isan,Thailand,tropical_cropland,train,15.0000,102.5000,15,Isan
+th_andaman,Thailand,tropical_coast,train,8.0000,98.5000,12,Andaman coast
+kh_tonle_sap,Cambodia,tropical_wetland,train,13.0000,104.0000,12,Tonle Sap
+la_forest,Laos,tropical_forest,train,18.0000,103.5000,15,Laos forest
+mm_delta,Myanmar,tropical_delta,train,17.0000,95.5000,15,Irrawaddy delta
+my_borneo,Malaysia,tropical_forest,train,3.0000,114.0000,20,Borneo
+my_kuala_lumpur,Malaysia,tropical_urban,train,3.1400,101.6900,10,Kuala Lumpur
+id_jakarta,Indonesia,tropical_urban,val,-6.2080,106.8450,12,Jakarta
+id_borneo,Indonesia,tropical_forest,test,-0.5000,114.0000,25,Kalimantan
+id_sumatra,Indonesia,tropical_forest,train,-0.5000,101.5000,20,Sumatra
+id_bali,Indonesia,tropical_coast,train,-8.4000,115.2000,10,Bali
+id_papua,Indonesia,tropical_forest,test,-4.0000,138.0000,25,Papua
+pg_coast,Papua New Guinea,tropical_coast,test,-5.0000,145.0000,20,PNG coast
+au_sydney,Australia,temperate_coast,val,-33.8700,151.2100,12,Sydney
+au_outback,Australia,arid,test,-23.7000,133.8700,25,Alice Springs outback
+au_murray_darling,Australia,mediterranean_cropland,train,-34.0000,142.0000,20,Murray-Darling
+au_queensland,Australia,tropical_forest,train,-17.0000,145.5000,15,Queensland
+au_tasmania,Australia,temperate_forest,train,-42.0000,147.0000,15,Tasmania
+au_perth,Australia,mediterranean_coast,train,-31.9500,115.8600,12,Perth
+au_great_barrier,Australia,tropical_coast,val,-18.0000,147.0000,15,Great Barrier Reef coast
+nz_north,New Zealand,temperate_pasture,test,-38.0000,175.0000,15,North Island
+nz_south,New Zealand,alpine,val,-43.5000,172.6000,15,South Island
+sa_desert,Saudi Arabia,desert,test,24.7000,46.7000,20,Riyadh desert
+ae_coast,United Arab Emirates,desert_coast,train,25.2000,55.3000,12,Dubai coast
+om_mountains,Oman,desert_mountains,test,23.5000,58.0000,15,Oman mountains
+il_coast,Israel,mediterranean_coast,train,32.1000,34.8000,10,Israeli coast
+jo_desert,Jordan,desert,train,31.0000,36.5000,20,Jordan desert
+iq_mesopotamia,Iraq,irrigated_desert,train,33.3000,44.4000,15,Mesopotamia
+ir_desert,Iran,desert,train,32.0000,54.0000,20,Iran desert
+kz_steppe,Kazakhstan,steppe_cropland,train,51.0000,71.0000,20,Kazakh steppe
+uz_irrigated,Uzbekistan,irrigated_desert,train,40.0000,65.0000,20,Uzbekistan irrigated
+mn_steppe,Mongolia,steppe_grassland,test,47.0000,105.0000,20,Mongolian steppe
+mn_gobi,Mongolia,desert,test,43.0000,105.0000,20,Gobi
