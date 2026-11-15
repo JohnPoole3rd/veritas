@@ -25,6 +25,9 @@ chips and is not the 1M path.
 This is the authoritative A run. Start from a clean 1M output directory. Do **not** reuse, copy,
 symlink, resume, or recaption anything from `data/raw/osm_sentinel` (the old 77k build).
 
+If an old **128 px** 1M build is still running, stop it before starting this one. The 64 px build is
+the scale-matched run; do not mix manifests or images from the 128 px run.
+
 ```sh
 cd /home/john/veritas
 git switch j/exp-osm-sentinel
