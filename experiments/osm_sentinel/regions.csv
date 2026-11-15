@@ -1,0 +1,29 @@
+region_id,country,biome,split,lat,lon,radius_km,notes
+us_columbus,United States,temperate_suburban,train,40.0270,-83.0630,6,Upper Arlington / Columbus
+us_iowa,United States,temperate_cropland,train,42.0300,-93.6400,8,Iowa corn and soybean fields
+us_colorado,United States,mountain_forest,train,39.5500,-105.4500,7,Front Range foothills
+us_arizona,United States,desert_urban,train,33.4500,-112.0700,7,Phoenix desert edge
+us_florida_coast,United States,subtropical_coast,val,25.7600,-80.1900,6,Miami / Biscayne Bay
+ca_toronto,Canada,temperate_urban,train,43.6500,-79.3800,6,Toronto
+ca_saskatchewan,Canada,boreal_cropland,train,52.1300,-106.6700,9,Saskatoon farmland
+br_amazon,Brazil,tropical_forest,train,-3.4700,-62.2200,10,Central Amazon
+br_sao_paulo,Brazil,tropical_urban,train,-23.5500,-46.6300,6,Sao Paulo
+ar_pampas,Argentina,temperate_grassland,train,-34.6000,-58.3800,9,Pampas around Buenos Aires
+gb_scotland,United Kingdom,moorland_coast,train,57.1500,-2.0900,7,Aberdeenshire coast and moor
+fr_bordeaux,France,vineyard_forest,train,44.8400,-0.5800,7,Bordeaux vineyards and pine forest
+nl_rotterdam,Netherlands,port_coast,train,51.9200,4.4800,6,Rotterdam port and coast
+es_madrid,Spain,dryland_urban,train,40.4160,-3.7040,7,Madrid dryland edge
+ke_nairobi,Kenya,savanna_urban,train,-1.2920,36.8220,7,Nairobi and savanna edge
+in_delhi,India,monsoon_urban,train,28.6130,77.2090,7,Delhi
+in_kerala,India,tropical_coast,train,9.9700,76.2800,6,Kochi backwaters and coast
+cn_shanghai,China,subtropical_urban,train,31.2300,121.4740,7,Shanghai
+cn_inner_mongolia,China,steppe_grassland,train,40.8400,111.7500,10,Hohhot grassland edge
+jp_tokyo,Japan,temperate_urban,train,35.6760,139.6500,6,Tokyo
+jp_hokkaido,Japan,boreal_forest,train,43.0600,141.3500,9,Sapporo forest edge
+gb_london,United Kingdom,temperate_urban,val,51.5070,-0.1280,6,London
+za_cape_town,South Africa,mediterranean_coast,val,-33.9250,18.4240,7,Cape Town
+au_sydney,Australia,temperate_coast,val,-33.8700,151.2100,7,Sydney
+id_jakarta,Indonesia,tropical_urban,val,-6.2080,106.8450,7,Jakarta
+au_outback,Australia,arid,test,-23.7000,133.8700,10,Alice Springs outback
+id_borneo,Indonesia,tropical_forest,test,-0.5000,114.0000,10,Central Kalimantan
+eg_nile,Egypt,irrigated_desert,test,30.0400,31.2400,7,Nile Delta and desert edge

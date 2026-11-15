@@ -25,7 +25,9 @@ from src.config import load_config, load_json, refuse_subset_overwrite, resolve_
 from src.data import load_split  # noqa: E402
 from src.encoders import (  # noqa: E402
     check_split_embeddings,
+    device_summary,
     encode_texts,
+    get_device,
     load_embeddings,
     load_minilm,
     save_embeddings,
@@ -56,7 +58,9 @@ def main() -> None:
 
     # T05: caption embeddings + index (the order every later step relies on).
     captions = load_captions(resolve_path(config["data"]["captions_path"], config))
-    text_model = load_minilm(config["text"]["model_name"], device=args.device)
+    device = get_device(args.device)
+    print(f"text device={device_summary(device)}", flush=True)
+    text_model = load_minilm(config["text"]["model_name"], device=device)
     caption_embeddings = encode_texts(text_model, [record["text"] for record in captions])
     if caption_embeddings.shape[1] != int(config["text"]["embedding_dim"]):
         raise ValueError(f"MiniLM dim {caption_embeddings.shape} != config text.embedding_dim")

@@ -7,7 +7,7 @@
 
 ## What we learned
 
-Full 27k EuroSAT extraction with DINOv2 ViT-S/14 on CPU was stopped after several minutes because it would not finish inside the phase gate. A 512-per-split stratified subset completes quickly and gives a usable smoke result.
+Full 27k EuroSAT extraction with DINOv2 ViT-S/14 on CPU was stopped after several minutes because it would not finish inside the phase gate. A 512-per-split prefix subset completes quickly and gives a usable smoke result.
 
 ## Evidence
 

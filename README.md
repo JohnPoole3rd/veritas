@@ -34,7 +34,8 @@ Plain Git only. One `main`. Normal task branches. No message board. No board bra
 - `src/` — data, alignment, retrieval, evaluation, and baseline code.
 - `scripts/` — runnable data/embedding/alignment/evaluation pipeline.
 - `notebooks/` — J's T01–T03 notebooks.
-- `tests/` — core alignment, retrieval, and caption tests.
+- `tests/` — core alignment, retrieval, caption, and OSM-caption tests.
+- `experiments/` — exploratory branches, including `osm_sentinel/`.
 - `plan/` — complete hackathon planning package.
 - `plan/learnings/` — durable findings and plan updates.
 - `results/` — per-task reports.
@@ -106,6 +107,16 @@ nix-shell -p python3Packages.torch python3Packages.torchvision \
   --run 'python scripts/prepare_data.py'
 ```
 
+## Experiments
+
+Hardware selection is automatic: CUDA/ROCm → Apple MPS → Intel XPU → CPU. Override with
+`--device` or `PLATONIC_DEVICE`; `--dtype auto` uses bf16 where supported. Vulkan is not a viable
+PyTorch path for these ViT backbones, so it is not advertised.
+
+- `experiments/osm_sentinel/` — OSM-captioned Sentinel-2 training with DINOv3, global region
+  sampling, local OSM PBFs (pyrosm) or Overpass fallback, and a Procrustes fit on held-out regions.
+  See its README for the visible-tag policy, hardware selection, and commands.
+
 ## First implementation tasks
 
 1. `T01` — J: repo scaffold and config. **DONE**
@@ -137,7 +148,7 @@ Expected with current artifacts:
 
 ```text
 [demo] REAL mode — Upper Arlington N=50; EuroSAT test N=512 of 4050; transforms from src.alignment
-[demo] NOTE — using 512-tile stratified subset
+[demo] NOTE — using first 512 of 4050 test tiles (--limit run)
 ```
 
 Use `python app.py --mock` only for UI rehearsal. Pre-warm MiniLM and DINOv2 before recording; see `plan/09-demo-writeup-submission.md`.

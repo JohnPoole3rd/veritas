@@ -17,3 +17,6 @@ shapely>=2.0
 pyproj>=3.6
 pystac-client>=0.7
 requests>=2.31
+
+# Optional: local OSM extracts for experiments/osm_sentinel
+pyrosm>=0.9

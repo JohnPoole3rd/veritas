@@ -7,7 +7,7 @@ set -euo pipefail
 PY=${PYTHON:-python}
 
 $PY scripts/prepare_data.py                                   # T02/T03 splits + captions
-$PY scripts/extract_embeddings.py                             # T04 DINOv2 (cuda > mps > cpu)
+$PY scripts/extract_embeddings.py                             # T04 DINOv2 (cuda > mps > xpu > cpu)
 $PY scripts/fit_alignment.py                                  # T05/T06 captions + Procrustes, val retrieval
 $PY scripts/evaluate_retrieval.py                             # T07 text→image search (50 queries)
 $PY scripts/evaluate_majority.py                              # T09 majority baseline

@@ -299,7 +299,7 @@ def main(argv=None):
     ap.add_argument("--input-size", type=int, default=64, help="64 = native EuroSAT; 224 = ImageNet scale")
     ap.add_argument("--limit", type=int, default=None, help="subsample each split (smoke tests only)")
     ap.add_argument("--workers", type=int, default=0)
-    ap.add_argument("--device", default=None, help="default: cuda > mps > cpu")
+    ap.add_argument("--device", default=None, help="default: cuda > mps > xpu > cpu")
     ap.add_argument("--no-pretrained", action="store_true", help="random init (tests only)")
     a = ap.parse_args(argv)
 

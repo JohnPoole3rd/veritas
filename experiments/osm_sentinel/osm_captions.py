@@ -1,0 +1,400 @@
+"""Turn visible OpenStreetMap tags into short Sentinel-2 captions.
+
+Only physical, visible properties are used: land use/cover, water, vegetation,
+buildings, roads, railways, parking, airfields, and similar infrastructure.
+Names, brands, addresses, opening hours, contact details, religion, and other
+non-visible metadata are deliberately excluded.
+"""
+
+from __future__ import annotations
+
+from collections import Counter
+from typing import Any, Iterable
+
+# Ordered tag maps. A tag value that is not listed contributes nothing.
+TAG_MAPS: tuple[tuple[str, dict[str, str]], ...] = (
+    ("landuse", {
+        "residential": "residential area",
+        "commercial": "commercial area",
+        "retail": "commercial area",
+        "industrial": "industrial area",
+        "farmland": "farmland",
+        "farmyard": "farm buildings",
+        "orchard": "orchard",
+        "vineyard": "vineyard",
+        "forest": "forest",
+        "meadow": "meadow",
+        "grass": "grassland",
+        "recreation_ground": "park",
+        "cemetery": "cemetery",
+        "quarry": "quarry",
+        "landfill": "landfill",
+        "railway": "railway",
+        "construction": "construction site",
+        "port": "port",
+        "aquaculture": "aquaculture ponds",
+        "greenhouse_horticulture": "greenhouses",
+    }),
+    ("natural", {
+        "water": "water",
+        "wood": "forest",
+        "scrub": "scrubland",
+        "heath": "heathland",
+        "grassland": "grassland",
+        "wetland": "wetland",
+        "beach": "beach",
+        "sand": "sand",
+        "bare_rock": "bare rock",
+        "scree": "scree",
+        "glacier": "glacier",
+        "coastline": "coastline",
+        "tree_row": "tree row",
+        "bay": "bay",
+        "strait": "strait",
+    }),
+    ("leisure", {
+        "park": "park",
+        "golf_course": "golf course",
+        "pitch": "sports field",
+        "nature_reserve": "nature reserve",
+        "marina": "marina",
+        "garden": "garden",
+        "playground": "playground",
+    }),
+    ("building", {
+        "yes": "buildings",
+        "house": "houses",
+        "detached": "houses",
+        "semidetached_house": "houses",
+        "bungalow": "houses",
+        "apartments": "apartment buildings",
+        "residential": "apartment buildings",
+        "retail": "shops",
+        "commercial": "commercial buildings",
+        "industrial": "industrial buildings",
+        "warehouse": "warehouses",
+        "school": "school",
+        "university": "campus buildings",
+        "college": "campus buildings",
+        "hospital": "hospital",
+        "hotel": "hotel",
+        "church": "place of worship",
+        "cathedral": "place of worship",
+        "mosque": "place of worship",
+        "synagogue": "place of worship",
+        "temple": "place of worship",
+        "farm": "farm buildings",
+        "barn": "farm buildings",
+        "garage": "garages",
+        "garages": "garages",
+        "hangar": "hangar",
+        "terminal": "airport terminal",
+    }),
+    ("highway", {
+        "motorway": "major road",
+        "trunk": "major road",
+        "primary": "major road",
+        "secondary": "major road",
+        "tertiary": "major road",
+        "motorway_link": "major road",
+        "trunk_link": "major road",
+        "primary_link": "major road",
+        "secondary_link": "major road",
+        "residential": "residential street",
+        "unclassified": "residential street",
+        "service": "service road",
+        "living_street": "residential street",
+        "track": "farm track",
+        "footway": "path",
+        "path": "path",
+        "cycleway": "cycle path",
+    }),
+    ("waterway", {
+        "river": "river",
+        "stream": "stream",
+        "canal": "canal",
+        "drain": "drainage channel",
+        "riverbank": "river bank",
+        "dock": "dock",
+    }),
+    ("railway", {
+        "rail": "railway",
+        "light_rail": "railway",
+        "subway": "railway",
+        "tram": "tram line",
+        "station": "rail station",
+        "halt": "rail station",
+    }),
+    ("man_made", {
+        "pier": "pier",
+        "bridge": "bridge",
+        "breakwater": "breakwater",
+        "wastewater_plant": "water treatment plant",
+        "water_works": "waterworks",
+        "lighthouse": "lighthouse",
+        "tower": "tower",
+        "silo": "silo",
+        "storage_tank": "storage tanks",
+    }),
+    ("amenity", {
+        "parking": "parking lot",
+        "school": "school",
+        "university": "campus",
+        "college": "campus",
+        "hospital": "hospital",
+        "place_of_worship": "place of worship",
+        "marketplace": "market",
+        "bus_station": "bus station",
+        "fuel": "fuel station",
+    }),
+    ("aeroway", {
+        "runway": "airport runway",
+        "taxiway": "airport taxiway",
+        "apron": "airport apron",
+        "terminal": "airport terminal",
+    }),
+)
+
+# Primary-phrase priority. The first matching phrase becomes the caption subject.
+PRIORITY: tuple[str, ...] = (
+    "water", "bay", "strait", "coastline", "beach", "sand", "wetland", "river",
+    "stream", "canal", "drainage channel", "dock", "marina", "glacier",
+    "forest", "scrubland", "heathland", "tree row", "grassland", "meadow",
+    "farmland", "orchard", "vineyard", "greenhouses", "aquaculture ponds",
+    "quarry", "landfill", "bare rock", "scree",
+    "park", "golf course", "sports field", "nature reserve", "garden",
+    "residential area", "commercial area", "industrial area", "port",
+    "construction site", "railway", "rail station", "tram line",
+    "airport runway", "airport taxiway", "airport apron", "airport terminal",
+    "major road", "residential street", "service road", "farm track",
+    "parking lot", "bridge", "pier", "breakwater", "lighthouse", "tower",
+    "storage tanks", "silo", "water treatment plant", "waterworks",
+    "apartment buildings", "houses", "shops", "commercial buildings",
+    "industrial buildings", "warehouses", "school", "campus", "hospital",
+    "hotel", "place of worship", "garages", "hangar", "farm buildings",
+    "buildings", "dense buildings",
+)
+
+LABEL_BY_PHRASE: dict[str, str] = {
+    "water": "water", "bay": "water", "strait": "water", "coastline": "coast",
+    "beach": "coast", "sand": "coast", "wetland": "water", "river": "water",
+    "stream": "water", "canal": "water", "drainage channel": "water",
+    "dock": "water", "marina": "water", "glacier": "ice",
+    "forest": "forest", "scrubland": "forest", "heathland": "forest",
+    "tree row": "forest", "grassland": "green", "meadow": "green",
+    "farmland": "farmland", "orchard": "farmland", "vineyard": "farmland",
+    "greenhouses": "farmland", "aquaculture ponds": "water",
+    "quarry": "industrial", "landfill": "industrial", "bare rock": "barren",
+    "scree": "barren", "park": "green", "golf course": "green",
+    "sports field": "green", "nature reserve": "green", "garden": "green",
+    "residential area": "residential", "commercial area": "commercial",
+    "industrial area": "industrial", "port": "industrial",
+    "construction site": "built", "railway": "transport",
+    "rail station": "transport", "tram line": "transport",
+    "airport runway": "airport", "airport taxiway": "airport",
+    "airport apron": "airport", "airport terminal": "airport",
+    "major road": "transport", "residential street": "transport",
+    "service road": "transport", "farm track": "transport",
+    "parking lot": "transport", "bridge": "transport", "pier": "transport",
+    "breakwater": "transport", "lighthouse": "built", "tower": "built",
+    "storage tanks": "industrial", "silo": "farmland",
+    "water treatment plant": "industrial", "waterworks": "industrial",
+    "apartment buildings": "residential", "houses": "residential",
+    "shops": "commercial", "commercial buildings": "commercial",
+    "industrial buildings": "industrial", "warehouses": "industrial",
+    "school": "built", "campus": "built", "hospital": "built",
+    "hotel": "built", "place of worship": "built", "garages": "built",
+    "hangar": "airport", "farm buildings": "farmland", "buildings": "built",
+    "dense buildings": "built",
+}
+
+LABEL_PROMPTS: dict[str, str] = {
+    "water": "water, a river, coast, or lake",
+    "coast": "a coastline or beach",
+    "forest": "forest or dense trees",
+    "green": "grassland, a park, or open green space",
+    "farmland": "farm fields or orchards",
+    "residential": "a residential area with houses and streets",
+    "commercial": "commercial buildings, shops, or offices",
+    "industrial": "industrial buildings, a port, or a quarry",
+    "transport": "a major road, railway, or parking area",
+    "airport": "an airport runway or terminal",
+    "built": "buildings and built-up land",
+    "barren": "bare rock, sand, or barren land",
+    "ice": "glacier or permanent ice",
+    "other": "land with no dominant visible feature",
+}
+
+
+def visible_phrases(tags: dict[str, Any]) -> list[str]:
+    """Return only physical phrases implied by visible OSM tags."""
+    phrases: list[str] = []
+    for key, mapping in TAG_MAPS:
+        value = tags.get(key)
+        if isinstance(value, str) and value in mapping:
+            phrase = mapping[value]
+            if phrase not in phrases:
+                phrases.append(phrase)
+    return phrases
+
+
+def _coords(geometry: Iterable[dict[str, float]]) -> list[tuple[float, float]]:
+    return [(float(p["lon"]), float(p["lat"])) for p in geometry]
+
+
+def overpass_geometry(element: dict[str, Any], tags: dict[str, Any]):
+    """Build a shapely geometry for an Overpass way/relation, or None."""
+    from shapely.geometry import LineString, Polygon
+    from shapely.ops import linemerge, polygonize, unary_union
+
+    if element.get("type") == "way" and "geometry" in element:
+        coords = _coords(element["geometry"])
+        if len(coords) < 2:
+            return None
+        closed = len(coords) >= 4 and coords[0] == coords[-1]
+        area_tag = any(tags.get(k) for k in ("landuse", "natural", "leisure", "building", "amenity"))
+        if closed and area_tag:
+            poly = Polygon(coords)
+            return poly if poly.is_valid else poly.buffer(0)
+        return LineString(coords)
+
+    if element.get("type") == "relation":
+        rings, lines = [], []
+        for member in element.get("members", []):
+            if member.get("role") != "outer" or "geometry" not in member:
+                continue
+            coords = _coords(member["geometry"])
+            if len(coords) >= 4 and coords[0] == coords[-1]:
+                rings.append(Polygon(coords))
+            elif len(coords) >= 2:
+                lines.append(LineString(coords))
+        if rings:
+            geom = unary_union(rings)
+            return geom if geom.is_valid else geom.buffer(0)
+        if lines:
+            merged = linemerge(lines) if len(lines) > 1 else lines[0]
+            polys = list(polygonize(merged))
+            if polys:
+                return unary_union(polys)
+            return merged
+    return None
+
+
+def building_point(element: dict[str, Any]):
+    """Return a representative point for a building way/relation."""
+    from shapely.geometry import Point
+
+    if "center" in element:
+        return Point(float(element["center"]["lon"]), float(element["center"]["lat"]))
+    tags = element.get("tags", {})
+    geom = overpass_geometry(element, tags)
+    return geom.representative_point() if geom is not None and not geom.is_empty else None
+
+
+def _weight(geom, chip) -> float:
+    inter = geom.intersection(chip)
+    if inter.is_empty:
+        return 0.0
+    if inter.geom_type in ("Polygon", "MultiPolygon"):
+        return float(inter.area)
+    return float(inter.length)
+
+
+def _finish_caption(
+    counts: Counter[str], weights: Counter[str], building_count: int
+) -> tuple[str | None, str | None, dict[str, int], int]:
+    if not counts and building_count == 0:
+        return None, None, {}, 0
+
+    if building_count >= 25:
+        density = "dense buildings"
+    elif building_count >= 5:
+        density = "buildings"
+    elif building_count > 0:
+        density = "scattered buildings"
+    else:
+        density = ""
+    if density:
+        counts[density] += building_count
+        weights[density] += building_count
+
+    present = set(counts)
+    primary = next((p for p in PRIORITY if p in present), None)
+    if primary is None:
+        primary = max(counts, key=lambda p: (weights[p], counts[p]))
+    if primary == "buildings" and building_count >= 25:
+        primary = "dense buildings"
+
+    ordered = sorted(
+        (p for p in present if p != primary),
+        key=lambda p: (-weights[p], -counts[p], PRIORITY.index(p) if p in PRIORITY else 999),
+    )
+    extras = ordered[:4]
+    caption = f"A 10 m Sentinel-2 satellite image of {primary}"
+    if extras:
+        caption += " with " + ", ".join(extras)
+    caption += "."
+    label = LABEL_BY_PHRASE.get(primary, "other")
+    return caption, label, dict(counts), building_count
+
+
+def build_caption_from_features(
+    features: Iterable[tuple[dict[str, Any], Any]],
+    building_geometries: Iterable[Any],
+    bbox: tuple[float, float, float, float],
+) -> tuple[str | None, str | None, dict[str, int], int]:
+    """Build a caption from `(tags, shapely geometry)` pairs and building geometries.
+
+    This is the backend-neutral path used by local OSM PBFs. The Overpass
+    adapter below reuses it so both data sources produce identical captions.
+    """
+    from shapely.geometry import box
+
+    chip = box(*bbox)
+    counts: Counter[str] = Counter()
+    weights: Counter[str] = Counter()
+    for tags, geom in features:
+        phrases = visible_phrases(tags)
+        if not phrases or geom is None or geom.is_empty:
+            continue
+        weight = _weight(geom, chip)
+        if weight <= 0:
+            continue
+        for phrase in phrases:
+            counts[phrase] += 1
+            weights[phrase] += weight
+
+    building_count = 0
+    for geom in building_geometries:
+        if geom is None or geom.is_empty:
+            continue
+        if chip.contains(geom.centroid):
+            building_count += 1
+    return _finish_caption(counts, weights, building_count)
+
+
+def build_caption(
+    features: Iterable[dict[str, Any]],
+    buildings: Iterable[dict[str, Any]],
+    bbox: tuple[float, float, float, float],
+) -> tuple[str | None, str | None, dict[str, int], int]:
+    """Overpass adapter for `build_caption_from_features`."""
+    feature_pairs = []
+    for element in features:
+        tags = element.get("tags", {})
+        try:
+            geom = overpass_geometry(element, tags)
+        except Exception:
+            continue
+        if geom is not None:
+            feature_pairs.append((tags, geom))
+
+    building_geometries = []
+    for element in buildings:
+        try:
+            point = building_point(element)
+        except Exception:
+            continue
+        if point is not None:
+            building_geometries.append(point)
+    return build_caption_from_features(feature_pairs, building_geometries, bbox)
