@@ -7,6 +7,13 @@
 
 This is an experiment branch. Do not merge the generated data, PBFs, embeddings, or `.venv` into Git.
 
+## Run budget
+
+**Hard cap: 77,000 chips.** Do not run 1M on the current 199-region list.
+
+The list has roughly 77,000 non-overlapping 1.28 km chips. Anything beyond that is overlapping
+oversampling, not additional geographic coverage.
+
 ## 1. Setup
 
 Use Python 3.12 if available.
@@ -143,18 +150,24 @@ data/raw/osm_sentinel/_cache/osm/
 
 Expect a large cache across many countries. Run in batches and keep the cache.
 
-### 1M note
+### Target run: 77,000 chips
 
-The 199-region list has roughly **77,000 non-overlapping 1.28 km chips**. A 1M run is technically
-possible with overlapping random crops, but the extra rows do not add true geographic diversity.
+Do **not** run 1M. Use the 77,000-chip budget:
 
-For 1M, either:
+```sh
+python experiments/osm_sentinel/build_dataset.py \
+  --chips-per-region 390 \
+  --max-chips 77000
+```
 
-1. add many more regions to `regions.csv`, or
-2. use a larger `--radius-km` so each region covers more land, or
-3. accept that the 1M set is heavily oversampled.
+At 199 regions × 390 chips/region this samples up to 77,610 locations, and `--max-chips 77000`
+stops at 77,000. The build is resumable, so you can run it in batches and rerun the same command to
+continue.
 
-Do not treat an oversampled 1M run as equivalent to 1M independent locations.
+If a region has too few OSM features, the actual count may be slightly below 77,000; report the
+actual `n` from `dataset_stats.json`.
+
+Do not treat a larger, overlapping run as equivalent to 77,000 independent locations.
 
 ## 6. Training
 
@@ -236,6 +249,8 @@ data/raw/osm_sentinel/
 - [ ] pyrosm and rasterio import
 - [ ] one-chip smoke run writes image + manifest + caption
 - [ ] 100-chip multi-region run has all three splits represented
+- [ ] full run stops at `--max-chips 77000`
+- [ ] `dataset_stats.json` reports the actual `n` and it is at most 77,000
 - [ ] captions are plain visible-feature sentences
 - [ ] training run produces `results_dinov2-small.json`
 - [ ] random-rotation control is present

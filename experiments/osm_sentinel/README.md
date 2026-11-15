@@ -140,34 +140,33 @@ extraction plus a tiny Procrustes SVD, so the GPU is not the binding constraint.
 224 px, bf16, batch 512, `inference_mode`: roughly **900–1,500 images/s**. The 8 GB and 16 GB 5060 Ti
 have the same compute; 16 GB just allows larger batches.
 
+**Run cap for this region list: 77,000 chips.** Do not run 1M.
+
 | Chips | DINOv2 ViT-S/14 (384-d) | JPEG + embeddings |
 |---:|---:|---:|
 | 10k | ~10–20 s | ~0.3 GB |
 | 50k | ~0.7–1.5 min | ~1.5 GB |
-| 100k | ~1.5–3 min | ~3 GB |
-| 500k | ~7–14 min | ~15 GB |
-| 1M | ~15–30 min | ~30 GB |
+| 77k | ~1.2–2.3 min | ~2.3 GB |
 
-The real cost is **Sentinel-2 COG acquisition and OSM PBF preparation**, not GPU time. A 1M-chip run
-needs roughly tens of GB of chips, a few GB of embeddings, and potentially several hours to a day of
-data prep. Procrustes itself is a 384×384 cross-covariance GEMM plus a small SVD: seconds even at
-1M rows, provided embeddings are float32 and not a full N×d SVD.
+The real cost is **Sentinel-2 COG acquisition and OSM PBF preparation**, not GPU time. A 77k-chip run
+needs a few GB of chips and embeddings, plus potentially hours of data prep. Procrustes itself is a
+384×384 cross-covariance GEMM plus a small SVD: seconds at 77k rows, provided embeddings are float32
+and not a full N×d SVD.
 
-Practical recommendation: prototype at 20k–50k chips, scale to 250k for a real result, and go to
-1M only if the OSM coverage/diversity actually improves held-out metrics. A 5060 Ti 8 GB is enough;
-16 GB is convenience/headroom.
+Practical recommendation: prototype at 20k–50k chips, then run the full 77k budget. Do not scale
+past 77k with the current region list; the extra rows are overlapping crops, not new locations.
+A 5060 Ti 8 GB is enough; 16 GB is convenience/headroom.
 
 ## Data scale and leakage
 
 - The default `regions.csv` has 199 regions across 93 countries and six continents. At 1.28 km per
-  chip that is roughly 77,000 **non-overlapping** chips. A 1M-chip run is technically possible by
-  drawing many random crops per region, but those crops overlap heavily and do not add geographic
-  diversity. For a real 1M run, expand `regions.csv` further or use a larger sampling radius per
-  region.
+  chip that is roughly 77,000 **non-overlapping** chips. That is the run budget.
+- Do not run 1M on this list. More than 77k is oversampling; add more regions or increase
+  `--radius-km` if a genuinely larger geographic set is needed.
 - Splits are by **region**, not random chip, so nearby tiles cannot leak between train and test.
 - `build_dataset.py` appends `manifest.csv` and `captions.jsonl` after each chip. On restart it skips
   completed tile IDs and repairs captions from the manifest.
-- `fit_procrustes` accumulates the cross-covariance in chunks, so 1M rows do not require full
+- `fit_procrustes` accumulates the cross-covariance in chunks, so 77k rows do not require full
   centered copies of both embedding matrices.
 - `train.py` refuses to run if a split is empty.
 - Changing `regions.csv` or adding chips invalidates cached embeddings only if tile IDs change; use
