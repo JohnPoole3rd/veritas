@@ -86,14 +86,18 @@ def load_region_gdf(pbf: Path, bbox: tuple[float, float, float, float]):
 
 def _tags_of(row) -> dict[str, Any]:
     raw = row.get("tags")
+    return _tags_from(raw, [row.get(key) for key in CUSTOM_FILTER])
+
+
+def _tags_from(raw, values) -> dict[str, Any]:
+    """Shared by `_tags_of` (one row) and the column-wise path in RegionFeatures."""
     if isinstance(raw, str):
         try:
             raw = json.loads(raw)
         except json.JSONDecodeError:
             raw = {}
     tags = dict(raw) if isinstance(raw, dict) else {}
-    for key in CUSTOM_FILTER:
-        value = row.get(key)
+    for key, value in zip(CUSTOM_FILTER, values):
         if isinstance(value, str) and value:
             tags[key] = value
     return tags
@@ -127,7 +131,16 @@ class RegionFeatures:
             self._is_building = self.gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).to_numpy()
             self._building_detail = self._is_building.copy()
         self._geoms = list(self.gdf.geometry)
-        self._tags = [_tags_of(row) for _, row in self.gdf.iterrows()]
+        # Column-wise equivalent of `[_tags_of(row) for _, row in gdf.iterrows()]`:
+        # iterrows built a Series per row and dominated region load (~25 s for 150k rows).
+        n = len(self.gdf)
+
+        def column(name):
+            return self.gdf[name].tolist() if name in self.gdf.columns else [None] * n
+
+        raw_tags = column("tags")
+        key_columns = [column(key) for key in CUSTOM_FILTER]
+        self._tags = [_tags_from(raw, values) for raw, values in zip(raw_tags, zip(*key_columns))]
 
     def for_bbox(self, bbox: tuple[float, float, float, float]):
         """Return `(feature_pairs, building_geometries)` intersecting a chip."""
