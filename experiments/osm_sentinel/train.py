@@ -187,7 +187,10 @@ def main() -> None:
     save_procrustes(ALIGN / f"osm_sentinel_{BACKBONE}.npz", params)
 
     labels = sorted({row["label"] for row in rows})
-    prompt_text = [f"A 10 m Sentinel-2 satellite image of {LABEL_PROMPTS.get(label, label)}." for label in labels]
+    prompt_text = []
+    for label in labels:
+        prompt = LABEL_PROMPTS.get(label, label)
+        prompt_text.append(f"{prompt[:1].upper()}{prompt[1:]}.")
     Y_classes = encode_texts(text_model, prompt_text)
 
     results = {

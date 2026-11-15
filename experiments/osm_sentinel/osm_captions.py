@@ -334,7 +334,7 @@ def _finish_caption(
     )
     extras.extend(infra_extras[: max(0, 3 - len(extras))])
     extras = list(dict.fromkeys(extras))[:3]
-    caption = f"A 10 m Sentinel-2 satellite image of {primary}"
+    caption = primary[:1].upper() + primary[1:]
     if extras:
         caption += " with " + ", ".join(extras)
     caption += "."

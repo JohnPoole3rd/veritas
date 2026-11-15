@@ -37,7 +37,7 @@ Kept:
 Excluded: names, brands, operators, addresses, phone/email/website, opening hours, religion,
 description/note, and any other non-visible metadata. The caption is a short sentence such as:
 
-> A 10 m Sentinel-2 satellite image of residential area with houses, major road, and park.
+> Residential area with houses, major road, and park.
 
 The full mapping is in `osm_captions.py`; it is covered by `tests/test_osm_captions.py`.
 

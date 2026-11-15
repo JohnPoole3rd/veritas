@@ -48,7 +48,7 @@ def test_caption_combines_land_use_roads_and_buildings():
     caption, label, counts, building_count = build_caption_from_features(features, buildings, bbox)
     assert label == "residential"
     assert building_count == 2
-    assert caption.startswith("A 10 m Sentinel-2 satellite image of residential area")
+    assert caption.startswith("Residential area")
     assert "major road" in caption
     assert "scattered buildings" in caption
     assert "residential area" in counts
@@ -65,7 +65,7 @@ def test_backend_neutral_caption_path():
     )
     assert label == "farmland"
     assert building_count == 1
-    assert "farmland" in caption
+    assert "farmland" in caption.lower()
     assert "farm track" in caption
     assert "scattered buildings" in counts
 
@@ -79,7 +79,7 @@ def test_tiny_water_does_not_outrank_the_surrounding_land_use():
         features, [], (0.0, 0.0, 0.02, 0.02)
     )
     assert label == "residential"
-    assert caption.startswith("A 10 m Sentinel-2 satellite image of residential area")
+    assert caption.startswith("Residential area")
     assert "water" in counts
 
 
