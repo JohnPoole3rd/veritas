@@ -472,6 +472,43 @@ On Apple Silicon:
 - avoid fp16 for these ViT attention paths,
 - if MPS DataLoader workers cause trouble, set `--num-workers 0`.
 
+### 6a. NVIDIA RTX 5060 Ti (CUDA, Linux)
+
+The 5060 Ti is Blackwell (**sm_120**). It needs a torch wheel built against **CUDA 12.8 or newer**
+(e.g. `pip install torch --index-url https://download.pytorch.org/whl/cu128`). Older cu121/cu124
+wheels fail with "no kernel image is available for execution on the device". Check:
+
+```sh
+python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0), torch.cuda.get_arch_list())"
+# expect CUDA >= 12.8 and 'sm_120' in the arch list
+```
+
+Recommended command:
+
+```sh
+python experiments/osm_sentinel/train.py \
+  --data data/raw/osm_sentinel_1m_640 \
+  --tag full_1m_640_cuda \
+  --device cuda --dtype fp16 --batch-size 512 --num-workers 8 \
+  --eval-eurosat
+```
+
+What the CUDA path does (the defaults when `--device cuda` is set):
+
+- `--batch-size` defaults to 512, `--num-workers` to min(8, CPUs), and `--prefetch-factor` to 4;
+- `--preprocess auto` uses `gpu` on CUDA. Workers only decode the 64 px JPEG to uint8, and the
+  resize to 256, the 224 crop and the normalization run on the GPU. This matches PIL **bit-exactly**:
+  it uses separable passes with uint8 rounding, like PIL. Use `--preprocess cpu` to force the old PIL path;
+- pinned memory and `non_blocking` copies, with embeddings copied back every 16k rows instead of every batch;
+- cuDNN benchmark, TF32, and `channels_last` input;
+- `--compile` turns on `torch.compile`. It is off by default, because Blackwell with a new torch can be flaky.
+
+**dtype:** use `fp16` (autocast), not `bf16`. Measured against fp32 on 256 chips, fp16 autocast
+gives a minimum cos-sim of 0.99997. bf16 autocast gives a minimum of 0.9977, which is below the
+0.999 bar. `--dtype fp32` (TF32) is also fine if time allows. Embedding fails loudly on any NaN/inf.
+Embedding caches are keyed by tag and **not** by dtype or device, so use a new `--tag` (or `--force`)
+when you switch dtype.
+
 Optional slower evaluation on EuroSAT:
 
 ```sh

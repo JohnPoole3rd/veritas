@@ -19,7 +19,9 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -55,6 +57,38 @@ def image_transform(input_size: int = 224):
     from src.data import get_transforms
 
     return get_transforms(input_size, train=False)
+
+
+def use_device_preprocess(args) -> bool:
+    """`--preprocess auto` resizes on the accelerator for CUDA/XPU only; MPS/CPU keep the PIL path."""
+    mode = getattr(args, "preprocess", "cpu")
+    if mode == "auto":
+        return args.device_resolved.split(":", 1)[0] in ("cuda", "xpu")
+    return mode == "gpu"
+
+
+def extract(model, paths: list[Path], args) -> np.ndarray:
+    """Embed images with the configured preprocessing path (PIL on CPU, or uint8 + on-device resize)."""
+    from src.encoders import GPUEvalTransform, UInt8ImageList, extract_image_embeddings
+
+    if use_device_preprocess(args):
+        dataset = UInt8ImageList(paths)
+        device_transform = GPUEvalTransform(
+            args.input_size, channels_last=args.device_resolved.startswith("cuda")
+        )
+    else:
+        dataset, device_transform = PILList(paths, image_transform(args.input_size)), None
+    return extract_image_embeddings(
+        model,
+        dataset,
+        batch_size=args.batch_size,
+        device=args.device_resolved,
+        num_workers=args.num_workers,
+        dtype=args.dtype,
+        prefetch_factor=getattr(args, "prefetch_factor", 2),
+        device_transform=device_transform,
+        progress_every=max(1, 50_000 // args.batch_size),
+    )
 
 
 # A (a/osm-1m-fixes): all 50 Upper Arlington test tiles lie inside the us_columbus *train* region,
@@ -116,24 +150,17 @@ def _cache_ok(path: Path, meta_path: Path, rows: list[dict], backbone: str, args
 
 
 def embed(model, rows: list[dict], backbone: str, split: str, args) -> np.ndarray:
-    from src.encoders import extract_image_embeddings
-
     path = CACHE / f"{backbone}_{args.tag}_{split}.npy"
     meta_path = CACHE / f"{backbone}_{args.tag}_{split}.json"
     if not args.force and _cache_ok(path, meta_path, rows, backbone, args):
         print(f"cache {path.relative_to(ROOT)} ({len(rows)} rows)", flush=True)
         return np.load(path)
-    transform = image_transform(args.input_size)
-    dataset = PILList([row["path"] for row in rows], transform)
     print(f"embedding {split}: {len(rows)} images", flush=True)
-    embeddings = extract_image_embeddings(
-        model,
-        dataset,
-        batch_size=args.batch_size,
-        device=args.device_resolved,
-        num_workers=args.num_workers,
-        dtype=args.dtype,
-    )
+    start = time.perf_counter()
+    embeddings = extract(model, [row["path"] for row in rows], args)
+    elapsed = time.perf_counter() - start
+    print(f"embedded {split}: {len(rows)} images in {elapsed:.1f}s ({len(rows) / max(elapsed, 1e-9):.0f} img/s)",
+          flush=True)
     CACHE.mkdir(parents=True, exist_ok=True)
     np.save(path, embeddings)
     meta_path.write_text(json.dumps({
@@ -195,8 +222,13 @@ def main() -> None:
     parser.add_argument("--tag", default="default", help="Namespace for cached embeddings and results")
     parser.add_argument("--device", default=None, help="Override autodetection (cuda/mps/xpu/cpu)")
     parser.add_argument("--dtype", default="fp32", choices=["fp32", "bf16", "fp16", "auto"])
-    parser.add_argument("--batch-size", type=int, default=32)
-    parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--batch-size", type=int, default=None, help="Default: 512 on CUDA, else 32")
+    parser.add_argument("--num-workers", type=int, default=None, help="Default: min(8, CPUs) on CUDA, else 4")
+    parser.add_argument("--prefetch-factor", type=int, default=None, help="Batches per worker; default 4 on CUDA, else 2")
+    parser.add_argument("--preprocess", default="auto", choices=["auto", "cpu", "gpu"],
+                        help="Resize/normalize with PIL in workers (cpu) or on the device (gpu); "
+                             "auto = gpu on CUDA/XPU, cpu on MPS/CPU")
+    parser.add_argument("--compile", action="store_true", help="torch.compile the image model (opt-in)")
     parser.add_argument("--force", action="store_true", help="Recompute cached embeddings")
     parser.add_argument("--eval-eurosat", action="store_true", help="Also score EuroSAT test (slower)")
     parser.add_argument("--exclude-fit-region", action="append", default=None,
@@ -211,13 +243,21 @@ def main() -> None:
     args.input_size = int(config["image"]["input_size"])
     args.device_resolved = get_device(args.device)
     args.dtype_effective = str(resolve_dtype(args.device_resolved, args.dtype)).replace("torch.", "")
+    on_cuda = args.device_resolved.startswith("cuda")
+    if args.batch_size is None:
+        args.batch_size = 512 if on_cuda else 32
+    if args.num_workers is None:
+        args.num_workers = min(8, os.cpu_count() or 4) if on_cuda else 4
+    if args.prefetch_factor is None:
+        args.prefetch_factor = 4 if on_cuda else 2
     print(
         f"backbone={BACKBONE} device={device_summary(args.device_resolved)} "
-        f"dtype={args.dtype}/{args.dtype_effective}",
+        f"dtype={args.dtype}/{args.dtype_effective} batch={args.batch_size} workers={args.num_workers} "
+        f"preprocess={'device' if use_device_preprocess(args) else 'pil'} compile={args.compile}",
         flush=True,
     )
     model_label = config["image"]["model_name"]
-    model = load_dinov2(model_label, device=args.device_resolved)
+    model = load_dinov2(model_label, device=args.device_resolved, compile=args.compile)
 
     exclude = args.exclude_fit_region if args.exclude_fit_region is not None else list(DEFAULT_EXCLUDE_FIT)
     rows = drop_fit_regions(load_rows(Path(args.data)), exclude)
@@ -262,6 +302,7 @@ def main() -> None:
         "device": device_summary(args.device_resolved),
         "dtype": args.dtype,
         "dtype_effective": args.dtype_effective,
+        "image_preprocess": "device" if use_device_preprocess(args) else "pil",
         "n_train": len(by_split["train"]),
         "n_val": len(by_split["val"]),
         "n_test": len(by_split["test"]),
@@ -304,20 +345,11 @@ def main() -> None:
     if local_manifest.exists() and euro_captions.exists():
         local_rows = list(csv.DictReader(local_manifest.open(newline="")))
         local_paths = [ROOT / row["path"] for row in local_rows]
-        from src.encoders import extract_image_embeddings
-
         local_cache = CACHE / f"{BACKBONE}_{args.tag}_upper_arlington.npy"
         if not args.force and local_cache.exists():
             local_emb = np.load(local_cache)
         else:
-            local_emb = extract_image_embeddings(
-                model,
-                PILList(local_paths, image_transform(args.input_size)),
-                batch_size=args.batch_size,
-                device=args.device_resolved,
-                num_workers=args.num_workers,
-                dtype=args.dtype,
-            )
+            local_emb = extract(model, local_paths, args)
             CACHE.mkdir(parents=True, exist_ok=True)
             np.save(local_cache, local_emb)
         euro_rows = [json.loads(line) for line in euro_captions.read_text().splitlines() if line.strip()]
@@ -346,20 +378,11 @@ def main() -> None:
         euro_root = ROOT / config["data"]["eurosat_root"]
         if split_path.exists():
             items = json.loads(split_path.read_text())["items"]
-            from src.encoders import extract_image_embeddings
-
             cache_path = CACHE / f"{BACKBONE}_{args.tag}_eurosat_test.npy"
             if not args.force and cache_path.exists():
                 euro_emb = np.load(cache_path)
             else:
-                euro_emb = extract_image_embeddings(
-                    model,
-                    PILList([euro_root / item["path"] for item in items], image_transform(args.input_size)),
-                    batch_size=args.batch_size,
-                    device=args.device_resolved,
-                    num_workers=args.num_workers,
-                    dtype=args.dtype,
-                )
+                euro_emb = extract(model, [euro_root / item["path"] for item in items], args)
                 CACHE.mkdir(parents=True, exist_ok=True)
                 np.save(cache_path, euro_emb)
             euro_rows = [json.loads(line) for line in euro_captions.read_text().splitlines() if line.strip()]
