@@ -1,6 +1,6 @@
 # OSM-Sentinel Runbook — Apple Silicon
 
-**Branch:** `d/exp-osm-sentinel`  
+**Branch:** `j/exp-osm-sentinel`  
 **Owner for this run:** A or D  
 **Backbone:** DINOv2-small, public and auto-downloaded  
 **Method:** frozen DINOv2 + frozen MiniLM + one Procrustes rotation fitted on OSM-captioned Sentinel-2 chips
@@ -20,7 +20,7 @@ Use Python 3.12 if available.
 
 ```sh
 git fetch origin
-git switch d/exp-osm-sentinel
+git switch j/exp-osm-sentinel
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
