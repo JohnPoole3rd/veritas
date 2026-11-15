@@ -31,7 +31,7 @@ for path in (ROOT, THIS):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from backbones import HF_MODELS, load_backbone  # noqa: E402
+from backbones import HF_MODELS, load_backbone, transform_stats  # noqa: E402
 from osm_captions import LABEL_PROMPTS  # noqa: E402
 
 CACHE = ROOT / "artifacts" / "embeddings" / "osm_sentinel"
@@ -50,6 +50,13 @@ class PILList:
         from PIL import Image
 
         return self.transform(Image.open(self.paths[index]).convert("RGB"))
+
+
+def image_transform(backbone: str):
+    from src.data import get_transforms
+
+    mean, std = transform_stats(backbone)
+    return get_transforms(224, train=False, mean=mean, std=std)
 
 
 def load_rows(data_dir: Path) -> list[dict]:
@@ -83,7 +90,6 @@ def _cache_ok(path: Path, meta_path: Path, rows: list[dict], backbone: str) -> b
 
 
 def embed(model, rows: list[dict], backbone: str, split: str, args) -> np.ndarray:
-    from src.data import get_transforms
     from src.encoders import extract_image_embeddings
 
     path = CACHE / f"{backbone}_{split}.npy"
@@ -91,7 +97,7 @@ def embed(model, rows: list[dict], backbone: str, split: str, args) -> np.ndarra
     if not args.force and _cache_ok(path, meta_path, rows, backbone):
         print(f"cache {path.relative_to(ROOT)} ({len(rows)} rows)", flush=True)
         return np.load(path)
-    transform = get_transforms(224, train=False)
+    transform = image_transform(backbone)
     dataset = PILList([row["path"] for row in rows], transform)
     print(f"embedding {split}: {len(rows)} images", flush=True)
     embeddings = extract_image_embeddings(
@@ -229,7 +235,6 @@ def main() -> None:
     if local_manifest.exists() and euro_captions.exists():
         local_rows = list(csv.DictReader(local_manifest.open(newline="")))
         local_paths = [ROOT / row["path"] for row in local_rows]
-        from src.data import get_transforms
         from src.encoders import extract_image_embeddings
 
         local_cache = CACHE / f"{args.backbone}_upper_arlington.npy"
@@ -238,7 +243,7 @@ def main() -> None:
         else:
             local_emb = extract_image_embeddings(
                 model,
-                PILList(local_paths, get_transforms(224, train=False)),
+                PILList(local_paths, image_transform(args.backbone)),
                 batch_size=args.batch_size,
                 device=args.device_resolved,
                 num_workers=args.num_workers,
@@ -264,7 +269,6 @@ def main() -> None:
         euro_root = ROOT / config["data"]["eurosat_root"]
         if split_path.exists():
             items = json.loads(split_path.read_text())["items"]
-            from src.data import get_transforms
             from src.encoders import extract_image_embeddings
 
             cache_path = CACHE / f"{args.backbone}_eurosat_test.npy"
@@ -273,7 +277,7 @@ def main() -> None:
             else:
                 euro_emb = extract_image_embeddings(
                     model,
-                    PILList([euro_root / item["path"] for item in items], get_transforms(224, train=False)),
+                    PILList([euro_root / item["path"] for item in items], image_transform(args.backbone)),
                     batch_size=args.batch_size,
                     device=args.device_resolved,
                     num_workers=args.num_workers,

@@ -21,6 +21,17 @@ HF_MODELS = {
     "dinov3-sat-large": "facebook/dinov3-vitl16-pretrain-sat493m",
 }
 
+# Official SAT-493M normalization. The LVD-1689M checkpoints use the project's
+# existing ImageNet statistics.
+SAT_MEAN = (0.430, 0.411, 0.296)
+SAT_STD = (0.213, 0.156, 0.143)
+
+
+def transform_stats(name: str) -> tuple[tuple[float, ...] | None, tuple[float, ...] | None]:
+    if name == "dinov3-sat-large":
+        return SAT_MEAN, SAT_STD
+    return None, None
+
 
 def _local_paths() -> tuple[Path, Path] | None:
     repo, weights = os.environ.get("DINOV3_REPO"), os.environ.get("DINOV3_WEIGHTS")
@@ -85,10 +96,34 @@ def load_dinov3_small_local(device: str = "cpu"):
     return _Wrapper(vit)
 
 
+def load_dinov3_sat_local(device: str = "cpu"):
+    """Load the official SAT-493M ViT-L checkpoint from Meta's repo."""
+    repo = os.environ.get("DINOV3_REPO")
+    weights = os.environ.get("DINOV3_SAT_WEIGHTS")
+    if not repo or not weights:
+        return None
+    repo, weights = Path(repo).expanduser(), Path(weights).expanduser()
+    if not (repo / "dinov3").exists() or not weights.exists():
+        raise FileNotFoundError(f"DINOv3 SAT paths not found: {repo}, {weights}")
+    if str(repo) not in sys.path:
+        sys.path.insert(0, str(repo))
+    from dinov3.hub.backbones import dinov3_vitl16
+
+    vit = dinov3_vitl16(weights=str(weights), check_hash=True)
+    vit.eval().to(device)
+    for parameter in vit.parameters():
+        parameter.requires_grad = False
+    return _Wrapper(vit)
+
+
 def load_backbone(name: str, device: str = "cpu"):
     """Return `(model, model_label)` for a frozen image encoder."""
     if name == "dinov3-small" and _local_paths() is not None:
         return load_dinov3_small_local(device), "dinov3_vits16_pretrain_lvd1689m (local Meta checkpoint)"
+    if name == "dinov3-sat-large":
+        local = load_dinov3_sat_local(device)
+        if local is not None:
+            return local, "dinov3_vitl16_pretrain_sat493m (local Meta checkpoint)"
 
     from src.encoders import load_dinov2
 

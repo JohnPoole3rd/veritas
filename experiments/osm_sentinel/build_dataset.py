@@ -3,7 +3,7 @@
 
 For each region in `regions.csv`:
   1. find a low-cloud Sentinel-2 L2A scene with STAC (Element84 Earth Search);
-  2. fetch visible OSM features and building centres once for the region;
+  2. load a cropped local OSM PBF with pyrosm (one download per region);
   3. sample chips, read them from the scene's COG, and caption each chip from OSM.
 
 The output is intentionally plain:
@@ -17,7 +17,7 @@ Example smoke run:
       --region us_columbus --chips-per-region 1 --max-chips 1
 
 Scale up with more regions, `--chips-per-region`, or a longer region list.
-Network data is cached under `<out-dir>/_cache/`.
+Network data is cached under `<out-dir>/_cache/`; reruns skip existing chips.
 """
 
 from __future__ import annotations
@@ -28,55 +28,20 @@ import json
 import math
 import random
 import sys
-import time
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 THIS = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-if str(THIS) not in sys.path:
-    sys.path.insert(0, str(THIS))
+for path in (ROOT, THIS):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
-from osm_captions import build_caption, build_caption_from_features  # noqa: E402
+from osm_captions import build_caption_from_features  # noqa: E402
+from osm_source import load_region_features  # noqa: E402
 
 STAC_URL = "https://earth-search.aws.element84.com/v1"
-OVERPASS_URLS = [
-    "https://overpass.osm.ch/api/interpreter",
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-]
-USER_AGENT = "platonic-earth-osm-sentinel/0.1"
-
-FEATURE_QUERY = """
-[out:json][timeout:{timeout}];
-(
-  way["landuse"]({bbox});
-  relation["landuse"]({bbox});
-  way["natural"]({bbox});
-  relation["natural"]({bbox});
-  way["leisure"]({bbox});
-  relation["leisure"]({bbox});
-  way["highway"]({bbox});
-  way["waterway"]({bbox});
-  way["railway"]({bbox});
-  way["man_made"]({bbox});
-  way["amenity"~"^(parking|school|university|college|hospital|place_of_worship|marketplace|bus_station|fuel)$"]({bbox});
-  way["aeroway"]({bbox});
-);
-out geom tags;
-"""
-
-BUILDING_QUERY = """
-[out:json][timeout:{timeout}];
-(
-  way["building"]({bbox});
-  relation["building"]({bbox});
-);
-out center tags;
-"""
 
 
 def bbox_from_center(lat: float, lon: float, radius_km: float) -> tuple[float, float, float, float]:
@@ -84,11 +49,6 @@ def bbox_from_center(lat: float, lon: float, radius_km: float) -> tuple[float, f
     dlat = radius_km / 111.32
     dlon = radius_km / (111.32 * max(math.cos(math.radians(lat)), 1e-6))
     return lon - dlon, lat - dlat, lon + dlon, lat + dlat
-
-
-def overpass_bbox(bbox: tuple[float, float, float, float]) -> str:
-    west, south, east, north = bbox
-    return f"{south},{west},{north},{east}"
 
 
 def find_scene(bbox: tuple[float, float, float, float], start: str, end: str, max_cloud: float):
@@ -144,55 +104,6 @@ def read_chip(item, lat: float, lon: float, chip_m: float, chip_px: int):
     return image
 
 
-def _cached_json(path: Path, query: str, sleep: float) -> list[dict[str, Any]]:
-    if path.exists():
-        return json.loads(path.read_text())["elements"]
-    path.parent.mkdir(parents=True, exist_ok=True)
-    last: Exception | None = None
-    for url in OVERPASS_URLS:
-        try:
-            import requests
-
-            response = requests.post(
-                url,
-                data={"data": query},
-                headers={"User-Agent": USER_AGENT},
-                timeout=45,
-            )
-            response.raise_for_status()
-            payload = response.json()
-            if "elements" not in payload:
-                raise RuntimeError(f"Overpass response has no elements: {payload.get('remark')}")
-            path.write_text(json.dumps(payload))
-            time.sleep(sleep)
-            return payload["elements"]
-        except Exception as exc:  # try the next mirror
-            last = exc
-    raise RuntimeError(f"Overpass failed on all mirrors: {last}")
-
-
-def fetch_osm_chip(
-    tile_id: str,
-    bbox: tuple[float, float, float, float],
-    cache_dir: Path,
-    sleep: float,
-):
-    """Fetch one chip's visible features and building centres."""
-    b = overpass_bbox(bbox)
-    osm_cache = cache_dir / "osm"
-    features = _cached_json(
-        osm_cache / f"{tile_id}_features.json",
-        FEATURE_QUERY.format(bbox=b, timeout=30),
-        sleep,
-    )
-    buildings = _cached_json(
-        osm_cache / f"{tile_id}_buildings.json",
-        BUILDING_QUERY.format(bbox=b, timeout=30),
-        sleep,
-    )
-    return features, buildings
-
-
 def read_regions(path: Path) -> list[dict[str, Any]]:
     with path.open(newline="") as handle:
         return list(csv.DictReader(handle))
@@ -218,13 +129,6 @@ def main() -> None:
     parser.add_argument("--date-end", default="2025-12-31")
     parser.add_argument("--max-cloud", type=float, default=20.0)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--sleep", type=float, default=1.0, help="Seconds between Overpass requests")
-    parser.add_argument(
-        "--osm-source",
-        choices=["auto", "pyrosm", "overpass"],
-        default="auto",
-        help="auto uses local pyrosm PBFs when installed, otherwise Overpass",
-    )
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
@@ -264,18 +168,8 @@ def main() -> None:
             print(f"[{region_id}] no scene below {args.max_cloud}% cloud; skipped", flush=True)
             continue
         print(f"[{region_id}] scene {item.id} cloud={item.properties.get('eo:cloud_cover')}", flush=True)
-
-        region_features = None
-        if args.osm_source != "overpass":
-            try:
-                from osm_source import load_region_features
-
-                region_features = load_region_features(region_id, bbox, cache_dir)
-                print(f"[{region_id}] pyrosm region loaded", flush=True)
-            except Exception as exc:
-                if args.osm_source == "pyrosm":
-                    raise
-                print(f"[{region_id}] pyrosm unavailable ({exc}); falling back to Overpass", flush=True)
+        region_features = load_region_features(region_id, bbox, cache_dir)
+        print(f"[{region_id}] pyrosm region loaded", flush=True)
 
         added = 0
         attempts = 0
@@ -294,18 +188,10 @@ def main() -> None:
             half_lat = args.chip_m / 2 / 111_320
             half_lon = args.chip_m / 2 / (111_320 * max(math.cos(math.radians(chip_lat)), 1e-6))
             chip_bbox = (chip_lon - half_lon, chip_lat - half_lat, chip_lon + half_lon, chip_lat + half_lat)
-            if region_features is not None:
-                features, buildings = region_features.for_bbox(chip_bbox)
-                caption, label, counts, building_count = build_caption_from_features(
-                    features, buildings, chip_bbox
-                )
-            else:
-                try:
-                    features, buildings = fetch_osm_chip(tid, chip_bbox, cache_dir, args.sleep)
-                except Exception as exc:
-                    print(f"[{region_id}] OSM skipped for {tid}: {exc}", flush=True)
-                    continue
-                caption, label, counts, building_count = build_caption(features, buildings, chip_bbox)
+            features, buildings = region_features.for_bbox(chip_bbox)
+            caption, label, counts, building_count = build_caption_from_features(
+                features, buildings, chip_bbox
+            )
             if caption is None or len(counts) < 1:
                 continue
             image_rel = f"images/{tid}.jpg"

@@ -238,59 +238,6 @@ def visible_phrases(tags: dict[str, Any]) -> list[str]:
     return phrases
 
 
-def _coords(geometry: Iterable[dict[str, float]]) -> list[tuple[float, float]]:
-    return [(float(p["lon"]), float(p["lat"])) for p in geometry]
-
-
-def overpass_geometry(element: dict[str, Any], tags: dict[str, Any]):
-    """Build a shapely geometry for an Overpass way/relation, or None."""
-    from shapely.geometry import LineString, Polygon
-    from shapely.ops import linemerge, polygonize, unary_union
-
-    if element.get("type") == "way" and "geometry" in element:
-        coords = _coords(element["geometry"])
-        if len(coords) < 2:
-            return None
-        closed = len(coords) >= 4 and coords[0] == coords[-1]
-        area_tag = any(tags.get(k) for k in ("landuse", "natural", "leisure", "building", "amenity"))
-        if closed and area_tag:
-            poly = Polygon(coords)
-            return poly if poly.is_valid else poly.buffer(0)
-        return LineString(coords)
-
-    if element.get("type") == "relation":
-        rings, lines = [], []
-        for member in element.get("members", []):
-            if member.get("role") != "outer" or "geometry" not in member:
-                continue
-            coords = _coords(member["geometry"])
-            if len(coords) >= 4 and coords[0] == coords[-1]:
-                rings.append(Polygon(coords))
-            elif len(coords) >= 2:
-                lines.append(LineString(coords))
-        if rings:
-            geom = unary_union(rings)
-            return geom if geom.is_valid else geom.buffer(0)
-        if lines:
-            merged = linemerge(lines) if len(lines) > 1 else lines[0]
-            polys = list(polygonize(merged))
-            if polys:
-                return unary_union(polys)
-            return merged
-    return None
-
-
-def building_point(element: dict[str, Any]):
-    """Return a representative point for a building way/relation."""
-    from shapely.geometry import Point
-
-    if "center" in element:
-        return Point(float(element["center"]["lon"]), float(element["center"]["lat"]))
-    tags = element.get("tags", {})
-    geom = overpass_geometry(element, tags)
-    return geom.representative_point() if geom is not None and not geom.is_empty else None
-
-
 def _weight(geom, chip) -> float:
     inter = geom.intersection(chip)
     if inter.is_empty:
@@ -343,11 +290,7 @@ def build_caption_from_features(
     building_geometries: Iterable[Any],
     bbox: tuple[float, float, float, float],
 ) -> tuple[str | None, str | None, dict[str, int], int]:
-    """Build a caption from `(tags, shapely geometry)` pairs and building geometries.
-
-    This is the backend-neutral path used by local OSM PBFs. The Overpass
-    adapter below reuses it so both data sources produce identical captions.
-    """
+    """Build a caption from `(tags, shapely geometry)` pairs and building geometries."""
     from shapely.geometry import box
 
     chip = box(*bbox)
@@ -371,30 +314,3 @@ def build_caption_from_features(
         if chip.contains(geom.centroid):
             building_count += 1
     return _finish_caption(counts, weights, building_count)
-
-
-def build_caption(
-    features: Iterable[dict[str, Any]],
-    buildings: Iterable[dict[str, Any]],
-    bbox: tuple[float, float, float, float],
-) -> tuple[str | None, str | None, dict[str, int], int]:
-    """Overpass adapter for `build_caption_from_features`."""
-    feature_pairs = []
-    for element in features:
-        tags = element.get("tags", {})
-        try:
-            geom = overpass_geometry(element, tags)
-        except Exception:
-            continue
-        if geom is not None:
-            feature_pairs.append((tags, geom))
-
-    building_geometries = []
-    for element in buildings:
-        try:
-            point = building_point(element)
-        except Exception:
-            continue
-        if point is not None:
-            building_geometries.append(point)
-    return build_caption_from_features(feature_pairs, building_geometries, bbox)

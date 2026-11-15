@@ -1,14 +1,8 @@
 """Local OSM source for the OSM-Sentinel experiment.
 
-The public Overpass API is fine for a few chips, but not for thousands. This
-module uses `pyrosm` with a cropped Geofabrik/BBBike/Movisda PBF per region:
-one download, then in-memory spatial lookups for every chip.
-
-Install the optional dependency with:
-    pip install pyrosm
-
-The Overpass path in `build_dataset.py` remains available as a fallback when
-pyrosm is not installed.
+The public Overpass API is not used. This module reads a cropped local OSM PBF
+with `pyrosm`: one download per region, then in-memory spatial lookups for every
+chip. `pyrosm` is a required dependency.
 """
 
 from __future__ import annotations

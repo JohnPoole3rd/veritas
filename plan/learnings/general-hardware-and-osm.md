@@ -19,12 +19,19 @@
 
 - Per-chip public Overpass requests do not scale and get 502s under load.
 - The robust path is one local OSM PBF per region via `pyrosm.get_data_by_bbox`, then an in-memory
-  GeoPandas spatial index for each chip. It preserves raw OSM tags, avoids rate limits, and is
-  reproducible from a snapshot.
-- Overpass remains a one-chip smoke-test fallback (`--osm-source overpass`).
+  GeoPandas spatial index for each chip. It preserves raw OSM tags and avoids API rate limits.
+- `pyrosm` is a required dependency; there is no Overpass runtime path.
 - Only visible tags are captioned. Names, brands, addresses, opening hours, contact details, and
   religion are excluded.
-- `pyrosm` is optional; `build_dataset.py --osm-source auto` falls back when it is not installed.
+
+## DINOv3 satellite weights
+
+- SAT-493M is the ViT-L/16 model: `dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth`, 1024-d CLS.
+- Official URL pattern: `https://dl.fbaipublicfiles.com/dinov3/dinov3_vitl16/dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth`.
+  The unprefixed URL is **403**; access requires Meta's download form or the gated HF repo.
+- HF: `facebook/dinov3-vitl16-pretrain-sat493m` (manual gate; `model.safetensors` 1.21 GB).
+- The SAT transform uses `mean=(0.430,0.411,0.296)`, `std=(0.213,0.156,0.143)`; `train.py` applies
+  it automatically. The ViT-S LVD checkpoint keeps the project's ImageNet transform.
 
 ## Sources
 

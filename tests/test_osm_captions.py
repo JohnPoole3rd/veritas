@@ -1,14 +1,11 @@
+from shapely.geometry import LineString, Point, box
+
 from experiments.osm_sentinel.osm_captions import (
+    LABEL_BY_PHRASE,
     LABEL_PROMPTS,
-    build_caption,
     build_caption_from_features,
-    overpass_geometry,
     visible_phrases,
 )
-
-
-def _way(tags, coords):
-    return {"type": "way", "tags": tags, "geometry": [{"lon": x, "lat": y} for x, y in coords]}
 
 
 def test_only_visible_tags_are_used():
@@ -30,8 +27,10 @@ def test_only_visible_tags_are_used():
 
 
 def test_non_visible_tags_do_not_create_a_caption():
-    caption, label, counts, buildings = build_caption(
-        [{"tags": {"name": "A place", "opening_hours": "24/7"}}], [], (-1, -1, 1, 1)
+    caption, label, counts, buildings = build_caption_from_features(
+        [({"name": "A place", "opening_hours": "24/7"}, box(0, 0, 1, 1))],
+        [],
+        (-1, -1, 1, 1),
     )
     assert caption is None
     assert label is None
@@ -41,16 +40,12 @@ def test_non_visible_tags_do_not_create_a_caption():
 
 def test_caption_combines_land_use_roads_and_buildings():
     bbox = (0.0, 0.0, 0.02, 0.02)
-    residential = _way(
-        {"landuse": "residential"},
-        [(0.001, 0.001), (0.019, 0.001), (0.019, 0.019), (0.001, 0.019), (0.001, 0.001)],
-    )
-    road = _way({"highway": "primary"}, [(0.0, 0.010), (0.02, 0.010)])
-    buildings = [
-        {"type": "way", "tags": {"building": "house"}, "center": {"lon": 0.005, "lat": 0.005}},
-        {"type": "way", "tags": {"building": "yes"}, "center": {"lon": 0.006, "lat": 0.006}},
+    features = [
+        ({"landuse": "residential"}, box(0.001, 0.001, 0.019, 0.019)),
+        ({"highway": "primary"}, LineString([(0.0, 0.010), (0.02, 0.010)])),
     ]
-    caption, label, counts, building_count = build_caption([residential, road], buildings, bbox)
+    buildings = [Point(0.005, 0.005), Point(0.006, 0.006)]
+    caption, label, counts, building_count = build_caption_from_features(features, buildings, bbox)
     assert label == "residential"
     assert building_count == 2
     assert caption.startswith("A 10 m Sentinel-2 satellite image of residential area")
@@ -59,23 +54,10 @@ def test_caption_combines_land_use_roads_and_buildings():
     assert "residential area" in counts
 
 
-def test_closed_way_geometry_is_a_polygon():
-    geom = overpass_geometry(
-        _way(
-            {"landuse": "forest"},
-            [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0)],
-        ),
-        {"landuse": "forest"},
-    )
-    assert geom.geom_type == "Polygon"
-
-
 def test_backend_neutral_caption_path():
-    from shapely.geometry import Point, box
-
     features = [
         ({"landuse": "farmland"}, box(0.001, 0.001, 0.019, 0.019)),
-        ({"highway": "track"}, box(0.0, 0.010, 0.020, 0.0101)),
+        ({"highway": "track"}, LineString([(0.0, 0.010), (0.020, 0.010)])),
     ]
     buildings = [Point(0.005, 0.005)]
     caption, label, counts, building_count = build_caption_from_features(
@@ -89,6 +71,4 @@ def test_backend_neutral_caption_path():
 
 
 def test_every_mapped_label_has_a_prompt():
-    from experiments.osm_sentinel.osm_captions import LABEL_BY_PHRASE
-
     assert set(LABEL_BY_PHRASE.values()) <= set(LABEL_PROMPTS)
