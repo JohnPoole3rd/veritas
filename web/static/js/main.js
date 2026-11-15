@@ -577,9 +577,57 @@ function initLimits(meta) {
   }
 }
 
+// --------------------------------------------------------------- glossary tooltips (hover, focus or tap any .term)
+export const GLOSSARY = {
+  baseline: ["Baseline", "The simplest possible guess, used as a bar to beat. If our model can't beat it, the model isn't adding anything."],
+  majority: ["Majority-class baseline", "Always guessing the most common answer. It is right sometimes by luck, so a real model must do better."],
+  unseen: ["Unseen test data", "Photos kept aside and never used while building the model. Testing on them shows how it does on new photos, not ones it memorised."],
+  dinov2: ["DINOv2", "A picture AI from Meta, trained on 142 million images. It turns any photo into a list of 384 numbers that describe what is in it. We never retrained it."],
+  minilm: ["MiniLM", "A small word AI. It turns any sentence into 384 numbers that capture its meaning. We never retrained it."],
+  embedding: ["Embedding", "The list of numbers an AI uses to describe a photo or sentence. Think of it as a point on a map: similar things land close together."],
+  procrustes: ["Procrustes rotation", "A classic math trick that finds the one rotation which best lines up two sets of points. It can turn the map but never stretch it."],
+  cosine: ["Similarity score (cosine)", "How closely two points on the map point the same way. Higher = better match. It is not a percentage or a probability."],
+  resnet: ["ResNet-18", "A standard image AI trained directly on the labelled photos. It is the strong, normal way to do this task, shown for comparison."],
+  eurosat: ["EuroSAT", "A public dataset of 27,000 labelled Sentinel-2 satellite photos of Europe in 10 land types (forest, river, homes…)."],
+  sentinel: ["Sentinel-2", "Free European satellites that photograph all land every few days. Each pixel covers 10 × 10 m."],
+  landsat: ["Landsat", "NASA/USGS satellites with a heat camera. They measure how hot the ground surface is."],
+  ndvi: ["NDVI (greenness)", "A number from 0 to about 0.9 that measures how many healthy leaves are in a spot, using how plants reflect light. Higher = greener."],
+  lst: ["Land surface temperature", "How hot the ground, roofs and roads are, measured from space by Landsat. It is not the air temperature you feel."],
+  confusion: ["Confusion matrix", "A grid showing what the model answered for each true land type. The diagonal is right; anything off the diagonal is a mix-up."],
+  slope: ["°C per +0.1 greenness", "How much cooler a square gets, on average, when its greenness (NDVI) goes up by 0.1. A straight-line fit through the dots."],
+  r: ["Pearson r", "How tightly the dots follow a line, from −1 to 1. −0.6 means a clear pattern: greener goes with cooler."],
+  tercile: ["Least-green vs greenest third", "Split all squares into three groups by greenness, then compare the average temperature of the least-green group and the greenest group."],
+  priority: ["Plant first", "Squares in the hottest quarter of the area that also have the fewest plants. These are the best places to add trees."],
+  refuge: ["Cool refuges", "The greenest, coolest squares. Places to protect, and where people can cool down."],
+  model: ["Model estimate", "A guess by the AI. It can be wrong, so check it on the ground."],
+  measured: ["Measured", "Read directly from satellite sensors, not guessed by AI."],
+  top1: ["Right first try (top-1)", "The very first result was the correct land type."],
+};
+function initGlossary() {
+  const tip = document.createElement("div"); tip.className = "tip"; tip.setAttribute("role", "tooltip"); document.body.append(tip);
+  let cur = null;
+  const show = (el) => {
+    const g = GLOSSARY[el.dataset.term]; if (!g) return;
+    cur = el; tip.innerHTML = `<b>${esc(g[0])}</b>${esc(g[1])}`; tip.classList.add("on");
+    const r = el.getBoundingClientRect(), w = Math.min(290, innerWidth - 24);
+    tip.style.maxWidth = `${w}px`;
+    const left = clamp(r.left + r.width / 2 - w / 2, 12, innerWidth - w - 12);
+    tip.style.left = `${left}px`;
+    const h = tip.offsetHeight;
+    tip.style.top = `${r.top - h - 10 > 8 ? r.top - h - 10 : r.bottom + 10}px`;
+  };
+  const hide = () => { cur = null; tip.classList.remove("on"); };
+  document.addEventListener("mouseover", (e) => { const t = e.target.closest?.(".term"); if (t) show(t); else if (cur) hide(); });
+  document.addEventListener("focusin", (e) => { const t = e.target.closest?.(".term"); if (t) show(t); });
+  document.addEventListener("focusout", hide);
+  document.addEventListener("click", (e) => { const t = e.target.closest?.(".term"); if (t) { e.preventDefault(); cur === t ? hide() : show(t); } else hide(); });
+  addEventListener("scroll", () => cur && hide(), { passive: true });
+}
+export const term = (k, text) => `<span class="term" data-term="${k}" tabindex="0">${text}</span>`;
+
 // --------------------------------------------------------------- boot
 async function boot() {
-  initChrome(); initSteps(); initManifesto();
+  initChrome(); initSteps(); initManifesto(); initGlossary();
   const [meta, story] = await Promise.all([
     api("/api/meta").catch((e) => { toast(`API unavailable: ${e.message}`); return null; }),
     fetch("/static/data/story.json").then((r) => r.json()).catch(() => null),

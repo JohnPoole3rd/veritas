@@ -1,6 +1,6 @@
 // The Lab: an urban heat & canopy field notebook for any city (owner: D).
 // Talks only to the routes in web/API.md. Class labels are model estimates; NDVI and LST are measurements.
-import { $, $$, api, esc, fmt, pct, niceDate, toast, pollJob, drawScatter, heatColor, clamp } from "./main.js";
+import { $, $$, api, esc, fmt, pct, niceDate, toast, pollJob, drawScatter, heatColor, clamp, term } from "./main.js";
 
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
 const S = {
@@ -311,12 +311,12 @@ function renderHeat() {
   const lstNote = c.lst ? `${esc((c.lst.scene?.platform || "Landsat").replace("landsat-", "Landsat "))} · ${niceDate(c.lst.scene?.datetime)} · ${c.lst.days_from_s2 === 0 ? "same day as" : `${Math.abs(c.lst.days_from_s2)} d ${c.lst.days_from_s2 < 0 ? "before" : "after"}`} Sentinel-2` : "";
   pane.innerHTML = `
     ${c.lst_error ? `<div class="errbox" style="margin:0 0 12px">${esc(c.lst_error)} Greenness is still shown.</div>` : ""}
-    <div class="sec-title" style="margin-top:0">Key numbers <span class="tag measured">measured</span></div>
+    <p class="explain" style="margin:0 0 12px"><b>How to read this:</b> a negative first number means greener squares are cooler. On the map, pick “Plant first”: orange = hot with few trees.</p><div class="sec-title" style="margin-top:0">Key numbers <span class="tag measured">${term("measured", "measured")}</span></div>
     <div class="kpis">
-      ${kpi("Cooling per +0.1 NDVI", signed(reg?.slope_per_0p1_ndvi, 2), "°C", reg ? `OLS on ${reg.n} land squares · r = ${fmt(reg.r, 2)}` : "Needs at least 8 land squares with both layers", "cool")}
-      ${kpi("Least-green minus greenest third", signed(ter?.hot_minus_green_c, 1), "°C", ter ? `${fmt(ter.least_green_mean, 1)} vs ${fmt(ter.greenest_mean, 1)} °C · ${ter.n_each} squares each` : "—", "hot")}
-      ${kpi("Mean surface temp", fmt(st.lst_mean, 1), "°C", st.lst_min != null ? `range ${fmt(st.lst_min, 1)} – ${fmt(st.lst_max, 1)} °C` : "no thermal pass")}
-      ${kpi("Mean greenness", fmt(st.ndvi_mean, 2), "NDVI", `${st.n_land ?? "—"} land · ${st.n_water ?? 0} water squares`)}
+      ${kpi(term("slope", "Cooling per +0.1 NDVI"), signed(reg?.slope_per_0p1_ndvi, 2), "°C", reg ? `OLS on ${reg.n} land squares · r = ${fmt(reg.r, 2)}` : "Needs at least 8 land squares with both layers", "cool")}
+      ${kpi(term("tercile", "Least-green minus greenest third"), signed(ter?.hot_minus_green_c, 1), "°C", ter ? `${fmt(ter.least_green_mean, 1)} vs ${fmt(ter.greenest_mean, 1)} °C · ${ter.n_each} squares each` : "—", "hot")}
+      ${kpi(term("lst", "Mean surface temp"), fmt(st.lst_mean, 1), "°C", st.lst_min != null ? `range ${fmt(st.lst_min, 1)} – ${fmt(st.lst_max, 1)} °C` : "no thermal pass")}
+      ${kpi(term("ndvi", "Mean greenness"), fmt(st.ndvi_mean, 2), "NDVI", `${st.n_land ?? "—"} land · ${st.n_water ?? 0} water squares`)}
       ${st.built_minus_vegetated_c != null ? kpi("Built minus vegetated", signed(st.built_minus_vegetated_c, 1), "°C", "by the model's land cover (mixed)", "span2") : ""}
     </div>
     <div class="sec-title">Greenness vs temperature <span class="mono" style="letter-spacing:0;text-transform:none">click a dot</span></div>
@@ -324,10 +324,10 @@ function renderHeat() {
     <p class="explain">${lstNote}. Each dot is one 640 m land square; water squares are left out. Descriptive, not causal.</p>
     ${(st.by_group || []).length ? `<div class="sec-title">By surface type <span class="tag model">model groups</span></div>
       <div class="rows">${st.by_group.map((g) => `<div class="r"><i style="background:${{ Built: "#b4483a", Vegetated: "#3f8a45", Cropland: "#d39b35", Water: "#2c6d8c" }[g.group] || "#888"}"></i><span>${esc(g.group)} <span class="muted">· ${g.n}</span></span><span class="num">${fmt(g.ndvi_mean, 2)} NDVI</span><span class="num">${fmt(g.lst_mean, 1)} °C</span></div>`).join("")}</div>` : ""}
-    <div class="sec-title">Plant first · hot &amp; bare <span class="tag measured">ranked</span></div>
+    <div class="sec-title">${term("priority", "Plant first")} · hot &amp; bare <span class="tag measured">ranked</span></div>
     <div class="list">${(st.priority || []).map((p, k) => tileLi(p, k, "hot")).join("") || `<div class="muted" style="font-size:13px">Not enough squares to rank.</div>`}</div>
     <p class="explain">Squares in the hottest quarter, ranked by how hot and how un-green they are (z-score of temperature minus z-score of NDVI). Start field visits here.</p>
-    <div class="sec-title">Cool refuges · green &amp; cool</div>
+    <div class="sec-title">${term("refuge", "Cool refuges")} · green &amp; cool</div>
     <div class="list">${(st.refuges || []).map((p, k) => tileLi(p, k, "cool")).join("")}</div>`;
   $$(".li[data-i]", pane).forEach((el) => el.addEventListener("click", () => selectTile(+el.dataset.i, true)));
   const cv = $("#lab-scatter");
@@ -360,7 +360,7 @@ function renderCover() {
   const r = S.region, pane = $('[data-pane="cover"]');
   const comp = r.composition || [];
   pane.innerHTML = `
-    <div class="sec-title" style="margin-top:0">Land cover <span class="tag model">model estimate</span></div>
+    <div class="sec-title" style="margin-top:0">Land cover <span class="tag model">${term("model", "model estimate")}</span></div>
     <div class="stack">${comp.map((c) => `<span style="flex-grow:${c.share};background:${S.classes[c.cls]?.color}" title="${esc(S.classes[c.cls]?.label)} ${pct(c.share)}"></span>`).join("")}</div>
     <div class="rows">${comp.map((c) => `<div class="r"><i style="background:${S.classes[c.cls]?.color}"></i><span>${esc(S.classes[c.cls]?.label || c.cls)}</span><span class="num">${fmt(c.km2, 1)} km²</span><span class="num">${pct(c.share)}</span></div>`).join("")}</div>
     <div class="sec-title">IPCC land-use categories <span class="tag model">roll-up</span></div>
@@ -388,7 +388,7 @@ function showMatch(r, label) {
   S.match = r; S.matchLabel = label.replace(/[“”]/g, "");
   $('#layer-switch button[data-layer="match"]').disabled = false;
   refreshTiles(); setMode("match");
-  $("#ask-results").innerHTML = `<div class="sec-title">Best matches for ${esc(label)} <span class="tag model">cosine</span></div>
+  $("#ask-results").innerHTML = `<div class="sec-title">Best matches for ${esc(label)} <span class="tag model">${term("cosine", "similarity")}</span></div>
     <div class="list">${r.top.map((t, k) => { const tile = S.region.tiles[t.i]; return `<div class="li" data-i="${t.i}"><img src="/api/region/${S.region.id}/tile/${t.i}.png" alt=""><div><div class="t">#${k + 1} · ${esc(S.classes[tile.cls]?.label || tile.cls)}</div><div class="d">${tileClimate(t.i)}</div></div><span class="badge cool">${t.score.toFixed(3)}</span></div>`; }).join("")}</div>`;
   $$("#ask-results .li").forEach((el) => el.addEventListener("click", () => selectTile(+el.dataset.i, true)));
 }

@@ -22,9 +22,9 @@
     <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#2f6b35"/><path d="M16 6c-5 5-6 12 0 20 6-8 5-15 0-20z" fill="#d9ec7c"/><path d="M16 9v15" stroke="#2f6b35" stroke-width="1.2"/></svg>
     Platonic Earth
   </a>
-  <a class="link" href="#minds">How it works</a>
+  <a class="link" href="#judges">For judges</a>
+  <a class="link" href="#plato">The idea</a>
   <a class="link" href="#evidence">Evidence</a>
-  <a class="link" href="#heat">Heat &amp; canopy</a>
   <a class="link" href="#limits">Limits</a>
   <button class="icon-btn" id="theme-btn" aria-label="Switch light or dark theme">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -66,15 +66,65 @@
   <div class="topo"></div>
   <div class="wrap">
     <div class="kicker reveal">AI + Climate · Upper Arlington, Ohio</div>
-    <p class="big" id="manifesto">If a vision model and a language model learned the same world, <em>one rotation</em> should line them up. No training needed.</p>
+    <p class="big" id="manifesto">We made satellite photos searchable in plain English, and used them to show <em>where trees would cool a city most.</em></p>
+    <p class="hint reveal">Words with a dotted underline explain themselves: hover or tap them.</p>
     <div class="brief">
       <a class="bq reveal" href="#search"><span class="mono">01 · Who is it for?</span><b>Upper Arlington urban-forestry staff</b><span>deciding which neighbourhoods to inspect first for new trees.</span></a>
       <a class="bq reveal d1" href="#search"><span class="mono">02 · In → out</span><b>“river corridor” → top matching tiles</b><span>with land-cover label and similarity score. Or draw any area → heat map + planting list.</span></a>
-      <a class="bq reveal d2" href="#evidence"><span class="mono">03 · Beats a baseline?</span><b><span data-m="search_top1">96</span>% vs <span data-m="random_top1">15</span>% (random rotation)</b><span>on <span data-m="search_ni">4,050</span> unseen test tiles. Labelling: <span data-m="ours_acc">81%</span> vs <span data-m="maj_acc">11%</span> majority class.</span></a>
+      <a class="bq reveal d2" href="#evidence"><span class="mono">03 · Beats a <span class="term" data-term="baseline" tabindex="0">baseline</span>?</span><b><span data-m="search_top1">96</span>% vs <span data-m="random_top1">15</span>% (random rotation)</b><span>on <span data-m="search_ni">4,050</span> <span class="term" data-term="unseen" tabindex="0">unseen</span> test photos. Labelling: <span data-m="ours_acc">81%</span> vs <span data-m="maj_acc">11%</span> for the <span class="term" data-term="majority" tabindex="0">always-guess-the-same</span> baseline.</span></a>
       <a class="bq reveal d3" href="#limits"><span class="mono">04 · Where does it fail?</span><b>Rivers read as roads</b><span>at 10&nbsp;m a thin river looks like a highway. In Ohio it barely beats always answering “Residential”.</span></a>
     </div>
     <div class="added reveal"><span class="mono">What we added</span>
       <span><b>Own user</b> city forestry staff</span><span><b>Own data</b> 50 hand-labelled Ohio tiles + live Landsat heat</span><span><b>Own question</b> can one rotation join image and text models?</span>
+    </div>
+
+    <div class="judge reveal" id="judges">
+      <div class="judge-head">
+        <div><span class="mono">For judges · 1-minute check</span><h3 class="h3">Every judging criterion, with proof.</h3></div>
+        <p class="takeaway"><b>Main takeaway:</b> two AIs trained separately can be joined by one simple rotation, as the Platonic Representation Hypothesis predicts. That lets a city search satellite photos in words and find hot spots that need trees.</p>
+      </div>
+      <div class="checks">
+        <a href="#evidence" class="ck"><i>✓</i><div><b>Technical quality</b><span>Compared with 4 baselines (majority guess, random rotation, no rotation, ResNet-18). Tested only on photos the model never saw.</span></div><em>See results →</em></a>
+        <a href="#limits" class="ck"><i>✓</i><div><b>Honest about failure</b><span>Shows real mistakes (river read as highway) and explains why. Weak Ohio result reported.</span></div><em>See failures →</em></a>
+        <a href="#heat" class="ck"><i>✓</i><div><b>Impact: a real user and decision</b><span>Upper Arlington forestry staff decide where to plant trees first. The site ranks the hottest squares with fewest trees.</span></div><em>See heat map →</em></a>
+        <a href="#plato" class="ck"><i>✓</i><div><b>Creativity</b><span>Tests a 2024 MIT research idea (the Platonic Representation Hypothesis) on satellite photos, with no training. Adds a live heat lab for any city.</span></div><em>See the idea →</em></a>
+        <a href="#search" class="ck"><i>✓</i><div><b>Real input → real output</b><span>Type “river corridor” and get the matching Upper Arlington photos, live.</span></div><em>Try it →</em></a>
+        <a href="#lab" class="ck"><i>✓</i><div><b>Own data, user and question</b><span>50 Ohio photos we labelled by hand, city forestry staff, and our own research question.</span></div><em>Open the Lab →</em></a>
+        <a href="#evidence" class="ck"><i>✓</i><div><b>Per-class accuracy + confusion matrix</b><span>Required by the land-use project in the brief.</span></div><em>See matrix →</em></a>
+        <a href="#credits" class="ck"><i>✓</i><div><b>Credits and disclaimer</b><span>Every dataset, model, paper and AI coding tool is cited. “Prototype, not a land-use determination.”</span></div><em>See credits →</em></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ PLATO -->
+<section class="plato chapter" id="plato">
+  <div class="wrap">
+    <div class="chapter-head">
+      <div class="chapter-no reveal">The research behind it</div>
+      <h2 class="h2 reveal">Plato's cave, <em>for AI.</em></h2>
+      <p class="plain reveal"><b>In plain words:</b> a photo of a forest and the word “forest” describe the same thing. So an AI that learned from photos and an AI that learned from words should end up with the same idea of a forest.</p>
+    </div>
+    <div class="plato-grid">
+      <figure class="plato-fig reveal" aria-label="Diagram: one real world, two shadows (a photo and a sentence), two AI maps with the same shape, joined by one rotation">
+        <svg viewBox="0 0 560 300" role="img">
+          <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+          <g class="pf-real"><circle cx="280" cy="52" r="40"/><path d="M280 26c-14 14-16 32 0 50 16-18 14-36 0-50z" class="leaf"/><text x="280" y="112" text-anchor="middle">the real world</text></g>
+          <path d="M248 78 150 140" class="pf-arrow" marker-end="url(#ar)"/><path d="M312 78 410 140" class="pf-arrow" marker-end="url(#ar)"/>
+          <g transform="translate(70 142)"><rect width="140" height="58" rx="8" class="pf-card"/><rect x="10" y="9" width="40" height="40" rx="4" class="pf-photo"/><text x="60" y="27">a photo</text><text x="60" y="44" class="sm">(seen from space)</text></g>
+          <g transform="translate(350 142)"><rect width="140" height="58" rx="8" class="pf-card"/><text x="14" y="27">“a dense forest”</text><text x="14" y="44" class="sm">(a sentence)</text></g>
+          <path d="M140 202v24" class="pf-arrow" marker-end="url(#ar)"/><path d="M420 202v24" class="pf-arrow" marker-end="url(#ar)"/>
+          <g transform="translate(140 262)"><circle r="30" class="pf-map"/><circle cx="-12" cy="-8" r="4" class="d1"/><circle cx="10" cy="-14" r="4" class="d2"/><circle cx="6" cy="12" r="4" class="d3"/><text y="44" text-anchor="middle" class="sm">picture AI's map</text></g>
+          <g transform="translate(420 262) rotate(70)"><circle r="30" class="pf-map"/><circle cx="-12" cy="-8" r="4" class="d1"/><circle cx="10" cy="-14" r="4" class="d2"/><circle cx="6" cy="12" r="4" class="d3"/></g>
+          <text x="420" y="306" text-anchor="middle" class="sm">word AI's map</text>
+          <path d="M184 262 C 240 228, 320 228, 376 262" class="pf-rot" marker-end="url(#ar)"/><text x="280" y="226" text-anchor="middle" class="rot">same shape → just rotate</text>
+        </svg>
+      </figure>
+      <div class="plato-steps">
+        <div class="ps reveal"><span class="mono">1 · The paper</span><p>In 2024, MIT researchers (Huh, Cheung, Wang &amp; Isola) published <a href="https://arxiv.org/abs/2405.07987" target="_blank" rel="noopener"><b>“The Platonic Representation Hypothesis”</b></a>. It argues that as AI models grow, they all drift toward the <b>same inner picture of the world</b>, whether they learned from images or from text.</p></div>
+        <div class="ps reveal d1"><span class="mono">2 · Why “Platonic”?</span><p>The Greek philosopher Plato said we only see <b>shadows</b> of the real world, like prisoners watching shadows on a cave wall. Photos and sentences are both shadows of one reality, so AIs trained on either should rebuild the same thing.</p></div>
+        <div class="ps reveal d2"><span class="mono">3 · Our test</span><p>If that's true, a photo AI and a word AI should line up with <b>just a rotation</b>: no retraining at all. We tested it on satellite photos. It worked: <b><span data-m="search_top1">96</span>%</b> of word searches found the right land type first.</p></div>
+      </div>
     </div>
   </div>
 </section>
@@ -84,7 +134,8 @@
   <div class="wrap minds-intro">
     <div class="chapter-no reveal" style="color:var(--night-muted)">Chapter 01</div>
     <h2 class="h2 reveal" style="margin-top:14px">Two minds that <em style="color:var(--sprout)">never met.</em></h2>
-    <p class="lede reveal">Dots are real satellite tiles (DINOv2). Stars are captions (MiniLM). Scroll to rotate.</p>
+    <p class="lede reveal">Dots are real satellite photos placed by the picture AI (<span class="term" data-term="dinov2" tabindex="0">DINOv2</span>). Stars are captions placed by the word AI (<span class="term" data-term="minilm" tabindex="0">MiniLM</span>). Scroll to rotate.</p>
+    <p class="plain reveal on-dark"><b>In plain words:</b> each AI turns things into points on a map (<span class="term" data-term="embedding" tabindex="0">an embedding</span>). We spin one map until each photo sits next to the words that describe it. That spin is the <span class="term" data-term="procrustes" tabindex="0">Procrustes rotation</span>.</p>
   </div>
   <div class="scrolly" data-scene="minds" style="height:360vh">
     <div class="sticky">
@@ -107,12 +158,13 @@
     <div class="chapter-head">
       <div class="chapter-no reveal">Chapter 02</div>
       <h2 class="h2 reveal">Evidence, <em>not adjectives.</em></h2>
-      <p class="lede reveal">Unseen test data only. Every baseline next to our score. Weak results included.</p>
+      <p class="lede reveal"><span class="term" data-term="unseen" tabindex="0">Unseen test data</span> only. Every <span class="term" data-term="baseline" tabindex="0">baseline</span> next to our score. Weak results included.</p>
+      <p class="plain reveal"><b>In plain words:</b> longer bars are better. Grey bars are the simple guesses we have to beat. The blue bar (<span class="term" data-term="resnet" tabindex="0">ResNet-18</span>) is a model trained the normal way, for comparison.</p>
     </div>
     <div class="ev-grid">
       <article class="ev wide reveal">
-        <div class="tag">Text → image search · held-out EuroSAT</div>
-        <div class="big" data-m="search_top1">96<small>% top-1</small></div>
+        <div class="tag">Text → image search · <span class="term" data-term="eurosat" tabindex="0">EuroSAT</span> test photos</div>
+        <div class="big" data-m="search_top1">96<small>% right first try</small></div>
         <p><span data-m="search_nq">50</span> caption searches over <span data-m="search_ni">4,050</span> unseen tiles.</p>
         <div class="bars" data-bars="retrieval"></div>
       </article>
@@ -128,7 +180,7 @@
         <p class="note">ResNet-18 trains on these labels; we train one rotation. The trade: <b data-m="gap">17</b> points of accuracy for search in plain English.</p>
       </article>
       <article class="ev wide reveal">
-        <div class="tag">Confusion matrix · ours · rows = true class</div>
+        <div class="tag"><span class="term" data-term="confusion" tabindex="0">Confusion matrix</span> · rows = the right answer</div>
         <div id="confusion"></div>
       </article>
       <article class="ev reveal d1">
@@ -145,7 +197,8 @@
     <div class="chapter-head">
       <div class="chapter-no reveal">Chapter 03</div>
       <h2 class="h2 reveal">Search a town <em>like a library.</em></h2>
-      <p class="lede reveal">Type a place type. Get the best-matching tiles. Scores are similarity, not probability.</p>
+      <p class="lede reveal">Type what you are looking for. Get the best-matching photos. The number under each photo is a <span class="term" data-term="cosine" tabindex="0">similarity score</span>, not a percentage.</p>
+      <p class="plain reveal"><b>How to use:</b> click one of the example buttons, or type your own words and press Search. Glowing squares on the map show where the matches are.</p>
     </div>
     <form class="searchbar reveal" id="ua-form" role="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
@@ -178,7 +231,8 @@
     <div class="chapter-head">
       <div class="chapter-no reveal">Chapter 04</div>
       <h2 class="h2 reveal">Where shade <em>is missing.</em></h2>
-      <p class="lede reveal">Two satellite <b>measurements</b>, side by side: greenness and surface heat. One summer morning in Upper Arlington.</p>
+      <p class="lede reveal">Two satellite <b>measurements</b>, side by side: <span class="term" data-term="ndvi" tabindex="0">greenness (NDVI)</span> and <span class="term" data-term="lst" tabindex="0">surface heat</span>. One summer morning in Upper Arlington.</p>
+      <p class="plain reveal"><b>In plain words:</b> places with more trees are cooler. Scroll to see exactly where the hot, treeless spots are. That is where planting helps most.</p>
     </div>
   </div>
   <div class="scrolly" data-scene="heat" style="height:420vh">
@@ -209,6 +263,11 @@
     <div class="chapter-no reveal" style="color:var(--night-muted)">Chapter 05 · The Lab</div>
     <h2 class="h2 reveal" style="margin-top:14px">An urban heat <em>field notebook</em> for any city.</h2>
     <p class="lede reveal">Draw a box anywhere. Get live satellite heat, greenness and land cover, plus where to plant first.</p>
+    <ol class="howto reveal">
+      <li><b>1</b><span><strong>Pick a place.</strong> Click a city under “Study areas”, search one, or press “Draw area” and drag on the map.</span></li>
+      <li><b>2</b><span><strong>Press “Analyse area”.</strong> It downloads fresh satellite photos and reads them (about 20–60 s; saved places are instant).</span></li>
+      <li><b>3</b><span><strong>Read the result.</strong> Red = hot. In “Plant first”, orange squares are hot with few trees: plant there. The Heat tab gives the numbers.</span></li>
+    </ol>
     <div class="usecases">
       <div class="usecase reveal"><span class="mono">Screen</span><b>Find heat hot spots</b><span>Hot, bare squares ranked for planting.</span></div>
       <div class="usecase reveal d1"><span class="mono">Quantify</span><b>Cooling per unit green</b><span>°C cooler per +0.1 greenness.</span></div>
@@ -307,6 +366,7 @@
       <div class="chapter-no reveal">Chapter 06</div>
       <h2 class="h2 reveal">What it <em>gets wrong.</em></h2>
       <p class="lede reveal">Real mistakes from our own test runs, and why they happen.</p>
+      <p class="plain reveal"><b>In plain words:</b> no AI is perfect. Knowing where it goes wrong tells you when to double-check it.</p>
     </div>
     <div class="lim-grid" id="lim-grid">
       <article class="lim reveal" id="lim-pair"></article>
@@ -339,29 +399,30 @@
   <div class="wrap">
     <div class="chapter-head">
       <div class="chapter-no reveal">Method</div>
-      <h2 class="h2 reveal">Five steps, <em>no training.</em></h2>
+      <h2 class="h2 reveal">How we built it, <em>in five steps.</em></h2>
+      <p class="plain reveal"><b>In plain words:</b> we never taught either AI anything new. We only found the right way to line them up, then checked it fairly.</p>
     </div>
     <div class="pipeline reveal">
-      <div class="p"><span class="mono">01 · See</span><b>DINOv2 ViT-S/14</b><span>Frozen. Each 64×64 Sentinel-2 chip becomes 384 numbers.</span></div>
-      <div class="p"><span class="mono">02 · Read</span><b>all-MiniLM-L6-v2</b><span>Frozen. Each sentence becomes 384 numbers.</span></div>
-      <div class="p"><span class="mono">03 · Align</span><b>Procrustes</b><span>W = UVᵀ from the SVD of XᵀY on labelled EuroSAT training pairs.</span></div>
-      <div class="p"><span class="mono">04 · Ask</span><b>Cosine search</b><span>Query text ↔ rotated tiles; label = best-matching caption.</span></div>
-      <div class="p"><span class="mono">05 · Measure</span><b>NDVI + LST</b><span>Sentinel-2 bands and Landsat thermal, never from the model.</span></div>
+      <div class="p"><span class="mono">01 · See</span><b>Picture AI</b><span><span class="term" data-term="dinov2" tabindex="0">DINOv2</span> turns each <span class="term" data-term="sentinel" tabindex="0">Sentinel-2</span> photo into 384 numbers. Not retrained.</span></div>
+      <div class="p"><span class="mono">02 · Read</span><b>Word AI</b><span><span class="term" data-term="minilm" tabindex="0">MiniLM</span> turns each sentence into 384 numbers. Not retrained.</span></div>
+      <div class="p"><span class="mono">03 · Align</span><b>One rotation</b><span>Using labelled <span class="term" data-term="eurosat" tabindex="0">EuroSAT</span> photos, math (SVD) finds the single <span class="term" data-term="procrustes" tabindex="0">rotation</span> that lines the two up.</span></div>
+      <div class="p"><span class="mono">04 · Ask</span><b>Search in words</b><span>Your words are compared with every rotated photo; the closest win (<span class="term" data-term="cosine" tabindex="0">cosine similarity</span>).</span></div>
+      <div class="p"><span class="mono">05 · Measure</span><b>Greenness + heat</b><span><span class="term" data-term="ndvi" tabindex="0">NDVI</span> and <span class="term" data-term="lst" tabindex="0">temperature</span> are measured by satellites (<span class="term" data-term="landsat" tabindex="0">Landsat</span>), not guessed by AI.</span></div>
     </div>
     <p class="formula reveal">W* = argmin ‖XW − Y‖ subject to WᵀW = I &nbsp;<code>W = U Vᵀ, where U Σ Vᵀ = svd(XᵀY)</code></p>
   </div>
 </section>
 </main>
 
-<footer>
+<footer id="credits">
   <div class="topo" style="opacity:.05;filter:invert(1)"></div>
   <div class="wrap" style="position:relative">
     <p class="big">Plant where<br><em>it's hottest.</em></p>
     <div class="foot-grid">
       <div><h4>Project</h4><p>Platonic Earth. Veritas AI International High School Hackathon 2026, AI + Climate track. Built for Upper Arlington sustainability and urban-forestry staff.</p></div>
       <div><h4>Data</h4><ul><li>EuroSAT (Helber et al., 2019)</li><li>Copernicus Sentinel-2 L2A</li><li>USGS Landsat 8/9 Collection 2 L2</li><li>OpenStreetMap Nominatim · Esri World Imagery</li></ul></div>
-      <div><h4>Models</h4><ul><li>DINOv2 (Oquab et al., 2023)</li><li>Sentence-Transformers MiniLM</li><li>Platonic Representation Hypothesis (Huh et al., 2024)</li><li>ResNet-18 baseline</li></ul></div>
-      <div><h4>More</h4><ul><li><a href="/classic/">Classic demo (Gradio)</a></li><li><a href="https://github.com/JohnPoole3rd/veritas">Source code</a></li><li>AI coding assistants were used to build this site.</li></ul></div>
+      <div><h4>Models &amp; research</h4><ul><li>DINOv2 (Oquab et al., 2023)</li><li>Sentence-Transformers MiniLM</li><li><a href="https://arxiv.org/abs/2405.07987" target="_blank" rel="noopener">The Platonic Representation Hypothesis</a> (Huh, Cheung, Wang &amp; Isola, ICML 2024)</li><li>ResNet-18 baseline</li></ul></div>
+      <div><h4>More</h4><ul><li><a href="/classic/">Classic demo (Gradio)</a></li><li><a href="https://github.com/JohnPoole3rd/veritas">Source code</a></li><li>AI coding assistants (Claude) were used to help write code and this site.</li></ul></div>
     </div>
     <div class="foot-legal"><span id="foot-disclaimer">Prototype, not a land-use determination. Do not use for permitting, taxation, or legal decisions.</span><span id="foot-mode"></span></div>
   </div>
