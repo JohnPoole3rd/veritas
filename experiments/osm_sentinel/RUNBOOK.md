@@ -160,6 +160,98 @@ Use that to find the next bottleneck:
 
 Do not run the old 128 px build again for this comparison.
 
+### A: recover the blocked run and freeze the training snapshot
+
+A's `9fdf3cd` note says pyrosm's 24-hour politeness guard is refusing provider extracts and most
+regions are failing. **J approves B1:** reuse the raw provider PBFs already on disk. These are raw
+OSM inputs, not 77k manifests, captions, GeoParquet, or images, so this does not mix the old dataset
+into the new build.
+
+1. Stop the current build and any training job first. Do not bypass or delete pyrosm's download log.
+2. Copy the raw provider extracts into the new build's source cache:
+
+```sh
+src=data/raw/osm_sentinel/_cache/pbf
+dst=data/raw/osm_sentinel_1m_640/_cache/pbf
+mkdir -p "$dst"
+rsync -a --ignore-existing "$src"/ "$dst"/
+ls "$dst" | head
+```
+
+Copy only raw OSM source extracts. Do not copy `_cache/osm/` GeoParquet, `manifest.csv`,
+`captions.jsonl`, images, embeddings, or alignment files from the 77k build.
+
+3. Resume the **same** 1M build command; do not delete `data/raw/osm_sentinel_1m_640`, because the
+   partial manifest and `build_meta.json` are valid and resumable:
+
+```sh
+python experiments/osm_sentinel/build_dataset.py \
+  --out-dir data/raw/osm_sentinel_1m_640 \
+  --chip-m 640 --chip-px 64 \
+  --sample-mode grid \
+  --chips-per-region 3500 \
+  --max-chips 1000000 \
+  2>&1 | tee -a data/raw/osm_sentinel_1m_640/_run.log
+```
+
+If a region still fails because the provider refuses the URL, leave it in `failed_regions`; do not
+bypass the guard. Reusing cached source files should unblock most regions.
+
+4. **Never train against the live build directory.** It is still appending rows and images. Once
+   the build is stopped—or after it finishes—freeze a snapshot:
+
+```sh
+# Stop the builder before this step.
+stamp=$(date +%Y%m%d_%H%M)
+snap="data/raw/osm_sentinel_1m_640_snapshot_${stamp}"
+mkdir -p "$snap"
+cp -a data/raw/osm_sentinel_1m_640/manifest.csv \
+      data/raw/osm_sentinel_1m_640/captions.jsonl \
+      data/raw/osm_sentinel_1m_640/dataset_stats.json \
+      data/raw/osm_sentinel_1m_640/build_meta.json "$snap"/
+cp -al data/raw/osm_sentinel_1m_640/images "$snap/images"
+```
+
+The hard-linked `images/` directory is safe because completed image files are immutable; do not copy
+`_cache/`.
+
+5. Validate the snapshot before training:
+
+```sh
+python - <<'PY'
+import csv
+from collections import Counter
+from pathlib import Path
+
+root = Path("data/raw/osm_sentinel_1m_640_snapshot_REPLACE_ME")
+rows = list(csv.DictReader((root / "manifest.csv").open(newline="")))
+missing = [r["image"] for r in rows if not (root / r["image"]).exists()]
+assert rows, "empty snapshot"
+assert not missing, f"{len(missing)} manifest rows have no image"
+print("n", len(rows))
+print("splits", Counter(r["split"] for r in rows))
+print("labels", Counter(r["label"] for r in rows))
+PY
+```
+
+6. Train and compare from the snapshot with one explicit tag:
+
+```sh
+tag=interim_$(date +%Y%m%d_%H%M)   # use full_1m_640 only after the build is complete
+python experiments/osm_sentinel/train.py \
+  --data "$snap" --tag "$tag" \
+  --device mps --dtype fp32 --batch-size 32 --num-workers 4 --eval-eurosat
+python experiments/osm_sentinel/compare_eurosat.py \
+  --data "$snap" --tag "$tag" \
+  --dtype fp32 --batch-size 64 --num-workers 0
+```
+
+If A has already started training, stop it and rerun from the frozen snapshot. Report the snapshot's
+actual `n` and split counts in `results/T21-osm-1m-640.md`; a partial build is **interim**, not 1M.
+
+7. `us_columbus` contains Upper Arlington. Do not describe UA as fully out-of-distribution unless
+   that region is excluded from the OSM training fit; otherwise report the leakage as a caveat.
+
 ## 1. Setup
 
 Use Python 3.12+ if available. A ran this successfully on Python 3.14.5; 3.12 is not required.
