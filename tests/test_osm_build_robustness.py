@@ -362,7 +362,7 @@ class FakeWorld:
         return "Buildings.", "built", {"buildings": 1}, 1
 
     def run(self, *extra, cap=10, max_chips=0):
-        argv = ["build_dataset.py", "--regions-csv", str(self.csv), "--out-dir", str(self.out),
+        argv = ["build_dataset.py", "--regions-csv", str(self.csv), "--out-dir", str(self.out), "--workers", "1",
                 "--chip-px", "8", "--chips-per-region", str(cap), "--no-worldcover", "--log-every", "100000",
                 "--max-chips", str(max_chips), *extra]
         self.monkeypatch.setattr(sys, "argv", argv)
