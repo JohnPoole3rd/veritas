@@ -9,6 +9,9 @@ The method is unchanged: frozen image encoder + frozen MiniLM + **one closed-for
 Procrustes rotation** fitted on labelled image–caption pairs. This is not zero-shot; the rotation
 uses the OSM captions as labels.
 
+**Apple Silicon run instructions:** see [`RUNBOOK.md`](RUNBOOK.md). It covers setup, pyrosm caches,
+smoke runs, resume behavior, MPS training, and what to report.
+
 ## Pipeline
 
 ```text
