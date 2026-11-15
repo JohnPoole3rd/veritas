@@ -27,10 +27,12 @@ PBF/GeoParquet caches live under `<out-dir>/_cache/`.
 from __future__ import annotations
 
 import argparse
+import atexit
 import csv
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 import hashlib
+import io
 import json
 import math
 import random
@@ -432,6 +434,9 @@ def stats_payload(stats: dict[str, Any]) -> dict[str, Any]:
 
 
 def write_stats(path: Path, stats: dict[str, Any]) -> None:
+    # main() writes stats at every region end and at exit: flush buffered manifest/caption rows
+    # first, so dataset_stats.json never counts chips that are not on disk yet.
+    flush_appends()
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(stats_payload(stats), indent=2) + "\n")
     tmp.replace(path)
@@ -508,6 +513,7 @@ def rewrite_captions(manifest_path: Path, captions_path: Path) -> None:
 
 
 def load_existing(manifest_path: Path, captions_path: Path) -> tuple[set[str], dict[str, Any]]:
+    flush_appends()
     stats = new_stats()
     done: set[str] = set()
     if manifest_path.exists():
@@ -531,22 +537,53 @@ def load_existing(manifest_path: Path, captions_path: Path) -> tuple[set[str], d
     return done, stats
 
 
+# Rows are buffered in memory and written in batches: opening/flushing both files for every chip
+# cost two open/close pairs per chip, and each blocking syscall hands the GIL to the region-prefetch
+# thread (up to a 5 ms switch interval to get it back). Buffered rows are written every
+# APPEND_FLUSH_ROWS chips, at every write_stats() (region end and run end), on load_existing(), and
+# at interpreter exit. A hard kill loses at most APPEND_FLUSH_ROWS rows; their images are rewritten
+# identically on resume, and load_existing() already repairs a torn final row / captions file.
+APPEND_FLUSH_ROWS = 500
+_PENDING: dict[tuple[Path, Path], tuple[list[str], list[str]]] = {}
+
+
+def _flush_pending(key: tuple[Path, Path]) -> None:
+    manifest_rows, caption_lines = _PENDING.pop(key)
+    if not manifest_rows:
+        return
+    manifest_path, captions_path = key
+    new_file = not manifest_path.exists() or manifest_path.stat().st_size == 0
+    with manifest_path.open("a", newline="") as handle:
+        if new_file:
+            csv.DictWriter(handle, fieldnames=FIELDS).writeheader()
+        handle.write("".join(manifest_rows))
+    with captions_path.open("a") as handle:
+        handle.write("".join(caption_lines))
+
+
+def flush_appends() -> None:
+    """Write every buffered manifest/caption row to disk (safe to call any time)."""
+    for key in list(_PENDING):
+        _flush_pending(key)
+
+
+atexit.register(flush_appends)
+
+
 def append_chip(
     manifest_path: Path,
     captions_path: Path,
     row: dict[str, Any],
 ) -> None:
-    """Append a completed chip to both outputs and flush immediately."""
-    new_file = not manifest_path.exists() or manifest_path.stat().st_size == 0
-    with manifest_path.open("a", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS)
-        if new_file:
-            writer.writeheader()
-        writer.writerow(row)
-        handle.flush()
-    with captions_path.open("a") as handle:
-        handle.write(json.dumps(caption_record(row), sort_keys=True) + "\n")
-        handle.flush()
+    """Queue a completed chip for both outputs; see APPEND_FLUSH_ROWS for when it reaches disk."""
+    key = (Path(manifest_path), Path(captions_path))
+    manifest_rows, caption_lines = _PENDING.setdefault(key, ([], []))
+    line = io.StringIO(newline="")
+    csv.DictWriter(line, fieldnames=FIELDS).writerow(row)
+    manifest_rows.append(line.getvalue())
+    caption_lines.append(json.dumps(caption_record(row), sort_keys=True) + "\n")
+    if len(manifest_rows) >= APPEND_FLUSH_ROWS:
+        _flush_pending(key)
 
 
 # --- region-level parallelism (a/speed-agent1) ------------------------------------------------

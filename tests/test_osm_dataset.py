@@ -2,7 +2,12 @@ import argparse
 import csv
 import json
 
-from experiments.osm_sentinel.build_dataset import append_chip, check_build_meta, load_existing
+from experiments.osm_sentinel.build_dataset import (
+    append_chip,
+    check_build_meta,
+    flush_appends,
+    load_existing,
+)
 
 
 def _row(tile_id: str):
@@ -31,6 +36,7 @@ def test_append_and_resume_repairs_captions(tmp_path):
     captions = tmp_path / "captions.jsonl"
     append_chip(manifest, captions, _row("t1"))
     append_chip(manifest, captions, _row("t2"))
+    flush_appends()
 
     assert len(captions.read_text().splitlines()) == 2
     with manifest.open(newline="") as handle:
@@ -68,6 +74,7 @@ def test_resume_drops_a_torn_final_manifest_row(tmp_path):
     manifest = tmp_path / "manifest.csv"
     captions = tmp_path / "captions.jsonl"
     append_chip(manifest, captions, _row("t1"))
+    flush_appends()
     with manifest.open("a") as handle:
         handle.write("torn,row")
 
@@ -75,6 +82,29 @@ def test_resume_drops_a_torn_final_manifest_row(tmp_path):
     assert done == {"t1"}
     assert stats["n"] == 1
     assert not manifest.read_text().endswith("torn,row")
+
+
+def test_buffered_append_matches_per_row_writes(tmp_path):
+    import experiments.osm_sentinel.build_dataset as bd
+
+    manifest = tmp_path / "manifest.csv"
+    captions = tmp_path / "captions.jsonl"
+    rows = [_row(f"t{i}") for i in range(bd.APPEND_FLUSH_ROWS + 7)]
+    for row in rows:
+        append_chip(manifest, captions, row)
+    # the first full batch is on disk before any explicit flush
+    assert len(captions.read_text().splitlines()) == bd.APPEND_FLUSH_ROWS
+    flush_appends()
+
+    ref_manifest = tmp_path / "ref.csv"
+    with ref_manifest.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=bd.FIELDS)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+    assert manifest.read_bytes() == ref_manifest.read_bytes()
+    expected = "".join(json.dumps(bd.caption_record(row), sort_keys=True) + "\n" for row in rows)
+    assert captions.read_text() == expected
 
 
 def test_build_meta_refuses_mixed_chip_configs(tmp_path):
