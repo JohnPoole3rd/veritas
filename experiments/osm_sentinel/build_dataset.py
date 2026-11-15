@@ -194,6 +194,18 @@ def read_region(src, bbox: tuple[float, float, float, float]):
     return np.ascontiguousarray(rgb), src.window_transform(window), src.crs
 
 
+_NETWORK_MARKERS = ("CURL error", "Could not resolve", "Failed to connect", "timed out", "Connection reset",
+                    "Temporary failure", "Network is unreachable")
+
+
+class NetworkDown(RuntimeError):
+    """The image host is unreachable; abort the region (it is retried later) instead of burning candidates."""
+
+
+def _is_network_error(exc: Exception) -> bool:
+    return any(marker in str(exc) for marker in _NETWORK_MARKERS)
+
+
 def read_region_mosaic(ranked, scene_bbox, max_scenes: int = 4, target_valid: float = 0.97, log=print):
     """Region raster mosaicked from up to `max_scenes` granules (A, a/osm-1m-fixes).
 
@@ -219,41 +231,27 @@ def read_region_mosaic(ranked, scene_bbox, max_scenes: int = 4, target_valid: fl
         tile = _mgrs_tile(item)
         if tile in tiles:
             continue
-        try:
-            with rasterio.open(item.assets["visual"].href) as src:
-                if base is None:
-                    res = read_region(src, scene_bbox)
-                    if res is None:
-                        continue
-                    rgb, transform, crs = res
-                    valid = rgb.max(axis=2) > 0
-                    if valid.mean() < 0.02:
-                        log(f"[scene] {item.id} covers <2 % of the region window; trying the next candidate")
-                        continue
-                    base = [np.array(rgb), transform, crs, valid.astype(np.uint8)]
-                else:
-                    rgb, transform, crs, src_idx = base
-                    if src.crs != crs:
-                        continue  # different UTM zone: grids do not align
-                    h, w = src_idx.shape
-                    window = from_bounds(*array_bounds(h, w, transform), src.transform)
-                    window = window.round_offsets().round_lengths()
-                    if (int(window.height), int(window.width)) != (h, w) or not src.window_transform(
-                        window
-                    ).almost_equals(transform, precision=1e-3):
-                        continue
-                    data = src.read(window=window, boundless=True, fill_value=0)
-                    add = np.transpose(data[:3], (1, 2, 0))
-                    if add.dtype != np.uint8:
-                        add = np.clip(add.astype("float32") / 4000.0 * 255.0, 0, 255).astype("uint8")
-                    gap = (src_idx == 0) & (add.max(axis=2) > 0)
-                    if not gap.any():
-                        continue
-                    rgb[gap] = add[gap]
-                    src_idx[gap] = len(used) + 1
-        except Exception as exc:  # unreadable granule: try the next candidate
-            log(f"[scene] {item.id} unreadable, trying next: {type(exc).__name__}: {exc}")
+        last_exc = None
+        for attempt in range(3):  # A: retry transient network errors (10 s, 30 s) on the same granule
+            try:
+                outcome = _mosaic_step(item, base, used, scene_bbox, log, rasterio, np, array_bounds, from_bounds)
+                last_exc = None
+                break
+            except Exception as exc:
+                last_exc = exc
+                if not _is_network_error(exc) or attempt == 2:
+                    break
+                wait = 10 * (3 ** attempt)
+                log(f"[scene] {item.id} network error ({type(exc).__name__}); retry in {wait}s")
+                time.sleep(wait)
+        if last_exc is not None:
+            if _is_network_error(last_exc):
+                raise NetworkDown(f"image host unreachable while reading {item.id}: {last_exc}")
+            log(f"[scene] {item.id} unreadable, trying next: {type(last_exc).__name__}: {last_exc}")
             continue
+        if outcome is None:
+            continue
+        base = outcome
         used.append(item)
         tiles.add(tile)
         if (base[3] > 0).mean() >= target_valid:
@@ -261,6 +259,41 @@ def read_region_mosaic(ranked, scene_bbox, max_scenes: int = 4, target_valid: fl
     if base is None:
         return None
     return base[0], base[1], base[2], base[3], used
+
+
+def _mosaic_step(item, base, used, scene_bbox, log, rasterio, np, array_bounds, from_bounds):
+    """Read one granule into the mosaic. Returns the updated base, or None if it adds nothing."""
+    with rasterio.open(item.assets["visual"].href) as src:
+        if base is None:
+            res = read_region(src, scene_bbox)
+            if res is None:
+                return None
+            rgb, transform, crs = res
+            valid = rgb.max(axis=2) > 0
+            if valid.mean() < 0.02:
+                log(f"[scene] {item.id} covers <2 % of the region window; trying the next candidate")
+                return None
+            return [np.array(rgb), transform, crs, valid.astype(np.uint8)]
+        rgb, transform, crs, src_idx = base
+        if src.crs != crs:
+            return None  # different UTM zone: grids do not align
+        h, w = src_idx.shape
+        window = from_bounds(*array_bounds(h, w, transform), src.transform)
+        window = window.round_offsets().round_lengths()
+        if (int(window.height), int(window.width)) != (h, w) or not src.window_transform(
+            window
+        ).almost_equals(transform, precision=1e-3):
+            return None
+        data = src.read(window=window, boundless=True, fill_value=0)
+        add = np.transpose(data[:3], (1, 2, 0))
+        if add.dtype != np.uint8:
+            add = np.clip(add.astype("float32") / 4000.0 * 255.0, 0, 255).astype("uint8")
+        gap = (src_idx == 0) & (add.max(axis=2) > 0)
+        if not gap.any():
+            return None
+        rgb[gap] = add[gap]
+        src_idx[gap] = len(used) + 1
+        return base
 
 
 def chip_source(source_index, transform, crs, lat: float, lon: float) -> int:
@@ -639,6 +672,7 @@ def main() -> None:
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="region-prefetch")
     next_future: Future | None = executor.submit(prepare_region, todo[0]) if executor and todo else None
 
+    retried: set[str] = set()
     for index, region in enumerate(todo):
         region_id = region["region_id"]
         lat, lon, radius_km, bbox = region_geometry(region, args)
@@ -659,6 +693,10 @@ def main() -> None:
         next_future = (executor.submit(prepare_region, todo[index + 1])
                        if executor is not None and index + 1 < len(todo) else None)
         if prepared is None:
+            if region_id not in retried:  # A: one automatic retry at the end of this run
+                retried.add(region_id)
+                todo.append(region)
+                print(f"[{region_id}] queued for one retry at the end of this run", flush=True)
             continue
         timings: Counter[str] = Counter(prepared["timings"])
         if not prepared["ranked"]:
