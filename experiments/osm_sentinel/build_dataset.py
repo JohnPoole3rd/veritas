@@ -109,7 +109,13 @@ def _mgrs_tile(item) -> str:
 
 def _in_season(item, lat: float) -> bool:
     """Leaf-on months: May–Sep north of 30°N, Nov–Mar south of 30°S, any month in between."""
-    month = int(str(item.datetime)[5:7])
+    # item.datetime is None for range-only STAC items; fall back to the properties, and treat an
+    # unparseable date as in season instead of crashing the whole scene search.
+    stamp = item.datetime or item.properties.get("datetime") or item.properties.get("start_datetime")
+    try:
+        month = int(str(stamp)[5:7])
+    except ValueError:
+        return True
     if lat > 30:
         return 5 <= month <= 9
     if lat < -30:
@@ -302,7 +308,9 @@ def chip_source(source_index, transform, crs, lat: float, lon: float) -> int:
 
     xs, ys = warp_transform("EPSG:4326", crs, [lon], [lat])
     col, row = ~transform * (xs[0], ys[0])
-    r, c = int(row), int(col)
+    # floor, not int(): int() truncates toward zero, so a centre up to one pixel above/left of the
+    # raster (row or col in (-1, 0)) would wrongly map to pixel 0 instead of "outside".
+    r, c = math.floor(row), math.floor(col)
     if 0 <= r < source_index.shape[0] and 0 <= c < source_index.shape[1]:
         return int(source_index[r, c])
     return 0
