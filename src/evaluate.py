@@ -35,20 +35,30 @@ def evaluate_retrieval(
         raise ValueError("Image label count does not match embeddings")
     if len(caption_labels) != len(captions):
         raise ValueError("Caption label count does not match embeddings")
-
-    similarity = captions @ images.T
     results: dict[str, Any] = {
         "n_images": len(images),
         "n_captions": len(captions),
     }
     per_class: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(list))
+    # Rank each caption row once (same per-row argsort as _topk_hit, so ties break identically)
+    # and reuse it for every k; caption rows go in chunks so no full (captions x images)
+    # matrix is held at scale.
+    image_label_arr = np.asarray(image_labels, dtype=object)
+    caption_label_arr = np.asarray(caption_labels, dtype=object)
+    k_max = max(k_values) if k_values else 0
+    hits_by_k = {k: np.zeros(len(captions), dtype=bool) for k in k_values}
+    step = max(1, (64 * 1024 * 1024) // (4 * max(1, len(images))))  # ~64 MB sims (+ argsort int64)
+    for start in range(0, len(captions), step):
+        similarity = captions[start:start + step] @ images.T
+        order = np.argsort(-similarity, axis=1)[:, :k_max]
+        match = image_label_arr[order] == caption_label_arr[start:start + step, None]
+        for k in k_values:
+            hits_by_k[k][start:start + step] = match[:, :k].any(axis=1)
     for k in k_values:
-        hits = []
-        for row, label in enumerate(caption_labels):
-            hit = _topk_hit(similarity[row], image_labels, label, k)
-            hits.append(hit)
+        hits = hits_by_k[k]
+        for label, hit in zip(caption_labels, hits):
             per_class[label][f"top{k}"].append(float(hit))
-        results[f"top{k}"] = float(np.mean(hits)) if hits else 0.0
+        results[f"top{k}"] = float(np.mean(hits)) if len(hits) else 0.0
 
     results["per_class"] = {
         label: {
@@ -182,7 +192,7 @@ def evaluate_caption_classification(
     y_true = np.array([to_idx[y] for y in labels])
     ranking = np.argsort(-scores, axis=1)
     k = min(5, len(class_names))
-    top5 = float(np.mean([y_true[i] in ranking[i, :k] for i in range(len(y_true))]))
+    top5 = float(np.mean((ranking[:, :k] == y_true[:, None]).any(axis=1))) if len(y_true) else float("nan")
 
     out = classification_metrics(y_true, ranking[:, 0], class_names)
     out.update(

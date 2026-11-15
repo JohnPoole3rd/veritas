@@ -43,11 +43,19 @@ def class_scores(
 
     The one classification rule shared by evaluation (`src.evaluate`), the local tiles and the demo.
     """
-    X = l2_normalize(np.atleast_2d(np.asarray(image_embeddings, dtype=np.float32)))
+    X = np.atleast_2d(np.asarray(image_embeddings, dtype=np.float32))
     Y = l2_normalize(np.asarray(caption_embeddings, dtype=np.float32))
     if X.shape[1] != Y.shape[1]:
         raise ValueError(f"embedding dims differ: images {X.shape} vs captions {Y.shape}")
-    sims = X @ Y.T
     labels = np.asarray(list(caption_labels))
     reduce = {"max": np.max, "mean": np.mean}[agg]
-    return np.stack([reduce(sims[:, labels == c], axis=1) for c in class_names], axis=1)
+    # Column groups once (not one boolean mask per class per call), and image rows in chunks
+    # so the (N, n_captions) similarity block stays ~<=256 MB at 1M images.
+    groups = [np.flatnonzero(labels == c) for c in class_names]
+    out = np.empty((X.shape[0], len(class_names)), dtype=np.float32)
+    step = max(1, (256 * 1024 * 1024) // (4 * max(1, Y.shape[0])))
+    for start in range(0, X.shape[0], step):
+        sims = l2_normalize(X[start:start + step]) @ Y.T
+        for j, cols in enumerate(groups):
+            out[start:start + step, j] = reduce(sims[:, cols], axis=1)
+    return out

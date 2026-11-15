@@ -93,40 +93,53 @@ def main() -> None:
     # after train.py on the same data this is a cache hit instead of re-embedding every chip.
     X_osm = {s: osm_train.embed(model, by[s], osm_train.BACKBONE, s, args) for s in ("train", "test")}
     text_model = load_minilm(cfg["text"]["model_name"], device=args.device_resolved)
-    Y_osm_train = encode_texts(text_model, [r["caption"] for r in by["train"]])
+    # Unique OSM caption embeddings + index (shares train.py's text cache).
+    Yu_osm_train, idx_osm_train = osm_train.encode_captions(
+        text_model, [r["caption"] for r in by["train"]], cfg["text"]["model_name"], args)
     osm_classes = sorted({r["label"] for r in rows})
     prompts = [f"{LABEL_PROMPTS.get(c, c)[:1].upper()}{LABEL_PROMPTS.get(c, c)[1:]}." for c in osm_classes]
     Y_osm_prompts = encode_texts(text_model, prompts)
     y_osm_test = [r["label"] for r in by["test"]]
 
     center = bool(cfg["alignment"]["center"])
+    # Every fit takes (X blocks, unique Y rows, y_index): no 1M-row vstack of X or Y and the
+    # cross-covariance GEMM runs over unique captions only (src.alignment.fit_procrustes).
+    Yu_eu_train, idx_eu_train = np.unique(Y_eu_train, axis=0, return_inverse=True)
+    idx_eu_train = np.asarray(idx_eu_train).reshape(-1)
+    train_pairs = {
+        "eurosat": ([X_eu_train], Yu_eu_train, idx_eu_train),
+        "osm": ([X_osm["train"]], Yu_osm_train, idx_osm_train),
+        "combined": ([X_eu_train, X_osm["train"]], np.vstack([Yu_eu_train, Yu_osm_train]),
+                     np.concatenate([idx_eu_train, idx_osm_train + len(Yu_eu_train)])),
+    }
     fits = {
         "eurosat": load_procrustes(resolve_path("artifacts/alignment/procrustes.npz", cfg)),
-        "osm": fit_procrustes(X_osm["train"], Y_osm_train, center=center),
-        "combined": None,  # filled below from the single stacked copy
+        "osm": fit_procrustes(train_pairs["osm"][0], Yu_osm_train, center=center, y_index=idx_osm_train),
+        "combined": fit_procrustes(train_pairs["combined"][0], train_pairs["combined"][1], center=center,
+                                   y_index=train_pairs["combined"][2]),
     }
-    # A: build the combined pairs once (was stacked twice: ~5 GB transient at 1M)
-    X_comb, Y_comb = np.vstack([X_eu_train, X_osm["train"]]), np.vstack([Y_eu_train, Y_osm_train])
-    fits["combined"] = fit_procrustes(X_comb, Y_comb, center=center)
-    train_pairs = {"eurosat": (X_eu_train, Y_eu_train), "osm": (X_osm["train"], Y_osm_train),
-                   "combined": (X_comb, Y_comb)}
 
     def score(fit) -> dict:
+        eu_test_img = transform_images(X_eu_test, fit)  # used by both EuroSAT metrics
+        eu_text = transform_texts(caps_eu, fit)
+
         def clf(X, Y, caplab, classes, y, mask=None):
-            pred = np.array(classes)[class_scores(transform_images(X, fit), transform_texts(Y, fit), caplab, classes).argmax(1)]
+            pred = np.array(classes)[class_scores(X, Y, caplab, classes).argmax(1)]
             y = np.array(y)
             if mask is not None:
                 pred, y = pred[mask], y[mask]
             m = classification_metrics(list(y), list(pred), classes)
             return {"accuracy": round(m["accuracy"], 4), "macro_f1": round(m["macro_f1"], 4), "n": m["n"]}
 
+        ua_img = transform_images(X_ua, fit)
         out = {
-            "eurosat_test": clf(X_eu_test, caps_eu, caplab_eu, classes_eu, y_eu_test),
-            "upper_arlington": clf(X_ua, caps_eu, caplab_eu, classes_eu, y_ua),
-            "upper_arlington_unambiguous": clf(X_ua, caps_eu, caplab_eu, classes_eu, y_ua, clear),
-            "osm_test": clf(X_osm["test"], Y_osm_prompts, osm_classes, osm_classes, y_osm_test),
+            "eurosat_test": clf(eu_test_img, eu_text, caplab_eu, classes_eu, y_eu_test),
+            "upper_arlington": clf(ua_img, eu_text, caplab_eu, classes_eu, y_ua),
+            "upper_arlington_unambiguous": clf(ua_img, eu_text, caplab_eu, classes_eu, y_ua, clear),
+            "osm_test": clf(transform_images(X_osm["test"], fit), transform_texts(Y_osm_prompts, fit),
+                            osm_classes, osm_classes, y_osm_test),
         }
-        r = evaluate_retrieval(transform_images(X_eu_test, fit), transform_texts(caps_eu, fit), y_eu_test, caplab_eu)
+        r = evaluate_retrieval(eu_test_img, eu_text, y_eu_test, caplab_eu)
         out["eurosat_text_search"] = {"top1": round(r["top1"], 4), "top5": round(r["top5"], 4), "queries": r["n_captions"]}
         return out
 
@@ -136,8 +149,9 @@ def main() -> None:
                "osm_test_regions": sorted({r["region_id"] for r in by["test"]}),
                "osm_classes": osm_classes, "fits": {}}
     for name, fit in fits.items():
-        X, Y = train_pairs[name]
-        controls = [score(fit_procrustes(X, Y, center=center, shuffle_y=True, seed=s)) for s in SEEDS]
+        X, Yu, y_index = train_pairs[name]
+        controls = [score(fit_procrustes(X, Yu, center=center, shuffle_y=True, seed=s, y_index=y_index))
+                    for s in SEEDS]
         ctrl = {k: {m: round(float(np.mean([c[k][m] for c in controls])), 4)
                     for m in controls[0][k] if m not in ("n", "queries")} for k in controls[0]}
         results["fits"][name] = {"score": score(fit), "random_rotation_mean5": ctrl}

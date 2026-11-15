@@ -169,23 +169,78 @@ def cls_metrics(scores, labels: list[str], classes: list[str]) -> dict:
     }
 
 
-def pair_recall(images, text, ks=(1, 10), chunk_size: int = 512) -> dict:
+def text_batch_size(device) -> int:
+    """MiniLM batch: large on CUDA (16 GB card has room), the old default elsewhere."""
+    return 512 if str(device).startswith("cuda") else 64
+
+
+def encode_captions(text_model, captions: list[str], model_name: str, args) -> tuple[np.ndarray, np.ndarray]:
+    """(unique caption embeddings U x d, int64 index with captions[i] -> row index[i]).
+
+    Templated OSM captions repeat a lot, so only the unique ones are encoded. The unique
+    embeddings are cached under a hash of (model, unique captions), so train.py and
+    compare_eurosat.py (and reruns) share one encoding; --force re-encodes.
+    """
+    import hashlib
+
+    from src.alignment import unique_rows
+    from src.encoders import encode_texts
+
+    unique, index = unique_rows(captions)
+    digest = hashlib.sha256(model_name.encode())
+    for caption in unique:
+        digest.update(b"\0" + caption.encode())
+    path = CACHE / f"minilm_text_{digest.hexdigest()[:20]}.npy"
+    if not getattr(args, "force", False) and path.exists():
+        cached = np.load(path)
+        if cached.shape[0] == len(unique):
+            print(f"text cache {path.name} ({len(unique)} unique / {len(captions)} captions)", flush=True)
+            return cached, index
+    print(f"encoding {len(unique)} unique / {len(captions)} captions", flush=True)
+    embeddings = encode_texts(
+        text_model, unique, batch_size=text_batch_size(getattr(args, "device_resolved", "")), dedupe=False
+    )
+    CACHE.mkdir(parents=True, exist_ok=True)
+    np.save(path, embeddings)
+    return embeddings, index
+
+
+def pair_recall(images, text, ks=(1, 10), chunk_size: int = 512, text_index=None) -> dict:
     """Caption→image recall without an N×N similarity matrix.
 
     A full matrix is hundreds of GB at 1M-row scale. Score a chunk of captions
     against all images at a time and rank only the diagonal target.
+
+    With `text_index`, `text` holds the unique caption rows and caption i is
+    text[text_index[i]]. Each unique caption is scored and sorted once; every image
+    sharing it is ranked by binary search (same strict ">" count as the dense path).
     """
     n = len(images)
     if n == 0:
         return {f"recall@{k}": float("nan") for k in ks} | {"n": 0}
+    if text_index is not None and len(text) > n // 2:
+        text, text_index = text[text_index], None  # mostly unique: the dense path is cheaper
     # Keep the caption chunk around ~256 MB even when n is large.
     chunk_size = max(1, min(chunk_size, (256 * 1024 * 1024) // (4 * n)))
     ranks = np.empty(n, dtype=np.int64)
-    for start in range(0, n, chunk_size):
-        stop = min(start + chunk_size, n)
-        sims = text[start:stop] @ images.T
-        diagonal = sims[np.arange(stop - start), np.arange(start, stop)]
-        ranks[start:stop] = (sims > diagonal[:, None]).sum(axis=1)
+    if text_index is None:
+        for start in range(0, n, chunk_size):
+            stop = min(start + chunk_size, n)
+            sims = text[start:stop] @ images.T
+            diagonal = sims[np.arange(stop - start), np.arange(start, stop)]
+            ranks[start:stop] = (sims > diagonal[:, None]).sum(axis=1)
+    else:
+        text_index = np.asarray(text_index, dtype=np.int64)
+        by_caption = np.argsort(text_index, kind="stable")
+        bounds = np.searchsorted(text_index[by_caption], np.arange(len(text) + 1))
+        for start in range(0, len(text), chunk_size):
+            stop = min(start + chunk_size, len(text))
+            sims = text[start:stop] @ images.T
+            ordered = np.sort(sims, axis=1)
+            for row, u in enumerate(range(start, stop)):
+                members = by_caption[bounds[u]:bounds[u + 1]]
+                diagonal = sims[row, members]
+                ranks[members] = n - np.searchsorted(ordered[row], diagonal, side="right")
     return {f"recall@{k}": round(float((ranks < k).mean()), 4) for k in ks} | {"n": int(n)}
 
 
@@ -230,12 +285,17 @@ def main() -> None:
 
     X = {split: embed(model, items, BACKBONE, split, args) for split, items in by_split.items()}
     text_model = load_minilm(config["text"]["model_name"], device=args.device_resolved)
-    Y = {split: encode_texts(text_model, [row["caption"] for row in items]) for split, items in by_split.items()}
+    # Unique caption embeddings + index per split (captions repeat; see encode_captions).
+    Y = {
+        split: encode_captions(text_model, [row["caption"] for row in items], config["text"]["model_name"], args)
+        for split, items in by_split.items()
+    }
 
     center = bool(config["alignment"]["center"])
-    params = fit_procrustes(X["train"], Y["train"], center=center)
+    params = fit_procrustes(X["train"], Y["train"][0], center=center, y_index=Y["train"][1])
     random_params = fit_procrustes(
-        X["train"], Y["train"], center=center, shuffle_y=True, seed=int(config["seed"])
+        X["train"], Y["train"][0], center=center, shuffle_y=True, seed=int(config["seed"]),
+        y_index=Y["train"][1],
     )
     params.update(
         backbone=BACKBONE,
@@ -279,11 +339,12 @@ def main() -> None:
         for split in ("val", "test"):
             items = by_split[split]
             images = transform_images(X[split], fit)
-            text = transform_texts(Y[split], fit)
+            text = transform_texts(Y[split][0], fit)
+            class_text = transform_texts(Y_classes, fit)
             fit_result[split] = {
-                "caption_to_image": pair_recall(images, text),
+                "caption_to_image": pair_recall(images, text, text_index=Y[split][1]),
                 "image_to_label": cls_metrics(
-                    class_scores(images, transform_texts(Y_classes, fit), labels, labels),
+                    class_scores(images, class_text, labels, labels),
                     [row["label"] for row in items],
                     labels,
                 ),
@@ -292,7 +353,7 @@ def main() -> None:
             fit_result[split]["label_search"] = {
                 "top1": round(float((
                     np.array([row["label"] for row in items])[
-                        (transform_texts(Y_classes, fit) @ images.T).argmax(1)
+                        (class_text @ images.T).argmax(1)
                     ] == np.array(labels)
                 ).mean()), 4),
                 "queries": len(labels),
@@ -301,6 +362,19 @@ def main() -> None:
 
     local_manifest = ROOT / "data" / "local_tiles" / "manifest.csv"
     euro_captions = ROOT / "data" / "captions.jsonl"
+    euro_cache: dict = {}
+
+    def euro_caption_side():
+        # Read and encode the EuroSAT captions once, shared by Upper Arlington and --eval-eurosat.
+        if not euro_cache:
+            rows_ = [json.loads(line) for line in euro_captions.read_text().splitlines() if line.strip()]
+            euro_cache.update(
+                rows=rows_,
+                classes=sorted({row["label"] for row in rows_}),
+                text=encode_texts(text_model, [row["text"] for row in rows_]),
+            )
+        return euro_cache["rows"], euro_cache["classes"], euro_cache["text"]
+
     if local_manifest.exists() and euro_captions.exists():
         local_rows = list(csv.DictReader(local_manifest.open(newline="")))
         local_paths = [ROOT / row["path"] for row in local_rows]
@@ -320,9 +394,7 @@ def main() -> None:
             )
             CACHE.mkdir(parents=True, exist_ok=True)
             np.save(local_cache, local_emb)
-        euro_rows = [json.loads(line) for line in euro_captions.read_text().splitlines() if line.strip()]
-        euro_classes = sorted({row["label"] for row in euro_rows})
-        euro_text = encode_texts(text_model, [row["text"] for row in euro_rows])
+        euro_rows, euro_classes, euro_text = euro_caption_side()
         local_labels = [row["label"] for row in local_rows]
         keep = [i for i, label in enumerate(local_labels) if label in euro_classes]
         if not keep:
@@ -362,9 +434,7 @@ def main() -> None:
                 )
                 CACHE.mkdir(parents=True, exist_ok=True)
                 np.save(cache_path, euro_emb)
-            euro_rows = [json.loads(line) for line in euro_captions.read_text().splitlines() if line.strip()]
-            euro_classes = sorted({row["label"] for row in euro_rows})
-            euro_text = encode_texts(text_model, [row["text"] for row in euro_rows])
+            euro_rows, euro_classes, euro_text = euro_caption_side()
             for name, fit in (("osm_fit", params), ("random_rotation", random_params)):
                 scores = class_scores(
                     transform_images(euro_emb, fit),
