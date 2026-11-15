@@ -4,7 +4,8 @@ Status: **IN PROGRESS.** The dataset build is running. A **preliminary EuroSAT-v
 10,118 chips is below; the final runs start automatically when the build finishes.
 Owner of this run: A (instructions: `experiments/osm_sentinel/RUNBOOK.md`)
 For: J (owner of the experiment), cc D
-Branch: `j/exp-osm-sentinel`; A's commits: `ae69074` (crash fixes) and this report + `recaption.py`
+Branch: `j/exp-osm-sentinel`; A's commits: `ae69074` (crash fixes), `a3f7fee` (report + first `recaption.py`), this comparison.
+J's response: `c68f8f1` fixed the line weighting (issue 2) and the runbook (issue 4); J's `recaption.py` replaced A's.
 Machine: Apple M1 Pro, 16 GB, MPS available; Python 3.14.5 (3.12 not installed); torch 2.15.0, pyrosm 0.29.0, rasterio 1.5.2
 
 ## Done so far
@@ -36,11 +37,13 @@ Accuracy shown; random-rotation control in brackets.
 |---|---|---|---|---|---|
 | **EuroSAT** (main pipeline) | **0.812** (0.155) | 0.960 (0.152) | **0.640** (0.108) | **0.811** (0.124) | 0.219 / 0.328 † |
 | OSM, as-built captions | 0.310 (0.098) | 0.360 (0.104) | 0.460 (0.172) | 0.568 (0.195) | 0.291 (0.065) |
-| OSM, area-fixed captions | 0.250 (0.095) | 0.300 (0.100) | 0.380 (0.188) | 0.460 (0.205) | 0.221 (0.071) |
+| OSM, re-captioned (fixed weighting) | 0.250 (0.095) | 0.300 (0.100) | 0.380 (0.188) | 0.460 (0.205) | 0.221 (0.071) |
 | EuroSAT + OSM (as-built) | **0.828** (0.083) | **0.980** (0.064) | 0.560 (0.052) | 0.703 (0.059) | 0.255 (0.080) |
-| EuroSAT + OSM (area-fixed) | 0.825 (0.082) | **0.980** (0.064) | 0.580 (0.064) | 0.730 (0.086) | 0.294 (0.094) |
+| EuroSAT + OSM (re-captioned) | 0.825 (0.082) | **0.980** (0.064) | 0.580 (0.064) | 0.730 (0.086) | 0.294 (0.094) |
 
-† EuroSAT fit scored against the as-built / area-fixed OSM test labels respectively.
+† EuroSAT fit scored against the as-built / re-captioned OSM test labels respectively.
+The preliminary "re-captioned" rows used A's first `recaption.py`; its weighting is the same idea as J's
+`c68f8f1` (J adds more line widths and normalises to the chip). The final run uses J's version.
 Upper Arlington references: always "Residential" = 0.62 (oracle); EuroSAT majority = 0.00.
 
 Reading:
@@ -73,7 +76,8 @@ geometry, so a 77k run would keep dying. Fix:
 
 Caption logic is unchanged and the branch tests pass.
 
-**2. Bug, NOT changed in the build (needs J's decision): water lines dominate captions and labels.**
+**2. Bug, now fixed by J in `c68f8f1` (the running 77k build still uses the old captioner; re-caption with J's
+`recaption.py`): water lines dominated captions and labels.**
 `_weight` returns **area** for polygons but **length** for lines, both in degrees. A river line
 across a 1.28 km chip weighs ~1.06e-2, which is **about 80× the area of the whole chip** (1.32e-4).
 So any mapped river or stream becomes the caption subject and the `water` label, even in a dense
@@ -117,9 +121,13 @@ identical caption ("Residential area with … dense buildings."), so it will be 
 
 ## Work left
 
-0. Queued, runs automatically after the build exits: the runbook's `train.py ... --eval-eurosat` (as-built), then
-   `compare_eurosat.py --tag full_asbuilt`, then `recaption.py`, then `compare_eurosat.py --tag full_areafix`, then
-   `train.py` on the area-fixed data. A updates this report with the final tables.
+0. Queued, runs automatically after the 77k build exits (old captioner, kept as the comparison baseline per J's runbook):
+   - `train.py --eval-eurosat` on `data/raw/osm_sentinel` (as built);
+   - `compare_eurosat.py --tag full_asbuilt`;
+   - J's `recaption.py --src data/raw/osm_sentinel --dst data/raw/osm_sentinel_recaption`;
+   - `compare_eurosat.py --tag full_recaption` and `train.py --data data/raw/osm_sentinel_recaption --eval-eurosat`.
+
+   A updates this report with the final tables. The new 1M-chip run (`data/raw/osm_sentinel_1m`) is a separate, later job.
 
 1. Let the build finish (about 4 more hours); record the actual `n` from `dataset_stats.json`,
    split/country/label counts and any `REGION FAILED` lines.
