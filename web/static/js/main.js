@@ -179,6 +179,7 @@ function initHero(story) {
       readout.innerHTML = `LAT <b>${Math.abs(c.center[1]).toFixed(3)}° ${c.center[1] >= 0 ? "N" : "S"}</b><br>LON <b>${Math.abs(c.center[0]).toFixed(3)}° ${c.center[0] >= 0 ? "E" : "W"}</b><br>VIEW <b>${km > 2000 ? "planet" : `${km.toFixed(km < 50 ? 1 : 0)} km`}</b>`;
     }
     copy.style.opacity = 1 - smooth(.04, .13, p);
+    copy.style.visibility = p > .14 ? "hidden" : "visible";
     copy.style.transform = `scale(${1 + smooth(0, .14, p) * .06}) translateY(${-smooth(0, .14, p) * 30}px)`;
     hint.style.opacity = 1 - smooth(0, .05, p);
     caps.forEach((c) => c.classList.toggle("on", p >= +c.dataset.from && p < +c.dataset.to));
@@ -344,6 +345,7 @@ function bindMetrics(meta) {
       ["Procrustes rotation (ours)", ret.procrustes?.top1, "ours"],
       ["Random rotation", ret.random_rotation?.top1],
       ["No rotation", ret.unaligned?.top1],
+      ["Chance (random pick)", ret.procrustes ? 0.1 : null],
     ],
     classify: [
       ["ResNet-18 (trained on labels)", m.resnet18?.accuracy, "strong"],
@@ -414,6 +416,8 @@ function initSearch(meta, story) {
     }).join("");
   }
 
+  const EXPECT = { "dense forest": ["Forest"], "residential neighborhood": ["Residential"], "park or grassland": ["HerbaceousVegetation", "Pasture"],
+    "commercial area": ["Industrial"], "river corridor": ["River"] };
   async function run(e) {
     e && e.preventDefault();
     const q = input.value.trim();
@@ -421,12 +425,18 @@ function initSearch(meta, story) {
     out.innerHTML = Array.from({ length: 6 }, () => `<div class="tile-card" style="opacity:.4"><div style="aspect-ratio:1;background:var(--paper-3)"></div><div class="meta"><b>&nbsp;</b></div></div>`).join("");
     try {
       const r = await api(`/api/search?q=${encodeURIComponent(q)}&gallery=${gallery}&k=6`);
+      const want = EXPECT[q.toLowerCase()];
+      const cls = Object.fromEntries((meta?.classes || []).map((c) => [c.name, c.label]));
       out.innerHTML = r.hits.map((h, i) => `
-        <figure class="tile-card" style="animation-delay:${i * 60}ms;margin:0" data-id="${esc(h.tile_id)}">
+        <figure class="tile-card ${want ? (want.includes(h.label) ? "hit" : "miss") : ""}" style="animation-delay:${i * 60}ms;margin:0" data-id="${esc(h.tile_id)}">
           <img src="${h.image}" alt="${esc(h.label)} tile ${esc(h.tile_id)}" loading="lazy">
-          <figcaption class="meta"><b>${esc(h.label)}</b><span class="mono muted">${h.score.toFixed(2)}</span></figcaption>
+          <figcaption class="meta"><b>${want ? (want.includes(h.label) ? "✓ " : "✗ ") : ""}${esc(cls[h.label] || h.label)}</b><span class="mono muted">${h.score.toFixed(2)}</span></figcaption>
         </figure>`).join("");
-      note.textContent = `${r.note || ""} Labels shown are the human labels; ${gallery === "local" ? "tile ids are the hand-labelled Upper Arlington set" : "EuroSAT test tiles"}.`.trim();
+      const nOk = want ? r.hits.filter((h) => want.includes(h.label)).length : null;
+      $("#ua-key").innerHTML = want
+        ? `<b>Checked against the truth:</b> ${nOk} of ${r.hits.length} results really are ${want.map((w) => cls[w] || w).join(" or ")} (green ✓ = right, red ✗ = wrong, by our human labels).`
+        : `Labels under each photo are the human labels. Try a preset button to see results checked against the truth.`;
+      note.textContent = "The number is a similarity score: higher = closer match.";
       $$(".pin", pins).forEach((p) => p.classList.remove("hit", "top"));
       if (gallery === "local") r.hits.forEach((h, i) => { const p = $(`.pin[data-id="${h.tile_id}"]`, pins); if (p) { p.classList.add("hit"); if (i === 0) p.classList.add("top"); } });
     } catch (err) {
@@ -560,6 +570,12 @@ export async function pollJob(id, onStage) {
 
 // --------------------------------------------------------------- chapter 6: limits
 function initLimits(meta) {
+  const wrong = (meta?.local_tiles || []).filter((t) => t.correct === false);
+  const cls = Object.fromEntries((meta?.classes || []).map((c) => [c.name, c.label]));
+  if (wrong.length) {
+    $("#wrong-count").textContent = `${wrong.length} of ${meta.local_tiles.length} wrong`;
+    $("#wrong-grid").innerHTML = wrong.map((t) => `<figure><img src="${t.image}" alt="${esc(t.tile_id)}" loading="lazy"><figcaption><span>is <b>${esc(cls[t.label] || t.label)}</b></span><span class="no">said ${esc(cls[t.pred] || t.pred)}</span></figcaption></figure>`).join("");
+  } else $(".wrong").style.display = "none";
   const tiles = Object.fromEntries((meta?.local_tiles || []).map((t) => [t.tile_id, t]));
   const ex = (meta?.local_examples || []).map((e) => ({ ...e, t: tiles[e.tile_id] })).filter((e) => e.t);
   const el = $("#lim-pair");

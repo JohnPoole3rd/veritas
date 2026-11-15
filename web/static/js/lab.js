@@ -390,6 +390,12 @@ function showMatch(r, label) {
   refreshTiles(); setMode("match");
   $("#ask-results").innerHTML = `<div class="sec-title">Best matches for ${esc(label)} <span class="tag model">${term("cosine", "similarity")}</span></div>
     <div class="list">${r.top.map((t, k) => { const tile = S.region.tiles[t.i]; return `<div class="li" data-i="${t.i}"><img src="/api/region/${S.region.id}/tile/${t.i}.png" alt=""><div><div class="t">#${k + 1} · ${esc(S.classes[tile.cls]?.label || tile.cls)}</div><div class="d">${tileClimate(t.i)}</div></div><span class="badge cool">${t.score.toFixed(3)}</span></div>`; }).join("")}</div>`;
+  const lst = S.climate?.lst?.tile;
+  if (lst) {
+    const hot = r.top.filter((t) => lst[t.i] != null).sort((a, b) => lst[b.i] - lst[a.i]).slice(0, 3);
+    if (hot.length) $("#ask-results").insertAdjacentHTML("afterbegin", `<div class="shortlist"><b>Shortlist: hottest of these matches</b>${hot.map((t) => `<button data-i="${t.i}">#${t.i} · ${fmt(lst[t.i], 1)} °C</button>`).join("")}<span>Search finds the type of place; heat says which to fix first.</span></div>`);
+    $$("#ask-results .shortlist button").forEach((b) => b.addEventListener("click", () => selectTile(+b.dataset.i, true)));
+  }
   $$("#ask-results .li").forEach((el) => el.addEventListener("click", () => selectTile(+el.dataset.i, true)));
 }
 function tileClimate(i) {
