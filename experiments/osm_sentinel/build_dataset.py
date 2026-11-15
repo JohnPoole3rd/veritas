@@ -6,18 +6,22 @@ For each region in `regions.csv`:
   2. load a cropped local OSM PBF with pyrosm (one download per region);
   3. sample chips, read them from the scene's COG, and caption each chip from OSM.
 
-The output is intentionally plain:
+The output is intentionally plain and crash-safe:
   images/<tile_id>.jpg
-  manifest.csv
-  captions.jsonl
+  manifest.csv       (one row appended per completed chip)
+  captions.jsonl     (one caption appended per completed chip)
   dataset_stats.json
 
-Example smoke run:
+Rerunning without `--overwrite` resumes from `manifest.csv`: completed tile IDs
+are skipped and the caption JSONL is repaired from the manifest. This matters at
+100k-1M-chip scale, where losing the manifest on an interruption is expensive.
+
+Example:
     python experiments/osm_sentinel/build_dataset.py \
       --region us_columbus --chips-per-region 1 --max-chips 1
 
 Scale up with more regions, `--chips-per-region`, or a longer region list.
-Network data is cached under `<out-dir>/_cache/`; reruns skip existing chips.
+PBF/GeoParquet caches live under `<out-dir>/_cache/`.
 """
 
 from __future__ import annotations
@@ -42,6 +46,11 @@ from osm_captions import build_caption_from_features  # noqa: E402
 from osm_source import load_region_features  # noqa: E402
 
 STAC_URL = "https://earth-search.aws.element84.com/v1"
+FIELDS = [
+    "tile_id", "image", "region_id", "country", "biome", "split", "lat", "lon",
+    "scene_id", "datetime", "cloud_cover", "label", "caption", "n_features",
+    "building_count", "feature_counts",
+]
 
 
 def bbox_from_center(lat: float, lon: float, radius_km: float) -> tuple[float, float, float, float]:
@@ -115,13 +124,104 @@ def tile_id(region_id: str, lat: float, lon: float) -> str:
     return f"{region_id}_{abs(lat):.4f}{ns}_{abs(lon):.4f}{ew}"
 
 
+def new_stats() -> dict[str, Any]:
+    return {
+        "n": 0,
+        "by_split": Counter(),
+        "by_country": Counter(),
+        "by_label": Counter(),
+        "regions": set(),
+    }
+
+
+def update_stats(stats: dict[str, Any], row: dict[str, Any]) -> None:
+    stats["n"] += 1
+    stats["by_split"][row["split"]] += 1
+    stats["by_country"][row["country"]] += 1
+    stats["by_label"][row["label"]] += 1
+    stats["regions"].add(row["region_id"])
+
+
+def stats_payload(stats: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "n": stats["n"],
+        "by_split": dict(stats["by_split"]),
+        "by_country": dict(stats["by_country"]),
+        "by_label": dict(stats["by_label"]),
+        "regions": sorted(stats["regions"]),
+    }
+
+
+def write_stats(path: Path, stats: dict[str, Any]) -> None:
+    path.write_text(json.dumps(stats_payload(stats), indent=2) + "\n")
+
+
+def caption_record(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        counts = json.loads(row.get("feature_counts") or "{}")
+    except json.JSONDecodeError:
+        counts = {}
+    return {
+        "tile_id": row["tile_id"],
+        "image": row["image"],
+        "caption": row["caption"],
+        "label": row["label"],
+        "split": row["split"],
+        "region_id": row["region_id"],
+        "country": row["country"],
+        "biome": row["biome"],
+        "feature_counts": counts,
+    }
+
+
+def rewrite_captions(manifest_path: Path, captions_path: Path) -> None:
+    """Repair captions from the manifest after an interrupted run."""
+    tmp = captions_path.with_name(captions_path.name + ".tmp")
+    with manifest_path.open(newline="") as source, tmp.open("w") as out:
+        for row in csv.DictReader(source):
+            out.write(json.dumps(caption_record(row), sort_keys=True) + "\n")
+    tmp.replace(captions_path)
+
+
+def load_existing(manifest_path: Path, captions_path: Path) -> tuple[set[str], dict[str, Any]]:
+    stats = new_stats()
+    done: set[str] = set()
+    if manifest_path.exists():
+        with manifest_path.open(newline="") as handle:
+            for row in csv.DictReader(handle):
+                done.add(row["tile_id"])
+                update_stats(stats, row)
+        rewrite_captions(manifest_path, captions_path)
+    elif captions_path.exists():
+        captions_path.write_text("")
+    return done, stats
+
+
+def append_chip(
+    manifest_path: Path,
+    captions_path: Path,
+    row: dict[str, Any],
+) -> None:
+    """Append a completed chip to both outputs and flush immediately."""
+    new_file = not manifest_path.exists() or manifest_path.stat().st_size == 0
+    with manifest_path.open("a", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=FIELDS)
+        if new_file:
+            writer.writeheader()
+        writer.writerow(row)
+        handle.flush()
+    with captions_path.open("a") as handle:
+        handle.write(json.dumps(caption_record(row), sort_keys=True) + "\n")
+        handle.flush()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--regions-csv", default=str(THIS / "regions.csv"))
     parser.add_argument("--out-dir", default=str(ROOT / "data" / "raw" / "osm_sentinel"))
     parser.add_argument("--region", action="append", help="Only this region_id (repeatable)")
     parser.add_argument("--chips-per-region", type=int, default=8)
-    parser.add_argument("--max-chips", type=int, default=0, help="Stop after N new chips (0 = no limit)")
+    parser.add_argument("--max-chips", type=int, default=0, help="Stop after N total chips (0 = no limit)")
     parser.add_argument("--radius-km", type=float, default=None, help="Override region radius")
     parser.add_argument("--chip-m", type=float, default=1280.0, help="Chip side length in metres")
     parser.add_argument("--chip-px", type=int, default=128)
@@ -140,14 +240,20 @@ def main() -> None:
 
     manifest_path = out_dir / "manifest.csv"
     captions_path = out_dir / "captions.jsonl"
-    rows: list[dict[str, Any]] = []
-    if manifest_path.exists() and not args.overwrite:
-        with manifest_path.open(newline="") as handle:
-            rows = list(csv.DictReader(handle))
-    done = {row["tile_id"] for row in rows}
-    captions: list[dict[str, Any]] = []
-    if captions_path.exists() and not args.overwrite:
-        captions = [json.loads(line) for line in captions_path.read_text().splitlines() if line.strip()]
+    if args.overwrite:
+        for path in (manifest_path, captions_path):
+            if path.exists():
+                path.unlink()
+        stats = new_stats()
+        done: set[str] = set()
+    else:
+        done, stats = load_existing(manifest_path, captions_path)
+    stats_path = out_dir / "dataset_stats.json"
+    write_stats(stats_path, stats)
+
+    if args.max_chips and stats["n"] >= args.max_chips:
+        print(f"already have {stats['n']} chips; nothing to do")
+        return
 
     regions = read_regions(Path(args.regions_csv))
     if args.region:
@@ -175,6 +281,8 @@ def main() -> None:
         attempts = 0
         while added < args.chips_per_region and attempts < args.chips_per_region * 8:
             attempts += 1
+            if args.max_chips and stats["n"] >= args.max_chips:
+                break
             angle = rng.uniform(0, 2 * math.pi)
             distance = radius_km * math.sqrt(rng.random())
             chip_lat = lat + (distance / 111.32) * math.cos(angle)
@@ -214,48 +322,17 @@ def main() -> None:
                 "building_count": building_count,
                 "feature_counts": json.dumps(counts, sort_keys=True),
             }
-            rows.append(row)
-            captions.append({
-                "tile_id": tid,
-                "image": image_rel,
-                "caption": caption,
-                "label": label,
-                "split": region["split"],
-                "region_id": region_id,
-                "country": region["country"],
-                "biome": region["biome"],
-                "feature_counts": counts,
-            })
+            append_chip(manifest_path, captions_path, row)
+            update_stats(stats, row)
             done.add(tid)
             added += 1
             print(f"[{region_id}] {tid} -> {caption}", flush=True)
-            if args.max_chips and len(rows) >= args.max_chips:
-                break
-        if args.max_chips and len(rows) >= args.max_chips:
+        write_stats(stats_path, stats)
+        if args.max_chips and stats["n"] >= args.max_chips:
             break
 
-    fields = [
-        "tile_id", "image", "region_id", "country", "biome", "split", "lat", "lon",
-        "scene_id", "datetime", "cloud_cover", "label", "caption", "n_features",
-        "building_count", "feature_counts",
-    ]
-    with manifest_path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
-    with captions_path.open("w") as handle:
-        for caption in captions:
-            handle.write(json.dumps(caption, sort_keys=True) + "\n")
-
-    stats = {
-        "n": len(rows),
-        "by_split": dict(Counter(row["split"] for row in rows)),
-        "by_country": dict(Counter(row["country"] for row in rows)),
-        "by_label": dict(Counter(row["label"] for row in rows)),
-        "regions": sorted({row["region_id"] for row in rows}),
-    }
-    (out_dir / "dataset_stats.json").write_text(json.dumps(stats, indent=2) + "\n")
-    print(json.dumps(stats, indent=2))
+    write_stats(stats_path, stats)
+    print(json.dumps(stats_payload(stats), indent=2))
 
 
 if __name__ == "__main__":

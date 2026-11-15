@@ -83,7 +83,8 @@ python experiments/osm_sentinel/build_dataset.py \
 ```
 
 Data is written to `data/raw/osm_sentinel/` (gitignored) and cached by region in `_cache/`.
-Existing chips are skipped on rerun; use `--overwrite` to rebuild.
+Existing chips are skipped on rerun; `manifest.csv` and `captions.jsonl` are appended per chip and
+repaired on restart. Use `--overwrite` to rebuild from scratch.
 
 ### DINOv2
 
@@ -155,8 +156,16 @@ Practical recommendation: prototype at 20k–50k chips, scale to 250k for a real
 
 ## Data scale and leakage
 
-- The default `regions.csv` has 28 regions across 16 countries and six continents.
+- The default `regions.csv` has 28 regions across 16 countries and six continents. At 1.28 km per
+  chip that is only a few thousand **non-overlapping** chips. A 1M-chip run is technically possible
+  by drawing many random crops per region, but those crops overlap heavily and do not add geographic
+  diversity. For a real 1M run, expand `regions.csv` to hundreds/thousands of locations or use a
+  larger sampling radius per region.
 - Splits are by **region**, not random chip, so nearby tiles cannot leak between train and test.
+- `build_dataset.py` appends `manifest.csv` and `captions.jsonl` after each chip. On restart it skips
+  completed tile IDs and repairs captions from the manifest.
+- `fit_procrustes` accumulates the cross-covariance in chunks, so 1M rows do not require full
+  centered copies of both embedding matrices.
 - `train.py` refuses to run if a split is empty.
 - Changing `regions.csv` or adding chips invalidates cached embeddings only if tile IDs change; use
   `--force` when in doubt.

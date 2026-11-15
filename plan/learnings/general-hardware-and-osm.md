@@ -23,6 +23,12 @@
 - `pyrosm` is a required dependency; there is no Overpass runtime path.
 - Only visible tags are captioned. Names, brands, addresses, opening hours, contact details, and
   religion are excluded.
+- `build_dataset.py` appends a manifest row and caption per completed chip, flushes both, and on
+  restart skips completed tile IDs. This is required for 100k–1M runs.
+- `fit_procrustes` accumulates the cross-covariance in chunks; 1M rows do not allocate full centered
+  copies of both embedding matrices.
+- The 28-region default list contains only a few thousand non-overlapping 1.28 km chips. A 1M run
+  needs many more regions or a larger sampling radius; otherwise it is mostly overlapping crops.
 
 ## DINOv2
 

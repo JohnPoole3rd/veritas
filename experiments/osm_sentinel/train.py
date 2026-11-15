@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -62,20 +61,24 @@ def load_rows(data_dir: Path) -> list[dict]:
     manifest = data_dir / "manifest.csv"
     if not manifest.exists():
         raise FileNotFoundError(f"Missing {manifest}; run build_dataset.py first")
-    captions = {}
-    caption_path = data_dir / "captions.jsonl"
-    if caption_path.exists():
-        for line in caption_path.read_text().splitlines():
-            if line.strip():
-                item = json.loads(line)
-                captions[item["tile_id"]] = item
     rows = []
-    for row in csv.DictReader(manifest.open(newline="")):
-        item = captions.get(row["tile_id"], {})
-        row = dict(row)
+    captions = None
+    caption_path = data_dir / "captions.jsonl"
+    for source in csv.DictReader(manifest.open(newline="")):
+        row = {
+            key: source[key]
+            for key in ("tile_id", "image", "caption", "label", "split", "country", "region_id")
+        }
+        if not row["caption"]:
+            if captions is None:
+                captions = {}
+                if caption_path.exists():
+                    for line in caption_path.read_text().splitlines():
+                        if line.strip():
+                            item = json.loads(line)
+                            captions[item["tile_id"]] = item
+            row["caption"] = captions.get(row["tile_id"], {}).get("caption", "")
         row["path"] = data_dir / row["image"]
-        row["caption"] = item.get("caption") or row["caption"]
-        row["label"] = item.get("label") or row["label"]
         rows.append(row)
     return rows
 
@@ -114,9 +117,6 @@ def embed(model, rows: list[dict], backbone: str, split: str, args) -> np.ndarra
         "split": split,
         "tile_ids": [row["tile_id"] for row in rows],
         "n": len(rows),
-        "image_hashes": [
-            hashlib.sha256(str(row["path"]).encode()).hexdigest()[:12] for row in rows
-        ],
     }, indent=2) + "\n")
     return embeddings
 

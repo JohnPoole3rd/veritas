@@ -39,23 +39,34 @@ def fit_procrustes(
     center: bool = True,
     shuffle_y: bool = False,
     seed: int = 42,
+    chunk_size: int = 100_000,
 ) -> dict[str, Any]:
     """Fit the orthogonal/semi-orthogonal map X -> Y.
 
-    Returns a dict with W, mu_x, mu_y, scale, and method.
+    The cross-covariance is accumulated in chunks so 1M-row fits do not allocate
+    full centered copies of both embedding matrices. Returns W, mu_x, mu_y,
+    scale, and method.
     """
     X = np.asarray(X, dtype=np.float32)
     Y = np.asarray(Y, dtype=np.float32)
+    if X.shape[0] != Y.shape[0]:
+        raise ValueError(f"X and Y have different row counts: {X.shape[0]} vs {Y.shape[0]}")
     if shuffle_y:
         rng = np.random.default_rng(seed)
         Y = Y[rng.permutation(Y.shape[0])]
     if center:
-        Xc, Yc, mu_x, mu_y = center_embeddings(X, Y)
+        mu_x = X.mean(axis=0, dtype=np.float32)
+        mu_y = Y.mean(axis=0, dtype=np.float32)
     else:
-        Xc, Yc = X, Y
         mu_x = np.zeros(X.shape[1], dtype=np.float32)
         mu_y = np.zeros(Y.shape[1], dtype=np.float32)
-    cross = Xc.T @ Yc
+    cross = np.zeros((X.shape[1], Y.shape[1]), dtype=np.float32)
+    step = max(1, int(chunk_size))
+    for start in range(0, X.shape[0], step):
+        stop = min(start + step, X.shape[0])
+        Xc = X[start:stop] - mu_x
+        Yc = Y[start:stop] - mu_y
+        cross += Xc.T @ Yc
     U, singular_values, Vt = np.linalg.svd(cross, full_matrices=False)
     W = (U @ Vt).astype(np.float32)
     scale = float(singular_values.sum())

@@ -29,6 +29,16 @@ class AlignmentTests(unittest.TestCase):
         similarity = np.sum(rotated * texts, axis=1)
         self.assertGreater(float(similarity.mean()), 0.99)
 
+    def test_procrustes_chunked_fit_matches_one_shot(self):
+        rng = np.random.default_rng(3)
+        X = rng.normal(size=(257, 12)).astype(np.float32)
+        Y = rng.normal(size=(257, 12)).astype(np.float32)
+        one = fit_procrustes(X, Y, chunk_size=257)
+        chunked = fit_procrustes(X, Y, chunk_size=17)
+        np.testing.assert_allclose(chunked["W"], one["W"], atol=1e-5)
+        np.testing.assert_allclose(chunked["mu_x"], one["mu_x"], atol=1e-6)
+        np.testing.assert_allclose(chunked["mu_y"], one["mu_y"], atol=1e-6)
+
     def test_centering_uses_training_means(self):
         X = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
         Y = np.array([[0.0, 1.0], [2.0, 3.0]], dtype=np.float32)
