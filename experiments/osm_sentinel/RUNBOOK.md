@@ -20,6 +20,98 @@ populated places with a 60 km radius.
 The old random sampler remains available with `--sample-mode random`, but it produces overlapping
 chips and is not the 1M path.
 
+## A: full 1M rerun
+
+This is the authoritative A run. Start from a clean 1M output directory. Do **not** reuse, copy,
+symlink, resume, or recaption anything from `data/raw/osm_sentinel` (the old 77k build).
+
+```sh
+cd /home/john/veritas
+git switch j/exp-osm-sentinel
+git pull --ff-only origin j/exp-osm-sentinel
+```
+
+Use Python 3.12+ (3.14.5 already works on A's machine):
+
+```sh
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python - <<'PY'
+import torch, pyrosm, rasterio
+print("mps", torch.backends.mps.is_available())
+print("pyrosm", pyrosm.__version__)
+print("rasterio", rasterio.__version__)
+PY
+```
+
+Remove only the fresh 1M directory if it exists. Leave the 77k build alone:
+
+```sh
+rm -rf data/raw/osm_sentinel_1m
+```
+
+Run the full grid + WorldCover build:
+
+```sh
+mkdir -p data/raw/osm_sentinel_1m
+python experiments/osm_sentinel/build_dataset.py \
+  --out-dir data/raw/osm_sentinel_1m \
+  --sample-mode grid \
+  --chips-per-region 8000 \
+  --max-chips 1000000 \
+  2>&1 | tee data/raw/osm_sentinel_1m/_run.log
+```
+
+Defaults are intentional:
+
+- `grid`: non-overlapping cells, stable IDs, resume-safe
+- WorldCover on
+- 399 regions / 125 countries
+- fresh PBF and GeoParquet caches under `data/raw/osm_sentinel_1m/_cache/`
+
+Do not add `--no-worldcover`. Do not point this at the old 77k directory.
+
+The build is resumable: if it stops, rerun the same command. It will continue from the new
+`data/raw/osm_sentinel_1m/manifest.csv`.
+
+While it runs:
+
+```sh
+tail -f data/raw/osm_sentinel_1m/manifest.csv
+grep "REGION FAILED" data/raw/osm_sentinel_1m/_run.log 2>/dev/null || true
+cat data/raw/osm_sentinel_1m/dataset_stats.json
+```
+
+When it finishes, record the actual `n`, `failed_regions`, and `skipped_chips`. If `n` is below
+1,000,000, report it; do not fill the gap from the 77k build.
+
+Train on the new 1M data:
+
+```sh
+python experiments/osm_sentinel/train.py \
+  --data data/raw/osm_sentinel_1m \
+  --device mps \
+  --dtype fp32 \
+  --batch-size 32 \
+  --num-workers 4 \
+  --eval-eurosat
+```
+
+Run the EuroSAT-vs-OSM comparison on the same 1M data:
+
+```sh
+python experiments/osm_sentinel/compare_eurosat.py \
+  --data data/raw/osm_sentinel_1m \
+  --tag full_1m \
+  --dtype fp32 \
+  --batch-size 64 \
+  --num-workers 0
+```
+
+Write the results to `results/T20-osm-1m.md`. The old `results/T19-osm-sentinel.md` remains the
+77k historical report; do not merge its data into the 1M run.
+
 ## 1. Setup
 
 Use Python 3.12+ if available. A ran this successfully on Python 3.14.5; 3.12 is not required.
