@@ -72,7 +72,7 @@ def resolve_dtype(device: str, dtype: str = "fp32"):
     """Resolve a dtype name to a torch dtype.
 
     Default is fp32. `auto` uses bf16 on CUDA/XPU when supported. We avoid fp16
-    for DINOv3 because its attention/softmax path is sensitive to fp16 ranges.
+    for ViT attention/softmax paths because they are sensitive to fp16 ranges.
     """
     import torch
 

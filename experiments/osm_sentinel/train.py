@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-"""Fit an OSM-captioned Sentinel-2 rotation with DINOv3 (or DINOv2).
+"""Fit an OSM-captioned Sentinel-2 rotation with frozen DINOv2.
 
 The method is the same closed-form Procrustes map used by the main project:
 frozen image encoder + frozen MiniLM + one orthogonal rotation fitted on
 labelled image-caption pairs. This experiment only changes the *training data*:
 real OSM-grounded captions from many countries instead of EuroSAT templates.
 
-Run:
-    export DINOV3_REPO=/path/to/dinov3
-    export DINOV3_WEIGHTS=/path/to/dinov3_vits16_pretrain_lvd1689m-08c60483.pth
-    python experiments/osm_sentinel/train.py --backbone dinov3-small
+DINOv2 is public and downloads automatically:
 
-No DINOv3 access? Use `--backbone dinov2-small` for a CPU/MPS smoke run.
+    python experiments/osm_sentinel/train.py
+
+Use `--device` and `--dtype` for the hardware path; no gated model access is
+required.
 """
 
 from __future__ import annotations
@@ -31,11 +31,11 @@ for path in (ROOT, THIS):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from backbones import HF_MODELS, load_backbone, transform_stats  # noqa: E402
 from osm_captions import LABEL_PROMPTS  # noqa: E402
 
 CACHE = ROOT / "artifacts" / "embeddings" / "osm_sentinel"
 ALIGN = ROOT / "artifacts" / "alignment"
+BACKBONE = "dinov2-small"
 
 
 class PILList:
@@ -52,11 +52,10 @@ class PILList:
         return self.transform(Image.open(self.paths[index]).convert("RGB"))
 
 
-def image_transform(backbone: str):
+def image_transform():
     from src.data import get_transforms
 
-    mean, std = transform_stats(backbone)
-    return get_transforms(224, train=False, mean=mean, std=std)
+    return get_transforms(224, train=False)
 
 
 def load_rows(data_dir: Path) -> list[dict]:
@@ -97,7 +96,7 @@ def embed(model, rows: list[dict], backbone: str, split: str, args) -> np.ndarra
     if not args.force and _cache_ok(path, meta_path, rows, backbone):
         print(f"cache {path.relative_to(ROOT)} ({len(rows)} rows)", flush=True)
         return np.load(path)
-    transform = image_transform(backbone)
+    transform = image_transform()
     dataset = PILList([row["path"] for row in rows], transform)
     print(f"embedding {split}: {len(rows)} images", flush=True)
     embeddings = extract_image_embeddings(
@@ -152,7 +151,6 @@ def pair_recall(images, text, ks=(1, 10)) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default=str(ROOT / "data" / "raw" / "osm_sentinel"))
-    parser.add_argument("--backbone", default="dinov3-small", choices=list(HF_MODELS))
     parser.add_argument("--device", default=None, help="Override autodetection (cuda/mps/xpu/cpu)")
     parser.add_argument("--dtype", default="fp32", choices=["fp32", "bf16", "fp16", "auto"])
     parser.add_argument("--batch-size", type=int, default=32)
@@ -163,12 +161,13 @@ def main() -> None:
 
     from src.alignment import fit_procrustes, orthogonality_error, save_procrustes, transform_images, transform_texts
     from src.config import load_config
-    from src.encoders import device_summary, encode_texts, get_device, load_minilm
+    from src.encoders import device_summary, encode_texts, get_device, load_dinov2, load_minilm
 
     config = load_config(str(ROOT / "configs" / "default.yaml"))
     args.device_resolved = get_device(args.device)
-    print(f"backbone={args.backbone} device={device_summary(args.device_resolved)} dtype={args.dtype}", flush=True)
-    model, model_label = load_backbone(args.backbone, args.device_resolved)
+    print(f"backbone={BACKBONE} device={device_summary(args.device_resolved)} dtype={args.dtype}", flush=True)
+    model_label = config["image"]["model_name"]
+    model = load_dinov2(model_label, device=args.device_resolved)
 
     rows = load_rows(Path(args.data))
     by_split = {split: [row for row in rows if row["split"] == split] for split in ("train", "val", "test")}
@@ -177,22 +176,22 @@ def main() -> None:
             raise SystemExit(f"Split {split!r} is empty; check regions.csv and dataset_stats.json")
         print(f"{split}: {len(items)} chips, {len({row['country'] for row in items})} countries", flush=True)
 
-    X = {split: embed(model, items, args.backbone, split, args) for split, items in by_split.items()}
+    X = {split: embed(model, items, BACKBONE, split, args) for split, items in by_split.items()}
     text_model = load_minilm(config["text"]["model_name"], device=args.device_resolved)
     Y = {split: encode_texts(text_model, [row["caption"] for row in items]) for split, items in by_split.items()}
 
     params = fit_procrustes(X["train"], Y["train"], center=True)
     random_params = fit_procrustes(X["train"], Y["train"], center=True, shuffle_y=True, seed=int(config["seed"]))
-    params.update(backbone=args.backbone, model_name=model_label, data=str(Path(args.data)), train_n=len(by_split["train"]))
+    params.update(backbone=BACKBONE, model_name=model_label, data=str(Path(args.data)), train_n=len(by_split["train"]))
     ALIGN.mkdir(parents=True, exist_ok=True)
-    save_procrustes(ALIGN / f"osm_sentinel_{args.backbone}.npz", params)
+    save_procrustes(ALIGN / f"osm_sentinel_{BACKBONE}.npz", params)
 
     labels = sorted({row["label"] for row in rows})
     prompt_text = [f"A 10 m Sentinel-2 satellite image of {LABEL_PROMPTS.get(label, label)}." for label in labels]
     Y_classes = encode_texts(text_model, prompt_text)
 
     results = {
-        "backbone": args.backbone,
+        "backbone": BACKBONE,
         "model_name": model_label,
         "device": device_summary(args.device_resolved),
         "dtype": args.dtype,
@@ -237,13 +236,13 @@ def main() -> None:
         local_paths = [ROOT / row["path"] for row in local_rows]
         from src.encoders import extract_image_embeddings
 
-        local_cache = CACHE / f"{args.backbone}_upper_arlington.npy"
+        local_cache = CACHE / f"{BACKBONE}_upper_arlington.npy"
         if not args.force and local_cache.exists():
             local_emb = np.load(local_cache)
         else:
             local_emb = extract_image_embeddings(
                 model,
-                PILList(local_paths, image_transform(args.backbone)),
+                PILList(local_paths, image_transform()),
                 batch_size=args.batch_size,
                 device=args.device_resolved,
                 num_workers=args.num_workers,
@@ -271,13 +270,13 @@ def main() -> None:
             items = json.loads(split_path.read_text())["items"]
             from src.encoders import extract_image_embeddings
 
-            cache_path = CACHE / f"{args.backbone}_eurosat_test.npy"
+            cache_path = CACHE / f"{BACKBONE}_eurosat_test.npy"
             if not args.force and cache_path.exists():
                 euro_emb = np.load(cache_path)
             else:
                 euro_emb = extract_image_embeddings(
                     model,
-                    PILList([euro_root / item["path"] for item in items], image_transform(args.backbone)),
+                    PILList([euro_root / item["path"] for item in items], image_transform()),
                     batch_size=args.batch_size,
                     device=args.device_resolved,
                     num_workers=args.num_workers,
@@ -299,7 +298,7 @@ def main() -> None:
                     scores, [item["label"] for item in items], euro_classes
                 )
 
-    output = THIS / f"results_{args.backbone}.json"
+    output = THIS / f"results_{BACKBONE}.json"
     output.write_text(json.dumps(results, indent=2) + "\n")
     print(json.dumps(results, indent=2))
     print(f"wrote {output.relative_to(ROOT)}")

@@ -17,7 +17,7 @@ regions.csv
   -> local OSM PBF per region (pyrosm)
   -> random 1.28 km chips on the 10 m grid
   -> OSM caption per chip
-  -> DINOv3 / DINOv2 embeddings + MiniLM caption embeddings
+  -> DINOv2 embeddings + MiniLM caption embeddings
   -> Procrustes fit on train regions
   -> held-out regions: caption->image recall, image->label, label search, Upper Arlington transfer
 ```
@@ -85,48 +85,16 @@ python experiments/osm_sentinel/build_dataset.py \
 Data is written to `data/raw/osm_sentinel/` (gitignored) and cached by region in `_cache/`.
 Existing chips are skipped on rerun; use `--overwrite` to rebuild.
 
-### DINOv3
+### DINOv2
 
-The default backbone is the same DINOv3 ViT-S/16 used by the other experiments:
-
-```sh
-export DINOV3_REPO=/path/to/facebookresearch/dinov3
-export DINOV3_WEIGHTS=/path/to/dinov3_vits16_pretrain_lvd1689m-08c60483.pth
-python experiments/osm_sentinel/train.py --backbone dinov3-small
-```
-
-If those variables are unset, `backbones.py` tries the gated Hugging Face model.
-
-### DINOv3 SAT-493M (satellite ViT-L)
-
-The satellite checkpoint is **gated** by Meta and Hugging Face. Accept the gate at
-`https://huggingface.co/facebook/dinov3-vitl16-pretrain-sat493m`, then:
+The experiment uses the same public DINOv2-small encoder as the main project:
 
 ```sh
-hf auth login
-hf download facebook/dinov3-vitl16-pretrain-sat493m \
-  --local-dir weights/dinov3-vitl16-sat493m
-python experiments/osm_sentinel/train.py --backbone dinov3-sat-large --dtype bf16
+python experiments/osm_sentinel/train.py
 ```
 
-Or use Meta's signed URL (from the DINOv3 download form) and the exact filename
-`dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth` with the official repo:
-
-```sh
-export DINOV3_REPO=/path/to/facebookresearch/dinov3
-export DINOV3_SAT_WEIGHTS=/path/to/dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth
-python experiments/osm_sentinel/train.py --backbone dinov3-sat-large --dtype bf16
-```
-
-SAT-493M returns a **1024-d** CLS token; the Procrustes fit maps it to the 384-d MiniLM space.
-`train.py` automatically uses the official SAT mean/std for this backbone. The weights are not
-committed; they are 1.2 GB and subject to the DINOv3 License.
-
-For a quick non-DINOv3 smoke test:
-
-```sh
-python experiments/osm_sentinel/train.py --backbone dinov2-small
-```
+DINOv2 is Apache-2.0 and downloads automatically through `transformers`; no gate, token, or
+manual checkpoint path is needed. Use `--device` and `--dtype` for the hardware path.
 
 The OSM experiment reports:
 
@@ -139,14 +107,14 @@ The OSM experiment reports:
 
 Outputs:
 
-- `experiments/osm_sentinel/results_<backbone>.json`
-- `artifacts/alignment/osm_sentinel_<backbone>.npz` (gitignored)
+- `experiments/osm_sentinel/results_dinov2-small.json`
+- `artifacts/alignment/osm_sentinel_dinov2-small.npz` (gitignored)
 - `artifacts/embeddings/osm_sentinel/*.npy` (gitignored cache)
 
 ## Hardware acceleration
 
 The main `src/encoders.py` path now auto-selects **CUDA/ROCm → Apple MPS → Intel XPU → CPU**.
-Use `--device` (or `PLATONIC_DEVICE`) when you want to override. DINOv3/DINOv2 extraction uses:
+Use `--device` (or `PLATONIC_DEVICE`) when you want to override. DINOv2 extraction uses:
 
 - `torch.inference_mode()`;
 - a worker-backed `DataLoader` with pinned host memory on CUDA/XPU;
@@ -164,23 +132,22 @@ accelerators; ONNX Runtime/DirectML/OpenVINO remain deployment-specific follow-u
 ## Scale on an RTX 5060 Ti
 
 These are planning estimates, not measured on this machine. The pipeline is frozen-encoder embedding
-extraction plus a tiny Procrustes SVD, so the GPU is not the binding constraint. ViT-S/16 at 224 px,
-bf16, batch 512, `inference_mode`: roughly **900–1,500 images/s**; ViT-L/16 SAT-493M: roughly
-**95–200 images/s**. The 8 GB and 16 GB 5060 Ti have the same compute; 16 GB just allows larger
-batches.
+extraction plus a tiny Procrustes SVD, so the GPU is not the binding constraint. DINOv2 ViT-S/14 at
+224 px, bf16, batch 512, `inference_mode`: roughly **900–1,500 images/s**. The 8 GB and 16 GB 5060 Ti
+have the same compute; 16 GB just allows larger batches.
 
-| Chips | ViT-S/16 (384-d) | ViT-L/16 SAT-493M (1024-d) | JPEG + embeddings |
-|---:|---:|---:|---:|
-| 10k | ~10–20 s | ~1–2 min | ~0.3 GB |
-| 50k | ~0.7–1.5 min | ~5–9 min | ~1.5 GB |
-| 100k | ~1.5–3 min | ~10–18 min | ~3 GB |
-| 500k | ~7–14 min | ~50–90 min | ~15 GB |
-| 1M | ~15–30 min | ~2–3 h | ~30 GB |
+| Chips | DINOv2 ViT-S/14 (384-d) | JPEG + embeddings |
+|---:|---:|---:|
+| 10k | ~10–20 s | ~0.3 GB |
+| 50k | ~0.7–1.5 min | ~1.5 GB |
+| 100k | ~1.5–3 min | ~3 GB |
+| 500k | ~7–14 min | ~15 GB |
+| 1M | ~15–30 min | ~30 GB |
 
 The real cost is **Sentinel-2 COG acquisition and OSM PBF preparation**, not GPU time. A 1M-chip run
 needs roughly tens of GB of chips, a few GB of embeddings, and potentially several hours to a day of
-data prep. Procrustes itself is a 384×384 or 1024×384 cross-covariance GEMM plus a small SVD:
-seconds even at 1M rows, provided embeddings are float32 and not a full N×d SVD.
+data prep. Procrustes itself is a 384×384 cross-covariance GEMM plus a small SVD: seconds even at
+1M rows, provided embeddings are float32 and not a full N×d SVD.
 
 Practical recommendation: prototype at 20k–50k chips, scale to 250k for a real result, and go to
 1M only if the OSM coverage/diversity actually improves held-out metrics. A 5060 Ti 8 GB is enough;
@@ -206,8 +173,6 @@ Practical recommendation: prototype at 20k–50k chips, scale to 250k for a real
   and have no API rate limit. OSM data is © OpenStreetMap contributors, ODbL 1.0.
 - Sentinel-2 is 10 m; a 1.28 km chip is 128 px before the model resize. Fine-grained land use
   (e.g. individual buildings) is not resolvable at this scale.
-- DINOv3 is licensed by Meta under the DINOv3 License, not an open-source license. Weights are not
-  committed. Cite Siméoni et al., “DINOv3”, arXiv:2508.10104 (2025).
 - Sentinel-2: Copernicus Sentinel data, processed by ESA; accessed through the public
   Element84 Earth Search STAC API. OSM: © OpenStreetMap contributors, ODbL.
 
@@ -219,6 +184,5 @@ Practical recommendation: prototype at 20k–50k chips, scale to 250k for a real
 | `build_dataset.py` | STAC scene search, COG chip reading, pyrosm lookup, manifest/captions |
 | `osm_captions.py` | Visible-tag mapping, geometry clipping, caption builder |
 | `osm_source.py` | pyrosm local PBF backend with per-region GeoParquet cache |
-| `backbones.py` | DINOv3 local/HF loader and DINOv2 fallback |
 | `train.py` | Embedding cache, Procrustes fit, held-out and transfer metrics |
 | `README.md` | This document |

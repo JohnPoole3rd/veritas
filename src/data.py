@@ -106,27 +106,22 @@ def split_path(config: dict[str, Any], split: str) -> Path:
     return resolve_path(config["data"]["splits_dir"], config) / f"{split}.json"
 
 
-def get_transforms(input_size: int = 224, train: bool = False, mean=None, std=None):
-    """Eval transforms for the frozen encoder: Resize(256/224 * size) + CenterCrop(size) + normalise.
-
-    EuroSAT and local tiles both go through the ImageNet default, so they stay comparable
+def get_transforms(input_size: int = 224, train: bool = False):
+    """Eval transforms for the frozen DINOv2 encoder: Resize(256/224 * size) + CenterCrop(size) +
+    ImageNet normalisation. EuroSAT and local tiles both go through this, so they stay comparable
     (the centre crop drops ~12.5 % of the border of a 64x64 tile; changing it would invalidate the
-    logged embeddings). Pass `mean`/`std` only for a backbone with different official statistics
-    (DINOv3 SAT-493M). Nothing is trained on these, so there is no train variant; ResNet-18 uses
-    `src.baselines.make_transforms`. `train` is kept for call-site compatibility and must be False.
-    """
+    logged embeddings). Nothing is trained on these, so there is no train variant; ResNet-18 uses
+    `src.baselines.make_transforms`. `train` is kept for call-site compatibility and must be False."""
     from torchvision import transforms
 
     if train:
         raise ValueError("get_transforms is eval-only (frozen encoder); use src.baselines.make_transforms to train")
-    mean = IMAGENET_MEAN if mean is None else tuple(mean)
-    std = IMAGENET_STD if std is None else tuple(std)
     return transforms.Compose(
         [
             transforms.Resize(int(input_size * 256 / 224)),
             transforms.CenterCrop(input_size),
             transforms.ToTensor(),
-            transforms.Normalize(mean, std),
+            transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
         ]
     )
 

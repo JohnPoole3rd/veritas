@@ -113,7 +113,7 @@ Hardware selection is automatic: CUDA/ROCm → Apple MPS → Intel XPU → CPU. 
 `--device` or `PLATONIC_DEVICE`; `--dtype auto` uses bf16 where supported. Vulkan is not a viable
 PyTorch path for these ViT backbones, so it is not advertised.
 
-- `experiments/osm_sentinel/` — OSM-captioned Sentinel-2 training with DINOv3, global region
+- `experiments/osm_sentinel/` — OSM-captioned Sentinel-2 training with DINOv2, global region
   sampling, local OSM PBFs (pyrosm) or Overpass fallback, and a Procrustes fit on held-out regions.
   See its README for the visible-tag policy, hardware selection, and commands.
 
