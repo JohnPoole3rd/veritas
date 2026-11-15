@@ -198,9 +198,21 @@ def encode_texts(
     texts: Iterable[str],
     batch_size: int = 64,
     normalize: bool = False,
+    dedupe: bool = True,
 ) -> np.ndarray:
-    """Encode texts to a float32 matrix."""
+    """Encode texts to a float32 matrix (one row per input text, input order).
+
+    With `dedupe` (default) each distinct text is encoded once and the rows are indexed
+    back; templated captions repeat heavily, so this is most of the text-encoding cost at
+    1M rows. Output equals the non-deduplicated encoding up to float tolerance (batch padding).
+    """
     texts = list(texts)
+    if dedupe:
+        from src.alignment import unique_rows
+
+        unique, index = unique_rows(texts)
+        if len(unique) < len(texts):
+            return encode_texts(model, unique, batch_size=batch_size, normalize=normalize, dedupe=False)[index]
     embeddings = model.encode(
         texts,
         batch_size=batch_size,
