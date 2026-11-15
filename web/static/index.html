@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Platonic Earth</title>
+<meta name="description" content="Search satellite imagery in plain English, and measure how much tree canopy cools a city. Frozen DINOv2 + MiniLM joined by one Procrustes rotation; Sentinel-2 and Landsat measurements.">
+<meta name="theme-color" content="#0b140f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232f6b35'/%3E%3Cpath d='M16 6c-5 5-6 12 0 20 6-8 5-15 0-20z' fill='%23d9ec7c'/%3E%3C/svg%3E">
+<link rel="preload" href="/static/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
+<link rel="stylesheet" href="/static/css/site.css">
+<script>
+  try { const t = localStorage.getItem("pe-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<nav class="nav on-dark" id="nav" aria-label="Main">
+  <a class="brand" href="#top" aria-label="Platonic Earth, back to top">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#2f6b35"/><path d="M16 6c-5 5-6 12 0 20 6-8 5-15 0-20z" fill="#d9ec7c"/><path d="M16 9v15" stroke="#2f6b35" stroke-width="1.2"/></svg>
+    Platonic Earth
+  </a>
+  <a class="link" href="#minds">How it works</a>
+  <a class="link" href="#evidence">Evidence</a>
+  <a class="link" href="#heat">Heat &amp; canopy</a>
+  <a class="link" href="#limits">Limits</a>
+  <button class="icon-btn" id="theme-btn" aria-label="Switch light or dark theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+  </button>
+  <a class="cta" href="#lab">Open the Lab</a>
+</nav>
+
+<!-- ============================================================ 0 · HERO: globe → Upper Arlington -->
+<header class="hero" id="top" data-scene="hero">
+  <div class="stage">
+    <div class="globe-fallback"></div>
+    <div id="globe" aria-label="Satellite globe that flies to Upper Arlington, Ohio as you scroll" role="img"></div>
+    <div class="hero-copy" id="hero-copy">
+      <div class="inner">
+        <h1 class="display">Ask the Earth<br><em>in plain words.</em></h1>
+        <p class="sub">Two AI models that never met (one learned from pictures, one from sentences), joined by a single rotation, so a city forester can search satellite imagery like a library.</p>
+      </div>
+    </div>
+    <div class="coord-readout" id="coord-readout" aria-hidden="true"></div>
+    <div class="hero-cap" data-from=".16" data-to=".40">
+      <span class="mono">Sentinel-2 · ESA Copernicus</span>
+      <p>Two satellites photograph <b>every patch of land every five days</b> at 10&nbsp;m per pixel. Petabytes of pictures, and almost no way to ask them anything.</p>
+    </div>
+    <div class="hero-cap right" data-from=".42" data-to=".66">
+      <span class="mono">40.03° N · 83.07° W</span>
+      <p><b>Upper Arlington, Ohio.</b> A tree-lined suburb with a 2026 Urban Forestry Plan, and staff who need to know <b>where to plant next</b>.</p>
+    </div>
+    <div class="hero-cap" data-from=".70" data-to="1.1">
+      <span class="mono" id="cap-scene">One clear pass</span>
+      <p>The real Sentinel-2 picture, cut into <b id="cap-tiles">squares of 640&nbsp;m</b>. Every square can now be asked a question in English.</p>
+    </div>
+    <div class="scroll-hint" id="scroll-hint">Scroll<i></i></div>
+  </div>
+</header>
+
+<main>
+<!-- ============================================================ manifesto -->
+<section class="manifesto" id="intro">
+  <div class="topo"></div>
+  <div class="wrap">
+    <div class="kicker reveal">The idea</div>
+    <p class="big" id="manifesto">A vision model knows what a forest <em>looks</em> like. A language model knows what the word <em>forest</em> means. If both learned the same world, their maps of it should have the same shape, and one rotation should line them up.</p>
+    <div class="facts">
+      <div class="fact reveal"><div class="n">0</div><div class="l">encoder weights trained. DINOv2 and MiniLM stay frozen.</div></div>
+      <div class="fact reveal d1"><div class="n">1<small>rotation</small></div><div class="l">a 384 × 384 orthogonal matrix, solved in closed form by SVD.</div></div>
+      <div class="fact reveal d2"><div class="n" data-m="search_top1">96<small>%</small></div><div class="l">of the <span data-m="search_nq">50</span> caption searches put the right land cover first, over <span data-m="search_ni">4,050</span> held-out tiles.</div></div>
+      <div class="fact reveal d3"><div class="n">2<small>layers</small></div><div class="l">measured alongside it: Sentinel-2 greenness and Landsat surface temperature.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 1 · TWO MINDS (procrustes) -->
+<section class="minds" id="minds">
+  <div class="wrap minds-intro">
+    <div class="chapter-no reveal" style="color:var(--night-muted)">Chapter 01</div>
+    <h2 class="h2 reveal" style="margin-top:14px">Two minds that <em style="color:var(--sprout)">never met.</em></h2>
+    <p class="lede reveal">Every dot below is a real satellite tile, placed by what DINOv2 thinks of it. Every star is a real sentence, placed by MiniLM. Scroll to apply the rotation.</p>
+  </div>
+  <div class="scrolly" data-scene="minds" style="height:360vh">
+    <div class="sticky">
+      <canvas id="minds-canvas" aria-label="Animated scatter of image and caption embeddings aligning under the rotation" role="img"></canvas>
+      <div class="minds-legend" id="minds-legend"></div>
+      <div class="minds-meter"><b id="minds-cos">0.00</b>mean cosine, tile ↔ its own caption</div>
+    </div>
+    <div class="steps right">
+      <div class="step"><div class="card"><span class="mono">Before</span><p><b>Two separate spaces.</b> DINOv2 sorted 142 million images; MiniLM sorted a billion sentence pairs. Neither has ever seen the other. Measured against its own caption, a tile scores <b data-m="cos_before">~0</b>, no better than chance.</p></div></div>
+      <div class="step"><div class="card"><span class="mono">The rotation</span><p>We take labelled EuroSAT image–caption pairs and ask SVD for the one orthogonal matrix <i>W</i> that best lines them up. It can turn the space and flip it, but never stretch or bend it. Nothing inside either model changes.</p></div></div>
+      <div class="step"><div class="card"><span class="mono">After</span><p>Rivers drift toward the word “river”; forests toward “forest”. The mean cosine rises to <b data-m="cos_after">0.29</b>. The geometry was already shared. The rotation only had to find it.</p><p class="muted" style="font-size:13px">2-D PCA projection of real 384-D vectors: <span data-m="emb_n">360</span> held-out EuroSAT tiles and 50 captions.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 2 · EVIDENCE -->
+<section class="evidence chapter" id="evidence">
+  <div class="topo"></div>
+  <div class="wrap">
+    <div class="chapter-head">
+      <div class="chapter-no reveal">Chapter 02</div>
+      <h2 class="h2 reveal">Evidence, <em>not adjectives.</em></h2>
+      <p class="lede reveal">Every number here is read live from the team's logged metric files. Like is compared with like, and the weak results stay in.</p>
+    </div>
+    <div class="ev-grid">
+      <article class="ev wide reveal">
+        <div class="tag">Text → image search · held-out EuroSAT</div>
+        <div class="big" data-m="search_top1">96<small>% top-1</small></div>
+        <p>Each of the <span data-m="search_nq">50</span> class captions searched <span data-m="search_ni">4,050</span> test tiles it had never seen. ResNet-18 can't run this test at all, because it has no words.</p>
+        <div class="bars" data-bars="retrieval"></div>
+      </article>
+      <article class="ev reveal d1">
+        <div class="tag">Upper Arlington · 50 local tiles</div>
+        <div class="big" data-m="local_acc">64<small>%</small></div>
+        <p>Out of distribution, on Ohio tiles A collected and labelled by hand. Honest bar: always answering “Residential” scores <b data-m="local_oracle">62%</b>.</p>
+        <div class="callout">Rivers are the weak spot: <b data-m="river_local">0 of 10</b> Scioto/Olentangy tiles were labelled River.</div>
+      </article>
+      <article class="ev full reveal">
+        <div class="tag">Label each test tile · same task for every row · N = <span data-m="cls_n">4,050</span></div>
+        <div class="bars" data-bars="classify"></div>
+        <p class="note">ResNet-18 is trained on these exact labels; ours trains nothing but one rotation. The rotation turns a 10-way classifier into a search engine at a cost of <b data-m="gap">17</b> accuracy points. Sources: majority.csv, resnet18.csv, caption_classification_test.csv, retrieval.csv, local_summary.csv.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 3 · SEARCH UPPER ARLINGTON -->
+<section class="search-sec chapter" id="search">
+  <div class="wrap">
+    <div class="chapter-head">
+      <div class="chapter-no reveal">Chapter 03</div>
+      <h2 class="h2 reveal">Search a town <em>like a library.</em></h2>
+      <p class="lede reveal">Type what you are looking for. The query is embedded by MiniLM, compared with every rotated tile, and the closest come back. Scores are cosine similarity, not probability.</p>
+    </div>
+    <form class="searchbar reveal" id="ua-form" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <label class="sr" for="ua-q">Describe the land cover</label>
+      <input id="ua-q" name="q" placeholder="river corridor" autocomplete="off" value="river corridor">
+      <button class="btn" type="submit">Search</button>
+    </form>
+    <div class="chips reveal" id="ua-chips"></div>
+    <div class="chips reveal" style="margin-top:10px">
+      <button class="chip on" data-gallery="local">Upper Arlington <small data-m="n_local">50</small></button>
+      <button class="chip" data-gallery="eurosat">Europe · EuroSAT test <small data-m="n_eurosat">4,050</small></button>
+    </div>
+    <div class="search-layout">
+      <div>
+        <div class="results" id="ua-results"><div class="empty">Results appear here.</div></div>
+        <p class="result-note" id="ua-note"></p>
+      </div>
+      <div class="ua-map reveal" id="ua-map">
+        <img src="/static/img/ua-truecolor.jpg" alt="Sentinel-2 true-colour image of Upper Arlington, 1 August 2025" width="704" height="960">
+        <svg id="ua-pins" viewBox="0 0 704 960" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="cap">The 50 hand-labelled tiles · matches glow</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 4 · HEAT & CANOPY (scrolly) -->
+<section class="heat" id="heat">
+  <div class="wrap chapter" style="padding-bottom:0">
+    <div class="chapter-head">
+      <div class="chapter-no reveal">Chapter 04</div>
+      <h2 class="h2 reveal">Where shade <em>is missing.</em></h2>
+      <p class="lede reveal">Search finds places. For a climatologist, the real question is what those places do. Next to the model we put two <b>measurements</b>: greenness from Sentinel-2 and surface temperature from Landsat. Scroll through one summer morning in Upper Arlington.</p>
+    </div>
+  </div>
+  <div class="scrolly" data-scene="heat" style="height:420vh">
+    <div class="sticky">
+      <div class="heat-visual" id="heat-visual">
+        <img class="layer" data-layer="0" src="/static/img/ua-truecolor.jpg" alt="True colour">
+        <img class="layer" data-layer="1" src="/static/img/ua-ndvi.png" alt="Greenness (NDVI)" style="opacity:0" loading="lazy">
+        <img class="layer" data-layer="2" src="/static/img/ua-lst.png" alt="Land surface temperature" style="opacity:0;image-rendering:pixelated" loading="lazy">
+        <canvas class="scatter" id="heat-scatter" aria-label="Scatter of greenness against surface temperature" role="img"></canvas>
+        <div class="frame"></div>
+        <div class="layer-tag" id="heat-tag">True colour · Sentinel-2</div>
+        <div class="legend" id="heat-legend"><div id="heat-legend-title"></div><div class="ramp"></div><div class="ends"><span></span><span></span></div></div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step" data-heat="0"><div class="card"><span class="mono">01 · What the satellite saw</span><p>The same <span data-m="ua_scene_date">1 Aug 2025</span> Sentinel-2 pass, at 10&nbsp;m. Canopy, cul-de-sacs, the Scioto River on the west edge, and the big parking lots of the commercial strips.</p></div></div>
+      <div class="step" data-heat="1"><div class="card"><span class="mono">02 · Greenness (measured)</span><p><b>NDVI</b> = (near-infrared − red) / (near-infrared + red). Leaves reflect near-infrared strongly, so dense canopy glows dark green and roofs and asphalt fall toward tan.</p><div class="stat-row"><div><b class="cool" data-h="ndvi_mean">0.56</b>mean NDVI</div></div></div></div>
+      <div class="step" data-heat="2"><div class="card"><span class="mono">03 · Heat (measured)</span><p>Landsat 8's thermal band, <span data-m="ua_lst_gap">9 days earlier</span>: the skin temperature of roofs, roads and leaves at the late-morning overpass. It is not air temperature, but it marks where heat builds up.</p><div class="stat-row"><div><b data-h="lst_min">34</b>°C coolest tile</div><div><b class="hot" data-h="lst_max">48</b>°C hottest tile</div></div></div></div>
+      <div class="step" data-heat="3"><div class="card"><span class="mono">04 · The relationship</span><p>Each dot is one 640&nbsp;m square of land. The greener the square, the cooler it runs. Across <b data-h="n_fit">155</b> land squares, the least-green third is <b data-h="tercile">~5 °C</b> hotter than the greenest third.</p><div class="stat-row"><div><b class="cool" data-h="slope">−1.1</b>°C per +0.1 NDVI</div><div><b data-h="r">−0.8</b>Pearson r</div></div><p class="muted" style="font-size:13px;margin-top:10px">Descriptive, not causal: green tiles also differ in roofs, roads and soil. Water is left out.</p></div></div>
+      <div class="step" data-heat="4"><div class="card"><span class="mono">05 · Your city next</span><p>Now run the same analysis on any city on Earth: a fresh Sentinel-2 pass, the closest Landsat pass, the model's land cover, a list of hot, bare squares to plant first, and a file your GIS can read.</p><p style="margin-top:16px"><a class="btn" href="#lab" style="pointer-events:auto">Open the Lab ↓</a></p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 5 · THE LAB -->
+<section class="lab-sec" id="lab">
+  <div class="wrap">
+    <div class="chapter-no reveal" style="color:var(--night-muted)">Chapter 05 · The Lab</div>
+    <h2 class="h2 reveal" style="margin-top:14px">An urban heat <em>field notebook</em> for any city.</h2>
+    <p class="lede reveal">Draw a box anywhere on Earth (up to <span data-m="max_tiles">400</span> squares of 640&nbsp;m). The Lab fetches the clearest recent summer Sentinel-2 pass and the nearest Landsat thermal pass, labels every square with the frozen models, and measures how much greenery cools that place.</p>
+    <div class="usecases">
+      <div class="usecase reveal"><span class="mono">Screen</span><b>Find heat hot spots</b><span>Hot, bare 640&nbsp;m squares ranked for tree planting, with the cool refuges next to them.</span></div>
+      <div class="usecase reveal d1"><span class="mono">Quantify</span><b>Cooling per unit green</b><span>Slope of surface temperature on NDVI (°C per +0.1), r, and the least-green minus greenest contrast.</span></div>
+      <div class="usecase reveal d2"><span class="mono">Compare</span><b>City against city</b><span>Every run is kept in a comparison table, so Phoenix, Paris and Columbus sit side by side.</span></div>
+      <div class="usecase reveal d3"><span class="mono">Export</span><b>Take it to GIS</b><span>Per-square GeoJSON and CSV with scene IDs, so every number can be traced back to its source.</span></div>
+    </div>
+  </div>
+  <div class="wrap" style="max-width:1560px">
+    <div class="lab" id="lab-app">
+      <div class="map-wrap">
+        <div id="lab-map" aria-label="Interactive map"></div>
+        <div class="map-tools">
+          <div class="geo-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <label class="sr" for="geo-q">Search for a place</label>
+            <input id="geo-q" placeholder="Search a city or neighbourhood…" autocomplete="off">
+            <div class="geo-results" id="geo-results" role="listbox"></div>
+          </div>
+          <button class="tool-btn" id="draw-btn" title="Drag on the map to draw a study area">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="3 3"/></svg>Draw area
+          </button>
+          <label class="tool-btn" title="Which summer to use">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+            <select id="when-sel" aria-label="Imagery year"><option value="">Latest clear pass</option></select>
+          </label>
+        </div>
+        <div class="layer-switch" id="layer-switch" role="group" aria-label="Map layers">
+          <button data-layer="rgb" class="on"><i style="background:linear-gradient(135deg,#4a6b3a,#a99c82)"></i>True colour</button>
+          <button data-layer="cls" disabled><i style="background:conic-gradient(#e8957a 0 30%,#1e6b45 0 55%,#b4483a 0 75%,#3e9bc7 0)"></i>Land cover · model</button>
+          <button data-layer="ndvi" disabled><i style="background:linear-gradient(90deg,#8c5a2b,#f1ecd0,#0f4d24)"></i>Greenness · NDVI</button>
+          <button data-layer="lst" disabled><i style="background:linear-gradient(90deg,#1d3b73,#f7efc1,#7a1420)"></i>Surface temp · LST</button>
+          <button data-layer="priority" disabled><i style="background:#ff5a36"></i>Plant first</button>
+          <button data-layer="match" disabled><i style="background:linear-gradient(90deg,transparent,#c8ff3d)"></i>Text match</button>
+          <div class="opacity"><label class="sr" for="layer-op">Layer opacity</label><input type="range" id="layer-op" min="0" max="100" value="80"></div>
+        </div>
+        <div class="map-legend" id="map-legend"></div>
+        <div class="map-hint off" id="map-hint">Drag to draw a study area · Esc to cancel</div>
+        <div class="estimate" id="estimate">
+          <div class="info" id="est-info">Pick a preset, search a place, or draw a box.</div>
+          <button class="btn small" id="run-btn" disabled>Analyse area</button>
+        </div>
+      </div>
+      <aside class="panel" aria-label="Analysis notebook">
+        <div class="panel-head">
+          <div class="panel-title"><h3 id="panel-title">Choose a study area</h3><span class="mode-pill" id="mode-pill">—</span></div>
+          <div class="provenance" id="provenance">No area analysed yet.</div>
+          <div class="tabs" role="tablist">
+            <button class="on" data-tab="start" role="tab">Start</button>
+            <button data-tab="heat" role="tab">Heat</button>
+            <button data-tab="cover" role="tab">Land cover</button>
+            <button data-tab="ask" role="tab">Ask</button>
+            <button data-tab="compare" role="tab">Compare</button>
+            <button data-tab="export" role="tab">Export</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="tabpane on" data-pane="start">
+            <div class="sec-title" style="margin-top:0">Study areas <span class="mono muted" style="letter-spacing:0;text-transform:none">● = saved, instant</span></div>
+            <div class="chips" id="presets" style="margin-top:0"></div>
+            <ol class="stages" id="stages"></ol>
+            <div id="run-error"></div>
+            <div class="sec-title">How a run works</div>
+            <p class="explain"><b>1.</b> The clearest summer Sentinel-2 L2A pass is read straight from the public archive (Element84 Earth Search) and cut into 640&nbsp;m squares. <b>2.</b> Frozen DINOv2 embeds each square; the one rotation maps it next to the 50 captions, and the best match is its land-cover <i>estimate</i>. <b>3.</b> NDVI comes from the same pass. Surface temperature comes from the nearest clear Landsat 8/9 Collection 2 pass (Microsoft Planetary Computer). <b>4.</b> Simple statistics: OLS slope, Pearson r, tercile contrast, and a hot-and-bare ranking.</p>
+            <p class="explain">Large areas take 30–90 s the first time; saved areas open instantly and work offline.</p>
+          </div>
+          <div class="tabpane" data-pane="heat"><div class="empty">Analyse an area to measure heat and greenness.</div></div>
+          <div class="tabpane" data-pane="cover"><div class="empty">Analyse an area to see its land cover.</div></div>
+          <div class="tabpane" data-pane="ask">
+            <p class="explain" style="margin-top:0">Search the squares of this area in words, or click any square on the map to inspect it and find others like it.</p>
+            <form class="inline-search" id="ask-form" style="margin-top:12px">
+              <label class="sr" for="ask-q">Search this area</label>
+              <input id="ask-q" placeholder="parking lots and big roofs" autocomplete="off">
+              <button class="btn small" type="submit">Search</button>
+            </form>
+            <div class="chips" id="ask-chips"></div>
+            <div id="ask-results"></div>
+            <div id="inspector"></div>
+          </div>
+          <div class="tabpane" data-pane="compare">
+            <p class="explain" style="margin-top:0">Every area you analyse is saved here, in this browser only, so you can compare cities. Same method, same definitions for every row.</p>
+            <div id="compare"></div>
+          </div>
+          <div class="tabpane" data-pane="export"><div class="empty">Analyse an area to export it.</div></div>
+          <div class="disclaimer-strip" id="disclaimer">Prototype, not a land-use determination. Land cover is a model estimate; NDVI and surface temperature are satellite measurements.</div>
+        </div>
+      </aside>
+    </div>
+    <div class="lab-foot"><span>Basemap: Esri World Imagery · Copernicus Sentinel-2 L2A · USGS Landsat Collection 2 L2 ST</span><span>Model: frozen DINOv2 ViT-S/14 + all-MiniLM-L6-v2 + one orthogonal Procrustes rotation</span></div>
+  </div>
+</section>
+
+<!-- ============================================================ 6 · LIMITS -->
+<section class="limits chapter" id="limits">
+  <div class="topo"></div>
+  <div class="wrap">
+    <div class="chapter-head">
+      <div class="chapter-no reveal">Chapter 06</div>
+      <h2 class="h2 reveal">What it <em>gets wrong.</em></h2>
+      <p class="lede reveal">A tool you can trust tells you where not to trust it. These come from our own logged runs.</p>
+    </div>
+    <div class="lim-grid" id="lim-grid">
+      <article class="lim reveal" id="lim-pair"></article>
+      <article class="lim reveal d1">
+        <div class="body">
+          <div class="tag mono muted" style="text-transform:uppercase;letter-spacing:.12em">Abstract questions</div>
+          <h3 class="h3" style="margin-top:12px">“<span id="probe-q">climate change</span>”</h3>
+          <div class="verdict" id="probe-hits"></div>
+          <p id="probe-why">Climate change is not a land cover, so there is nothing to match, yet the tool still returns tiles. It cannot say “I don't know”, and a low score is not a reliable warning.</p>
+        </div>
+      </article>
+      <article class="lim reveal d2">
+        <div class="body">
+          <div class="tag mono muted" style="text-transform:uppercase;letter-spacing:.12em">Read before you use it</div>
+          <h3 class="h3" style="margin-top:12px">Known limits</h3>
+          <ul>
+            <li>Fit on European tiles (EuroSAT). In Ohio it barely beats always answering “Residential”.</li>
+            <li>Thin rivers look like roads at 10&nbsp;m: River → Highway is the top EuroSAT mistake (<span data-m="rh_share">33%</span> of river tiles).</li>
+            <li>Ten classes only. No “solar farm”, “wetland”, or “tree species”.</li>
+            <li>Surface temperature is skin temperature at one late-morning overpass, not air temperature or a heat-health index.</li>
+            <li>The NDVI–temperature slope is a description of one scene, not a causal effect of planting.</li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 7 · METHOD -->
+<section class="method chapter" id="method">
+  <div class="wrap">
+    <div class="chapter-head">
+      <div class="chapter-no reveal">Method</div>
+      <h2 class="h2 reveal">Five steps, <em>no training.</em></h2>
+    </div>
+    <div class="pipeline reveal">
+      <div class="p"><span class="mono">01 · See</span><b>DINOv2 ViT-S/14</b><span>Frozen. Each 64×64 Sentinel-2 chip becomes 384 numbers.</span></div>
+      <div class="p"><span class="mono">02 · Read</span><b>all-MiniLM-L6-v2</b><span>Frozen. Each sentence becomes 384 numbers.</span></div>
+      <div class="p"><span class="mono">03 · Align</span><b>Procrustes</b><span>W = UVᵀ from the SVD of XᵀY on labelled EuroSAT training pairs.</span></div>
+      <div class="p"><span class="mono">04 · Ask</span><b>Cosine search</b><span>Query text ↔ rotated tiles; label = best-matching caption.</span></div>
+      <div class="p"><span class="mono">05 · Measure</span><b>NDVI + LST</b><span>Sentinel-2 bands and Landsat thermal, never from the model.</span></div>
+    </div>
+    <p class="formula reveal">W* = argmin ‖XW − Y‖ subject to WᵀW = I &nbsp;<code>W = U Vᵀ, where U Σ Vᵀ = svd(XᵀY)</code></p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="topo" style="opacity:.05;filter:invert(1)"></div>
+  <div class="wrap" style="position:relative">
+    <p class="big">Plant where<br><em>it's hottest.</em></p>
+    <div class="foot-grid">
+      <div><h4>Project</h4><p>Platonic Earth. Veritas AI International High School Hackathon 2026, AI + Climate track. Built for Upper Arlington sustainability and urban-forestry staff.</p></div>
+      <div><h4>Data</h4><ul><li>EuroSAT (Helber et al., 2019)</li><li>Copernicus Sentinel-2 L2A</li><li>USGS Landsat 8/9 Collection 2 L2</li><li>OpenStreetMap Nominatim · Esri World Imagery</li></ul></div>
+      <div><h4>Models</h4><ul><li>DINOv2 (Oquab et al., 2023)</li><li>Sentence-Transformers MiniLM</li><li>Platonic Representation Hypothesis (Huh et al., 2024)</li><li>ResNet-18 baseline</li></ul></div>
+      <div><h4>More</h4><ul><li><a href="/classic/">Classic demo (Gradio)</a></li><li><a href="https://github.com/JohnPoole3rd/veritas">Source code</a></li><li>AI coding assistants were used to build this site.</li></ul></div>
+    </div>
+    <div class="foot-legal"><span id="foot-disclaimer">Prototype, not a land-use determination. Do not use for permitting, taxation, or legal decisions.</span><span id="foot-mode"></span></div>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/static/vendor/maplibre-gl.js"></script>
+<script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
