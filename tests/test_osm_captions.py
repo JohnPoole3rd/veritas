@@ -70,5 +70,18 @@ def test_backend_neutral_caption_path():
     assert "scattered buildings" in counts
 
 
+def test_tiny_water_does_not_outrank_the_surrounding_land_use():
+    features = [
+        ({"natural": "water"}, box(0.001, 0.001, 0.0012, 0.0012)),
+        ({"landuse": "residential"}, box(0.002, 0.002, 0.019, 0.019)),
+    ]
+    caption, label, counts, _ = build_caption_from_features(
+        features, [], (0.0, 0.0, 0.02, 0.02)
+    )
+    assert label == "residential"
+    assert caption.startswith("A 10 m Sentinel-2 satellite image of residential area")
+    assert "water" in counts
+
+
 def test_every_mapped_label_has_a_prompt():
     assert set(LABEL_BY_PHRASE.values()) <= set(LABEL_PROMPTS)

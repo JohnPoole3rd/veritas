@@ -155,7 +155,7 @@ TAG_MAPS: tuple[tuple[str, dict[str, str]], ...] = (
     }),
 )
 
-# Primary-phrase priority. The first matching phrase becomes the caption subject.
+# Primary-phrase priority. Used only to order extras after the subject is chosen.
 PRIORITY: tuple[str, ...] = (
     "water", "bay", "strait", "coastline", "beach", "sand", "wetland", "river",
     "stream", "canal", "drainage channel", "dock", "marina", "glacier",
@@ -173,6 +173,19 @@ PRIORITY: tuple[str, ...] = (
     "industrial buildings", "warehouses", "school", "campus", "hospital",
     "hotel", "place of worship", "garages", "hangar", "farm buildings",
     "buildings", "dense buildings",
+)
+
+# Polygonal land cover/use can be the subject only if it covers a meaningful
+# fraction of the chip. A tiny pond or a single building must not outrank the
+# surrounding neighbourhood.
+AREA_SUBJECTS: tuple[str, ...] = (
+    "water", "bay", "strait", "coastline", "beach", "sand", "wetland", "river",
+    "glacier", "forest", "scrubland", "heathland", "grassland", "meadow",
+    "farmland", "orchard", "vineyard", "greenhouses", "aquaculture ponds",
+    "quarry", "landfill", "bare rock", "scree", "park", "golf course",
+    "sports field", "nature reserve", "garden", "residential area",
+    "commercial area", "industrial area", "port", "construction site",
+    "airport runway", "airport apron", "airport terminal", "cemetery",
 )
 
 LABEL_BY_PHRASE: dict[str, str] = {
@@ -248,7 +261,7 @@ def _weight(geom, chip) -> float:
 
 
 def _finish_caption(
-    counts: Counter[str], weights: Counter[str], building_count: int
+    counts: Counter[str], weights: Counter[str], building_count: int, chip_area: float
 ) -> tuple[str | None, str | None, dict[str, int], int]:
     if not counts and building_count == 0:
         return None, None, {}, 0
@@ -266,8 +279,15 @@ def _finish_caption(
         weights[density] += building_count
 
     present = set(counts)
-    primary = next((p for p in PRIORITY if p in present), None)
-    if primary is None:
+    area_candidates = [
+        p for p in present
+        if p in AREA_SUBJECTS and weights[p] >= 0.01 * chip_area
+    ]
+    if area_candidates:
+        primary = max(area_candidates, key=lambda p: (weights[p], counts[p]))
+    elif "dense buildings" in present:
+        primary = "dense buildings"
+    else:
         primary = max(counts, key=lambda p: (weights[p], counts[p]))
     if primary == "buildings" and building_count >= 25:
         primary = "dense buildings"
@@ -313,4 +333,4 @@ def build_caption_from_features(
             continue
         if chip.contains(geom.centroid):
             building_count += 1
-    return _finish_caption(counts, weights, building_count)
+    return _finish_caption(counts, weights, building_count, chip.area)
