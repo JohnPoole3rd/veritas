@@ -83,6 +83,18 @@ def test_tiny_water_does_not_outrank_the_surrounding_land_use():
     assert "water" in counts
 
 
+def test_river_line_does_not_outrank_residential_polygon():
+    bbox = (0.0, 0.0, 0.0115, 0.0115)
+    features = [
+        ({"landuse": "residential"}, box(0.0005, 0.0005, 0.0105, 0.0105)),
+        ({"waterway": "river"}, LineString([(0.0, 0.005), (0.0115, 0.005)])),
+    ]
+    caption, label, counts, _ = build_caption_from_features(features, [], bbox)
+    assert label == "residential"
+    assert caption.startswith("Residential area")
+    assert "river" in counts
+
+
 def test_caption_prefers_major_infrastructure_over_minor_paths():
     features = [
         ({"landuse": "residential"}, box(0.001, 0.001, 0.019, 0.019)),

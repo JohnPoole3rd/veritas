@@ -8,6 +8,7 @@ non-visible metadata are deliberately excluded.
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from typing import Any, Iterable
 
@@ -202,6 +203,30 @@ MAJOR_INFRA: tuple[str, ...] = (
     "waterworks", "farm track",
 )
 
+# Nominal on-the-ground widths for linear OSM features. A line's weight is
+# converted to an area so a river crossing a chip cannot outweigh a polygon
+# covering the whole chip.
+METRES_PER_DEG = 111_320.0
+LINE_WIDTH_M: dict[str, float] = {
+    "river": 30.0,
+    "canal": 15.0,
+    "stream": 4.0,
+    "drainage channel": 3.0,
+    "major road": 15.0,
+    "railway": 8.0,
+    "residential street": 8.0,
+    "service road": 6.0,
+    "farm track": 4.0,
+    "path": 2.0,
+    "cycle path": 2.0,
+    "tram line": 3.0,
+    "bridge": 10.0,
+    "pier": 5.0,
+    "breakwater": 10.0,
+    "coastline": 10.0,
+}
+DEFAULT_LINE_WIDTH_M = 5.0
+
 LABEL_BY_PHRASE: dict[str, str] = {
     "water": "water", "bay": "water", "strait": "water", "coastline": "coast",
     "beach": "coast", "sand": "coast", "wetland": "water", "river": "water",
@@ -265,10 +290,16 @@ def visible_phrases(tags: dict[str, Any]) -> list[str]:
     return phrases
 
 
-def _weight(geom, chip) -> float:
+def _weight(geom, chip, phrase: str) -> float:
+    """Return the feature's share of the chip area (0..1).
+
+    Polygons use area directly. Lines use length × nominal width, so a river
+    line cannot outweigh a land-cover polygon. Invalid OSM geometry is repaired
+    once with `make_valid`; if that fails, the feature is ignored.
+    """
     try:
         inter = geom.intersection(chip)
-    except Exception:  # invalid OSM geometry (e.g. GEOS TopologyException): repair once, else ignore
+    except Exception:
         try:
             from shapely import make_valid
 
@@ -278,12 +309,20 @@ def _weight(geom, chip) -> float:
     if inter.is_empty:
         return 0.0
     if inter.geom_type in ("Polygon", "MultiPolygon"):
-        return float(inter.area)
-    return float(inter.length)
+        return float(inter.area / chip.area)
+    if inter.geom_type in ("LineString", "MultiLineString"):
+        lat = math.radians(chip.centroid.y)
+        width_deg = LINE_WIDTH_M.get(phrase, DEFAULT_LINE_WIDTH_M) / (
+            METRES_PER_DEG * max(math.cos(lat), 1e-6)
+        )
+        return float(inter.length * width_deg / chip.area)
+    if inter.geom_type == "GeometryCollection":
+        return sum(_weight(part, chip, phrase) for part in inter.geoms)
+    return 0.0
 
 
 def _finish_caption(
-    counts: Counter[str], weights: Counter[str], building_count: int, chip_area: float
+    counts: Counter[str], weights: Counter[str], building_count: int
 ) -> tuple[str | None, str | None, dict[str, int], int]:
     if not counts and building_count == 0:
         return None, None, {}, 0
@@ -303,7 +342,7 @@ def _finish_caption(
     present = set(counts)
     area_candidates = [
         p for p in present
-        if p in AREA_SUBJECTS and weights[p] >= 0.01 * chip_area
+        if p in AREA_SUBJECTS and weights[p] >= 0.01
     ]
     if area_candidates:
         primary = max(area_candidates, key=lambda p: (weights[p], counts[p]))
@@ -365,10 +404,10 @@ def build_caption_from_features(
         phrases = visible_phrases(tags)
         if not phrases or geom is None or geom.is_empty:
             continue
-        weight = _weight(geom, chip)
-        if weight <= 0:
-            continue
         for phrase in phrases:
+            weight = _weight(geom, chip, phrase)
+            if weight <= 0:
+                continue
             counts[phrase] += 1
             weights[phrase] += weight
 
@@ -378,4 +417,4 @@ def build_caption_from_features(
             continue
         if chip.contains(geom.centroid):
             building_count += 1
-    return _finish_caption(counts, weights, building_count, chip.area)
+    return _finish_caption(counts, weights, building_count)

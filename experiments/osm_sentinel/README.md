@@ -102,8 +102,9 @@ manual checkpoint path is needed. Use `--device` and `--dtype` for the hardware 
 
 The OSM experiment reports:
 
-- held-out **caption→image recall@1/@10** (the real free-text retrieval metric);
-- held-out **image→coarse OSM label** accuracy / macro-F1;
+- held-out **caption→image recall@1/@10** (secondary: exact-chip retrieval is hard because many chips
+  share the same caption);
+- held-out **image→coarse OSM label** accuracy / macro-F1 (headline);
 - one-canonical-caption-per-class **label search** top-1;
 - optional **Upper Arlington** transfer (`--eval-local`, on by default);
 - optional **EuroSAT test** (`--eval-eurosat`, slower);
@@ -160,7 +161,9 @@ A 5060 Ti 8 GB is enough; 16 GB is convenience/headroom.
 ## Data scale and leakage
 
 - The default `regions.csv` has 199 regions across 93 countries and six continents. At 1.28 km per
-  chip that is roughly 77,000 **non-overlapping** chips. That is the run budget.
+  chip that is roughly 77,000 **non-overlapping** chips worth of area, but the sampler places random
+  crops. Report the run as **77,000 overlapping chips from 199 regions**, not 77,000 independent
+  locations.
 - Do not run 1M on this list. More than 77k is oversampling; add more regions or increase
   `--radius-km` if a genuinely larger geographic set is needed.
 - Splits are by **region**, not random chip, so nearby tiles cannot leak between train and test.
@@ -195,5 +198,6 @@ A 5060 Ti 8 GB is enough; 16 GB is convenience/headroom.
 | `build_dataset.py` | STAC scene search, COG chip reading, pyrosm lookup, manifest/captions |
 | `osm_captions.py` | Visible-tag mapping, geometry clipping, caption builder |
 | `osm_source.py` | pyrosm local PBF backend with per-region GeoParquet cache |
+| `recaption.py` | Re-caption an existing build after caption-weight changes |
 | `train.py` | Embedding cache, Procrustes fit, held-out and transfer metrics |
 | `README.md` | This document |

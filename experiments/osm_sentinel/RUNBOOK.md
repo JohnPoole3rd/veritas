@@ -11,12 +11,13 @@ This is an experiment branch. Do not merge the generated data, PBFs, embeddings,
 
 **Hard cap: 77,000 chips.** Do not run 1M on the current 199-region list.
 
-The list has roughly 77,000 non-overlapping 1.28 km chips. Anything beyond that is overlapping
-oversampling, not additional geographic coverage.
+The list has roughly 77,000 non-overlapping 1.28 km chips, but the sampler places random crops, so
+the actual run is **77,000 overlapping chips from 199 regions**, not 77,000 independent locations.
+Overlap is acceptable for training; do not report it as independent geographic coverage.
 
 ## 1. Setup
 
-Use Python 3.12 if available.
+Use Python 3.12+ if available. A ran this successfully on Python 3.14.5; 3.12 is not required.
 
 ```sh
 git fetch origin
@@ -81,10 +82,10 @@ Run a few diverse regions before committing to a large download:
 ```sh
 python experiments/osm_sentinel/build_dataset.py \
   --region us_columbus \
-  --region us_iowa \
-  --region br_amazon \
   --region nl_rotterdam \
-  --region ke_nairobi \
+  --region br_amazon \
+  --region gb_london \
+  --region eg_nile \
   --chips-per-region 20 \
   --max-chips 100
 ```
@@ -165,9 +166,26 @@ stops at 77,000. The build is resumable, so you can run it in batches and rerun 
 continue.
 
 If a region has too few OSM features, the actual count may be slightly below 77,000; report the
-actual `n` from `dataset_stats.json`.
+actual `n` from `dataset_stats.json`, along with `failed_regions` and `skipped_chips`.
+
+The random sampler produces overlapping chips. Report this as **77,000 overlapping chips from 199
+regions**, not 77,000 independent locations.
 
 Do not treat a larger, overlapping run as equivalent to 77,000 independent locations.
+
+### Re-caption an older build
+
+If a build was made before the line-weight fix, do not re-download images. Re-caption from the cached
+OSM GeoParquet:
+
+```sh
+python experiments/osm_sentinel/recaption.py \
+  --src data/raw/osm_sentinel \
+  --dst data/raw/osm_sentinel_recaption
+```
+
+Then train with `--data data/raw/osm_sentinel_recaption`. This is the migration path for A's current
+build.
 
 ## 6. Training
 
@@ -212,6 +230,11 @@ The result JSON reports:
 
 The rotation is fitted on OSM image–caption pairs. This is **not zero-shot**.
 
+Metric caveat: `caption_to_image recall@1` asks for the exact chip among thousands that often share
+an identical caption; it will be low by construction. Use `image_to_label` accuracy and the
+random-rotation control as the meaningful numbers. Report `caption_to_image` only as a secondary
+metric.
+
 ## 7. What to report
 
 Create a short report, for example:
@@ -251,7 +274,9 @@ data/raw/osm_sentinel/
 - [ ] 100-chip multi-region run has all three splits represented
 - [ ] full run stops at `--max-chips 77000`
 - [ ] `dataset_stats.json` reports the actual `n` and it is at most 77,000
+- [ ] `failed_regions` and `skipped_chips` are recorded
 - [ ] captions are plain visible-feature sentences
 - [ ] training run produces `results_dinov2-small.json`
 - [ ] random-rotation control is present
+- [ ] caption-to-image recall is reported as secondary, not headline
 - [ ] report includes exact commands and caveats

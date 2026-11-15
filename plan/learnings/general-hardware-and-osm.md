@@ -23,6 +23,9 @@
 - `pyrosm` is a required dependency; there is no Overpass runtime path.
 - Only visible tags are captioned. Names, brands, addresses, opening hours, contact details, and
   religion are excluded.
+- Linear features are converted to an area (`length × nominal width`) before caption subject
+  selection. Weighting lines by raw degrees made rivers outrank every polygon; that is fixed in
+  `osm_captions._weight`.
 - `build_dataset.py` appends a manifest row and caption per completed chip, flushes both, and on
   restart skips completed tile IDs. This is required for the 77k-chip run.
 - `fit_procrustes` accumulates the cross-covariance in chunks; 77k rows do not allocate full centered

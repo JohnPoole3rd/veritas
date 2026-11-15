@@ -131,6 +131,8 @@ def new_stats() -> dict[str, Any]:
         "by_country": Counter(),
         "by_label": Counter(),
         "regions": set(),
+        "failed_regions": set(),
+        "skipped_chips": 0,
     }
 
 
@@ -149,6 +151,8 @@ def stats_payload(stats: dict[str, Any]) -> dict[str, Any]:
         "by_country": dict(stats["by_country"]),
         "by_label": dict(stats["by_label"]),
         "regions": sorted(stats["regions"]),
+        "failed_regions": sorted(stats["failed_regions"]),
+        "skipped_chips": stats["skipped_chips"],
     }
 
 
@@ -249,6 +253,10 @@ def main() -> None:
     else:
         done, stats = load_existing(manifest_path, captions_path)
     stats_path = out_dir / "dataset_stats.json"
+    if stats_path.exists() and not args.overwrite:
+        previous = json.loads(stats_path.read_text())
+        stats["failed_regions"].update(previous.get("failed_regions", []))
+        stats["skipped_chips"] = previous.get("skipped_chips", 0)
     write_stats(stats_path, stats)
 
     if args.max_chips and stats["n"] >= args.max_chips:
@@ -278,7 +286,9 @@ def main() -> None:
             region_features = load_region_features(region_id, bbox, cache_dir)
         except Exception as exc:  # STAC/Geofabrik/pyrosm failure: skip the region (rerun to retry it)
             print(f"[{region_id}] REGION FAILED, skipped: {type(exc).__name__}: {exc}", flush=True)
+            stats["failed_regions"].add(region_id)
             continue
+        stats["failed_regions"].discard(region_id)
         print(f"[{region_id}] pyrosm region loaded", flush=True)
 
         added = 0
@@ -298,8 +308,10 @@ def main() -> None:
                 image = read_chip(item, chip_lat, chip_lon, args.chip_m, args.chip_px)
             except Exception as exc:  # transient COG/network error: skip this chip, keep the run alive
                 print(f"[{region_id}] {tid} read failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+                stats["skipped_chips"] += 1
                 continue
             if image is None:
+                stats["skipped_chips"] += 1
                 continue
             half_lat = args.chip_m / 2 / 111_320
             half_lon = args.chip_m / 2 / (111_320 * max(math.cos(math.radians(chip_lat)), 1e-6))
@@ -311,8 +323,10 @@ def main() -> None:
                 )
             except Exception as exc:  # malformed OSM data for this chip: skip it, keep the run alive
                 print(f"[{region_id}] {tid} caption failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+                stats["skipped_chips"] += 1
                 continue
             if caption is None or len(counts) < 1:
+                stats["skipped_chips"] += 1
                 continue
             image_rel = f"images/{tid}.jpg"
             image.save(out_dir / image_rel, quality=92)
