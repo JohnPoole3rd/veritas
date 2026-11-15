@@ -48,3 +48,16 @@ def test_append_and_resume_repairs_captions(tmp_path):
     assert done == {"t1", "t2", "t3"}
     assert stats["n"] == 3
     assert len(captions.read_text().splitlines()) == 3
+
+
+def test_grid_candidates_are_unique_and_inside_radius():
+    from experiments.osm_sentinel.build_dataset import grid_candidates
+
+    cells = list(grid_candidates("test", 40.0, -83.0, 3.0, 1280.0))
+    ids = [tid for tid, _, _ in cells]
+    assert len(ids) == len(set(ids))
+    assert len(cells) > 10
+    for _, lat, lon in cells:
+        dy = (lat - 40.0) * 111.32
+        dx = (lon - -83.0) * 111.32 * 0.766
+        assert (dx * dx + dy * dy) <= 3.05**2

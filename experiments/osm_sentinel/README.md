@@ -18,8 +18,8 @@ smoke runs, resume behavior, MPS training, and what to report.
 regions.csv
   -> Sentinel-2 L2A scene per region (STAC / Element84 Earth Search)
   -> local OSM PBF per region (pyrosm)
-  -> random 1.28 km chips on the 10 m grid
-  -> OSM caption per chip
+  -> non-overlapping 1.28 km grid chips (random sampler optional)
+  -> OSM caption per chip + WorldCover fallback for natural land cover
   -> DINOv2 embeddings + MiniLM caption embeddings
   -> Procrustes fit on train regions
   -> held-out regions: caption->image recall, image->label, label search, Upper Arlington transfer
@@ -43,6 +43,20 @@ description/note, and any other non-visible metadata. The caption is a short sen
 > Residential area with houses, major road, and park.
 
 The full mapping is in `osm_captions.py`; it is covered by `tests/test_osm_captions.py`.
+
+### WorldCover fallback
+
+ESA WorldCover 2021 (10 m, CC BY 4.0) fills natural land cover where OSM has no polygon. It is on by
+default and is used as a fallback subject, not a replacement for OSM:
+
+- OSM supplies buildings, roads, land use, and infrastructure.
+- WorldCover supplies forest, shrub, grass, crop, built-up, bare, water, wetland, mangrove, snow, and
+  moss.
+- `manifest.csv` records `worldcover_class` and `worldcover_fraction`.
+- Disable it with `--no-worldcover`.
+
+The captioner combines them, e.g. `Forest with river.` or
+`Built-up area with residential area, coastline, dense buildings.`
 
 ## Run
 
@@ -141,9 +155,10 @@ extraction plus a tiny Procrustes SVD, so the GPU is not the binding constraint.
 224 px, bf16, batch 512, `inference_mode`: roughly **900–1,500 images/s**. The 8 GB and 16 GB 5060 Ti
 have the same compute; 16 GB just allows larger batches.
 
-**Run target for this region list: 1,000,000 chips.** The 399-region list has enough area for roughly
-1.46M non-overlapping chips; the sampler uses random overlapping crops, so report the result as 1M
-overlapping chips from 399 regions.
+**Run target for this region list: 1,000,000 chips.** The 399-region list contains roughly 1.46M
+non-overlapping grid cells. The default sampler is `grid`; report the actual `n` from
+`dataset_stats.json` after water/cloud/OSM skips. The old random sampler remains available with
+`--sample-mode random`, but it produces overlapping chips.
 
 | Chips | DINOv2 ViT-S/14 (384-d) | JPEG + embeddings |
 |---:|---:|---:|
@@ -164,8 +179,8 @@ enough; 16 GB is convenience/headroom.
 ## Data scale and leakage
 
 - The default `regions.csv` has 399 regions across 125 countries and six continents. At 1.28 km per
-  chip the total area is enough for roughly 1.46M non-overlapping chips; the sampler places random
-  crops. Report the run as **1M overlapping chips from 399 regions**, not 1M independent locations.
+  chip the total area contains roughly 1.46M non-overlapping grid cells. The default sampler is a
+  non-overlapping grid; `--sample-mode random` is the legacy overlapping sampler.
 - The first 199 anchors are hand-picked biome/location regions. The additional 200 are Natural Earth
   1:50m populated places with a 60 km radius, used to reach the 1M-tile area budget without inventing
   thousands of coordinates. Natural Earth data is public domain.
@@ -201,6 +216,7 @@ enough; 16 GB is convenience/headroom.
 | `build_dataset.py` | STAC scene search, COG chip reading, pyrosm lookup, manifest/captions |
 | `osm_captions.py` | Visible-tag mapping, geometry clipping, caption builder |
 | `osm_source.py` | pyrosm local PBF backend with per-region GeoParquet cache |
+| `worldcover.py` | ESA WorldCover fallback land-cover lookup |
 | `recaption.py` | Re-caption an existing build after caption-weight changes |
 | `train.py` | Embedding cache, Procrustes fit, held-out and transfer metrics |
 | `README.md` | This document |

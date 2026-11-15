@@ -9,13 +9,16 @@ This is an experiment branch. Do not merge the generated data, PBFs, embeddings,
 
 ## Run budget
 
-**Run target: 1,000,000 chips.** The region list now has 399 regions across 125 countries. Its
-combined area is enough for roughly 1.46M non-overlapping 1.28 km chips, but the sampler places random
-crops, so the actual run is **1,000,000 overlapping chips from 399 regions**, not 1M independent
-locations. Overlap is acceptable for training; do not report it as independent geographic coverage.
+**Run target: 1,000,000 chips.** The region list has 399 regions across 125 countries. Its combined
+area contains roughly 1.46M non-overlapping 1.28 km grid cells. The default sampler is a
+non-overlapping grid, so the 1M run is **1,000,000 non-overlapping grid chips from 399 regions**.
+Some cells are skipped for water/cloud/OSM reasons; report the actual `n`.
 
 The first 199 anchors are hand-picked biome/location regions; the extra 200 are Natural Earth 1:50m
 populated places with a 60 km radius.
+
+The old random sampler remains available with `--sample-mode random`, but it produces overlapping
+chips and is not the 1M path.
 
 ## 1. Setup
 
@@ -160,12 +163,12 @@ Use the 1M budget. Use a fresh output directory so you do not resume A's existin
 ```sh
 python experiments/osm_sentinel/build_dataset.py \
   --out-dir data/raw/osm_sentinel_1m \
-  --chips-per-region 2520 \
+  --chips-per-region 8000 \
   --max-chips 1000000
 ```
 
-At 399 regions × 2520 chips/region this samples up to 1,005,480 locations, and `--max-chips 1000000`
-stops at 1,000,000. The build is resumable, so you can run it in batches and rerun the same command to
+With the non-overlapping grid, the 399 regions contain about 1.46M candidate cells. `--chips-per-region 8000`
+allows every region to contribute its full grid, and `--max-chips 1000000` stops at 1M. The build is resumable, so you can run it in batches and rerun the same command to
 continue.
 
 Do **not** point this at `data/raw/osm_sentinel`: that is A's existing 77k build made with the old
@@ -177,10 +180,23 @@ actual `n` from `dataset_stats.json`, along with `failed_regions` and `skipped_c
 Budget disk for roughly 25–40 GB of JPEG chips, ~1.5 GB of DINOv2 embeddings, and a large OSM PBF
 cache. Run in batches and keep the cache.
 
-The random sampler produces overlapping chips. Report this as **1,000,000 overlapping chips from 399
-regions**, not 1M independent locations.
+Some grid cells will be skipped because the Sentinel-2 window is invalid or OSM has no visible
+features. WorldCover can still label water and natural land cover; report the actual `n` from
+`dataset_stats.json`; the target is 1M but the achieved count may be lower.
 
-Do not treat a larger, overlapping run as equivalent to 1M independent locations.
+The random sampler is opt-in (`--sample-mode random`) and produces overlapping chips. Do not mix
+random and grid results in the same manifest.
+
+### WorldCover
+
+WorldCover is on by default and is used as a fallback subject when OSM has no land-cover polygon:
+
+- forest, shrub, grassland, cropland, built-up, bare, water, wetland, mangrove, snow, moss
+- the manifest records `worldcover_class` and `worldcover_fraction`
+- disable it with `--no-worldcover`
+
+WorldCover is 2021, 10 m, and broad. It does not replace OSM for buildings, roads, or detailed land
+use.
 
 ### Re-caption an older build
 

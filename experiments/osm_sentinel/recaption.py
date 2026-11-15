@@ -31,6 +31,7 @@ for path in (ROOT, THIS):
 from build_dataset import FIELDS, caption_record  # noqa: E402
 from osm_captions import build_caption_from_features  # noqa: E402
 from osm_source import RegionFeatures  # noqa: E402
+from worldcover import CLASSES  # noqa: E402
 
 METRES_PER_DEG = 111_320.0
 
@@ -68,7 +69,17 @@ def main() -> None:
             half_lon = half_lat / max(math.cos(math.radians(lat)), 1e-6)
             bbox = (lon - half_lon, lat - half_lat, lon + half_lon, lat + half_lat)
             feats, buildings = features.for_bbox(bbox)
-            caption, label, counts, building_count = build_caption_from_features(feats, buildings, bbox)
+            wc = None
+            try:
+                code = int(row.get("worldcover_class") or 0)
+                if code in CLASSES:
+                    phrase, label = CLASSES[code]
+                    wc = (phrase, float(row.get("worldcover_fraction") or 0), code, label)
+            except (TypeError, ValueError):
+                wc = None
+            caption, label, counts, building_count = build_caption_from_features(
+                feats, buildings, bbox, worldcover=wc
+            )
             if caption is None:
                 dropped += 1
                 continue

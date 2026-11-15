@@ -44,12 +44,13 @@ for path in (ROOT, THIS):
 
 from osm_captions import build_caption_from_features  # noqa: E402
 from osm_source import load_region_features  # noqa: E402
+from worldcover import RegionWorldCover  # noqa: E402
 
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 FIELDS = [
     "tile_id", "image", "region_id", "country", "biome", "split", "lat", "lon",
     "scene_id", "datetime", "cloud_cover", "label", "caption", "n_features",
-    "building_count", "feature_counts",
+    "building_count", "feature_counts", "worldcover_class", "worldcover_fraction",
 ]
 
 
@@ -124,6 +125,47 @@ def tile_id(region_id: str, lat: float, lon: float) -> str:
     return f"{region_id}_{abs(lat):.4f}{ns}_{abs(lon):.4f}{ew}"
 
 
+def grid_candidates(
+    region_id: str,
+    lat: float,
+    lon: float,
+    radius_km: float,
+    chip_m: float,
+):
+    """Yield non-overlapping chip centers on a local lat/lon grid."""
+    dlat = chip_m / 111_320
+    dlon = chip_m / (111_320 * max(math.cos(math.radians(lat)), 1e-6))
+    chip_km = chip_m / 1000.0
+    ny = int(radius_km / chip_km) + 2
+    nx = int(radius_km / chip_km) + 2
+    for iy in range(-ny, ny + 1):
+        for ix in range(-nx, nx + 1):
+            chip_lat = lat + iy * dlat
+            chip_lon = lon + ix * dlon
+            dy = (chip_lat - lat) * 111.32
+            dx = (chip_lon - lon) * 111.32 * max(math.cos(math.radians(lat)), 1e-6)
+            if dx * dx + dy * dy > radius_km * radius_km:
+                continue
+            yield f"{region_id}_g{ix:+05d}_{iy:+05d}", chip_lat, chip_lon
+
+
+def random_candidates(
+    region_id: str,
+    lat: float,
+    lon: float,
+    radius_km: float,
+    chips_per_region: int,
+    rng: random.Random,
+):
+    """Yield random chip centers; resume still uses the stable coordinate ID."""
+    for _ in range(chips_per_region * 8):
+        angle = rng.uniform(0, 2 * math.pi)
+        distance = radius_km * math.sqrt(rng.random())
+        chip_lat = lat + (distance / 111.32) * math.cos(angle)
+        chip_lon = lon + (distance / (111.32 * math.cos(math.radians(lat)))) * math.sin(angle)
+        yield tile_id(region_id, chip_lat, chip_lon), chip_lat, chip_lon
+
+
 def new_stats() -> dict[str, Any]:
     return {
         "n": 0,
@@ -175,6 +217,8 @@ def caption_record(row: dict[str, Any]) -> dict[str, Any]:
         "country": row["country"],
         "biome": row["biome"],
         "feature_counts": counts,
+        "worldcover_class": row.get("worldcover_class", ""),
+        "worldcover_fraction": row.get("worldcover_fraction", ""),
     }
 
 
@@ -225,6 +269,13 @@ def main() -> None:
     parser.add_argument("--out-dir", default=str(ROOT / "data" / "raw" / "osm_sentinel"))
     parser.add_argument("--region", action="append", help="Only this region_id (repeatable)")
     parser.add_argument("--chips-per-region", type=int, default=8)
+    parser.add_argument(
+        "--sample-mode",
+        choices=["grid", "random"],
+        default="grid",
+        help="grid = non-overlapping local grid (default); random = old random-point sampler",
+    )
+    parser.add_argument("--no-worldcover", action="store_true", help="Disable ESA WorldCover fallback")
     parser.add_argument("--max-chips", type=int, default=0, help="Stop after N total chips (0 = no limit)")
     parser.add_argument("--radius-km", type=float, default=None, help="Override region radius")
     parser.add_argument("--chip-m", type=float, default=1280.0, help="Chip side length in metres")
@@ -290,18 +341,24 @@ def main() -> None:
             continue
         stats["failed_regions"].discard(region_id)
         print(f"[{region_id}] pyrosm region loaded", flush=True)
+        region_wc = None
+        if not args.no_worldcover:
+            try:
+                region_wc = RegionWorldCover(bbox)
+                print(f"[{region_id}] WorldCover region loaded", flush=True)
+            except Exception as exc:
+                print(f"[{region_id}] WorldCover unavailable, continuing without it: {type(exc).__name__}: {exc}", flush=True)
 
         added = 0
-        attempts = 0
-        while added < args.chips_per_region and attempts < args.chips_per_region * 8:
-            attempts += 1
+        if args.sample_mode == "grid":
+            candidates = list(grid_candidates(region_id, lat, lon, radius_km, args.chip_m))
+            rng.shuffle(candidates)
+            candidates = candidates[: args.chips_per_region]
+        else:
+            candidates = random_candidates(region_id, lat, lon, radius_km, args.chips_per_region, rng)
+        for tid, chip_lat, chip_lon in candidates:
             if args.max_chips and stats["n"] >= args.max_chips:
                 break
-            angle = rng.uniform(0, 2 * math.pi)
-            distance = radius_km * math.sqrt(rng.random())
-            chip_lat = lat + (distance / 111.32) * math.cos(angle)
-            chip_lon = lon + (distance / (111.32 * math.cos(math.radians(lat)))) * math.sin(angle)
-            tid = tile_id(region_id, chip_lat, chip_lon)
             if tid in done:
                 continue
             try:
@@ -316,10 +373,16 @@ def main() -> None:
             half_lat = args.chip_m / 2 / 111_320
             half_lon = args.chip_m / 2 / (111_320 * max(math.cos(math.radians(chip_lat)), 1e-6))
             chip_bbox = (chip_lon - half_lon, chip_lat - half_lat, chip_lon + half_lon, chip_lat + half_lat)
+            wc = None
+            if region_wc is not None:
+                try:
+                    wc = region_wc.for_bbox(chip_bbox)
+                except Exception:
+                    wc = None
             try:
                 features, buildings = region_features.for_bbox(chip_bbox)
                 caption, label, counts, building_count = build_caption_from_features(
-                    features, buildings, chip_bbox
+                    features, buildings, chip_bbox, worldcover=wc
                 )
             except Exception as exc:  # malformed OSM data for this chip: skip it, keep the run alive
                 print(f"[{region_id}] {tid} caption failed, skipped: {type(exc).__name__}: {exc}", flush=True)
@@ -330,6 +393,8 @@ def main() -> None:
                 continue
             image_rel = f"images/{tid}.jpg"
             image.save(out_dir / image_rel, quality=92)
+            wc_class = "" if wc is None else str(wc[2])
+            wc_fraction = "" if wc is None else f"{wc[1]:.4f}"
             row = {
                 "tile_id": tid,
                 "image": image_rel,
@@ -347,6 +412,8 @@ def main() -> None:
                 "n_features": len(counts),
                 "building_count": building_count,
                 "feature_counts": json.dumps(counts, sort_keys=True),
+                "worldcover_class": wc_class,
+                "worldcover_fraction": wc_fraction,
             }
             append_chip(manifest_path, captions_path, row)
             update_stats(stats, row)

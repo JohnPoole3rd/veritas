@@ -183,10 +183,11 @@ AREA_SUBJECTS: tuple[str, ...] = (
     "water", "bay", "strait", "coastline", "beach", "sand", "wetland", "river",
     "glacier", "forest", "scrubland", "heathland", "grassland", "meadow",
     "farmland", "orchard", "vineyard", "greenhouses", "aquaculture ponds",
-    "quarry", "landfill", "bare rock", "scree", "park", "golf course",
-    "sports field", "nature reserve", "garden", "residential area",
-    "commercial area", "industrial area", "port", "construction site",
-    "airport runway", "airport apron", "airport terminal", "cemetery",
+    "quarry", "landfill", "bare rock", "scree", "snow", "bare ground", "moss",
+    "mangrove", "park", "golf course", "sports field", "nature reserve", "garden",
+    "residential area", "commercial area", "industrial area", "port",
+    "construction site", "built-up area", "airport runway", "airport apron",
+    "airport terminal", "cemetery",
 )
 
 BUILT_PHRASES: tuple[str, ...] = (
@@ -237,8 +238,10 @@ LABEL_BY_PHRASE: dict[str, str] = {
     "farmland": "farmland", "orchard": "farmland", "vineyard": "farmland",
     "greenhouses": "farmland", "aquaculture ponds": "water",
     "quarry": "industrial", "landfill": "industrial", "bare rock": "barren",
-    "scree": "barren", "park": "green", "golf course": "green",
-    "sports field": "green", "nature reserve": "green", "garden": "green",
+    "scree": "barren", "snow": "ice", "bare ground": "barren", "moss": "green",
+    "mangrove": "forest", "built-up area": "built", "park": "green",
+    "golf course": "green", "sports field": "green", "nature reserve": "green",
+    "garden": "green",
     "residential area": "residential", "commercial area": "commercial",
     "industrial area": "industrial", "port": "industrial",
     "construction site": "built", "railway": "transport",
@@ -273,7 +276,7 @@ LABEL_PROMPTS: dict[str, str] = {
     "airport": "an airport runway or terminal",
     "built": "buildings and built-up land",
     "barren": "bare rock, sand, or barren land",
-    "ice": "glacier or permanent ice",
+    "ice": "glacier, permanent ice, or snow",
     "other": "land with no dominant visible feature",
 }
 
@@ -393,8 +396,9 @@ def build_caption_from_features(
     features: Iterable[tuple[dict[str, Any], Any]],
     building_geometries: Iterable[Any],
     bbox: tuple[float, float, float, float],
+    worldcover: tuple[str, float, int, str] | None = None,
 ) -> tuple[str | None, str | None, dict[str, int], int]:
-    """Build a caption from `(tags, shapely geometry)` pairs and building geometries."""
+    """Build a caption from OSM features plus an optional WorldCover result."""
     from shapely.geometry import box
 
     chip = box(*bbox)
@@ -410,6 +414,12 @@ def build_caption_from_features(
                 continue
             counts[phrase] += 1
             weights[phrase] += weight
+
+    if worldcover is not None:
+        phrase, fraction, _code, _label = worldcover
+        if phrase and fraction > 0:
+            counts[phrase] += 1
+            weights[phrase] += float(fraction)
 
     building_count = 0
     for geom in building_geometries:

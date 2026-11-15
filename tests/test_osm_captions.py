@@ -106,5 +106,14 @@ def test_caption_prefers_major_infrastructure_over_minor_paths():
     assert "path" not in caption
 
 
+def test_worldcover_fills_missing_natural_land_cover():
+    caption, label, counts, _ = build_caption_from_features(
+        [], [], (0.0, 0.0, 0.0115, 0.0115), worldcover=("forest", 0.9, 10, "forest")
+    )
+    assert label == "forest"
+    assert caption == "Forest."
+    assert counts["forest"] == 1
+
+
 def test_every_mapped_label_has_a_prompt():
     assert set(LABEL_BY_PHRASE.values()) <= set(LABEL_PROMPTS)

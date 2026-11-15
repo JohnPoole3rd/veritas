@@ -28,6 +28,11 @@
   `osm_captions._weight`.
 - `build_dataset.py` appends a manifest row and caption per completed chip, flushes both, and on
   restart skips completed tile IDs. This is required for the 1M-chip run.
+- The default sampler is a local metric grid (`--sample-mode grid`) with stable cell IDs; the legacy
+  random sampler is available with `--sample-mode random` but overlaps.
+- WorldCover 2021 10m is the fallback natural-land-cover source. It fills forest/grass/crop/built/
+  water gaps where OSM has no polygon and is recorded in the manifest; it is not a replacement for
+  OSM buildings or roads.
 - `fit_procrustes` accumulates the cross-covariance in chunks; 1M rows do not allocate full centered
   copies of both embedding matrices.
 - The default list has 399 regions across 125 countries, roughly 1.46M non-overlapping 1.28 km chips
