@@ -155,10 +155,11 @@ Expect a large cache across many countries. Run in batches and keep the cache.
 
 ### Target run: 1,000,000 chips
 
-Use the 1M budget:
+Use the 1M budget. Use a fresh output directory so you do not resume A's existing 77k build:
 
 ```sh
 python experiments/osm_sentinel/build_dataset.py \
+  --out-dir data/raw/osm_sentinel_1m \
   --chips-per-region 2520 \
   --max-chips 1000000
 ```
@@ -167,8 +168,14 @@ At 399 regions × 2520 chips/region this samples up to 1,005,480 locations, and 
 stops at 1,000,000. The build is resumable, so you can run it in batches and rerun the same command to
 continue.
 
+Do **not** point this at `data/raw/osm_sentinel`: that is A's existing 77k build made with the old
+captioner. Keep it for comparison; the 1M run uses `data/raw/osm_sentinel_1m`.
+
 If a region has too few OSM features, the actual count may be slightly below 1,000,000; report the
 actual `n` from `dataset_stats.json`, along with `failed_regions` and `skipped_chips`.
+
+Budget disk for roughly 25–40 GB of JPEG chips, ~1.5 GB of DINOv2 embeddings, and a large OSM PBF
+cache. Run in batches and keep the cache.
 
 The random sampler produces overlapping chips. Report this as **1,000,000 overlapping chips from 399
 regions**, not 1M independent locations.
@@ -195,6 +202,7 @@ Once there is at least one train, one validation, and one test region:
 
 ```sh
 python experiments/osm_sentinel/train.py \
+  --data data/raw/osm_sentinel_1m \
   --device mps \
   --dtype fp32 \
   --batch-size 32 \
@@ -211,6 +219,7 @@ Optional slower evaluation on EuroSAT:
 
 ```sh
 python experiments/osm_sentinel/train.py \
+  --data data/raw/osm_sentinel_1m \
   --device mps --dtype fp32 --eval-eurosat
 ```
 
