@@ -321,6 +321,10 @@ function bindMetrics(meta) {
     set("search_ni", ret.procrustes.n_images?.toLocaleString("en-US"));
   }
   if (cc.procrustes) set("cls_n", cc.procrustes.n_images?.toLocaleString("en-US"));
+  if (ret.random_rotation) set("random_top1", Math.round(ret.random_rotation.top1 * 100));
+  if (cc.procrustes) set("ours_acc", pct(cc.procrustes.accuracy));
+  if (m.majority) set("maj_acc", pct(m.majority.accuracy));
+  renderConfusion(meta);
   if (cc.procrustes && m.resnet18) set("gap", Math.round((m.resnet18.accuracy - cc.procrustes.accuracy) * 100));
   if (loc.procrustes) set("local_acc", Math.round(loc.procrustes.accuracy * 100));
   if (loc.oracle_majority_local) set("local_oracle", pct(loc.oracle_majority_local.accuracy));
@@ -359,6 +363,28 @@ function bindMetrics(meta) {
     }), { threshold: .3 });
     io.observe(el);
   });
+}
+
+function renderConfusion(meta) {
+  const m = meta?.metrics || {}, cm = m.confusion, cls = Object.fromEntries((meta?.classes || []).map((c) => [c.name, c]));
+  const short = (n) => ({ AnnualCrop: "Annual crop", HerbaceousVegetation: "Herbaceous", PermanentCrop: "Perm. crop", SeaLake: "Sea/lake", Industrial: "Industrial", Residential: "Residential" }[n] || n);
+  if (cm?.matrix) {
+    const names = cm.classes, n = names.length;
+    let h = `<div class="cm" style="grid-template-columns:84px repeat(${n}, minmax(0,1fr))"><span></span>${names.map((c) => `<span class="top">${esc(short(c))}</span>`).join("")}`;
+    cm.matrix.forEach((row, i) => {
+      const tot = row.reduce((a, b) => a + b, 0) || 1;
+      h += `<span class="rl">${esc(short((cm.rows || names)[i]))}</span>` + row.map((v, j) => {
+        const f = v / tot, diag = i === j;
+        const bg = diag ? `rgba(63,138,69,${.12 + f * .88})` : f > 0 ? `rgba(194,83,44,${Math.min(1, f * 2.2)})` : "transparent";
+        return `<span class="c" style="background:${bg};color:${f > .45 ? "#fff" : "var(--muted)"}" title="${esc(names[i])} → ${esc(names[j])}: ${v}">${f >= .05 ? Math.round(f * 100) : ""}</span>`;
+      }).join("");
+    });
+    $("#confusion").innerHTML = h + `</div><p class="note">% of each true class. Green = right, orange = mixed up. River → Highway stands out.</p>`;
+  }
+  if (m.per_class?.length) {
+    $("#perclass").innerHTML = `<div class="pc">${m.per_class.map((r) => `<div class="row"><span>${esc(short(r.class))}</span><span class="tr"><i class="a" style="width:${r.recall * 100}%"></i><i class="b" style="width:${(r.resnet18_recall ?? 0) * 100}%"></i></span><span class="v">${pct(r.recall)}</span></div>`).join("")}
+      <div class="key"><span><i style="background:var(--moss-2)"></i>ours</span><span><i style="background:var(--river)"></i>ResNet-18</span></div></div>`;
+  }
 }
 
 // --------------------------------------------------------------- chapter 3: search Upper Arlington
@@ -548,7 +574,6 @@ function initLimits(meta) {
   if (pr) {
     $("#probe-q").textContent = pr.query;
     $("#probe-hits").innerHTML = (pr.hits || []).map((h) => `<span>${esc(h.label)} · ${h.score.toFixed(2)}</span>`).join("");
-    if (pr.why) $("#probe-why").textContent = pr.why;
   }
 }
 
