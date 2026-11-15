@@ -9,11 +9,13 @@ This is an experiment branch. Do not merge the generated data, PBFs, embeddings,
 
 ## Run budget
 
-**Hard cap: 77,000 chips.** Do not run 1M on the current 199-region list.
+**Run target: 1,000,000 chips.** The region list now has 399 regions across 125 countries. Its
+combined area is enough for roughly 1.46M non-overlapping 1.28 km chips, but the sampler places random
+crops, so the actual run is **1,000,000 overlapping chips from 399 regions**, not 1M independent
+locations. Overlap is acceptable for training; do not report it as independent geographic coverage.
 
-The list has roughly 77,000 non-overlapping 1.28 km chips, but the sampler places random crops, so
-the actual run is **77,000 overlapping chips from 199 regions**, not 77,000 independent locations.
-Overlap is acceptable for training; do not report it as independent geographic coverage.
+The first 199 anchors are hand-picked biome/location regions; the extra 200 are Natural Earth 1:50m
+populated places with a 60 km radius.
 
 ## 1. Setup
 
@@ -119,13 +121,13 @@ Do not delete `manifest.csv` during a run unless you intend to rebuild that run.
 
 ## 5. Larger data runs
 
-The default region list has **199 regions across 93 countries**:
+The default region list has **399 regions across 125 countries**:
 
-- 139 train regions
-- 30 validation regions
-- 30 test regions
+- 279 train regions
+- 60 validation regions
+- 60 test regions
 
-Start with one continent or one biome rather than all 199 at once:
+Start with one continent or one biome rather than all 399 at once:
 
 ```sh
 # Example: Europe and North Africa subset
@@ -151,27 +153,27 @@ data/raw/osm_sentinel/_cache/osm/
 
 Expect a large cache across many countries. Run in batches and keep the cache.
 
-### Target run: 77,000 chips
+### Target run: 1,000,000 chips
 
-Do **not** run 1M. Use the 77,000-chip budget:
+Use the 1M budget:
 
 ```sh
 python experiments/osm_sentinel/build_dataset.py \
-  --chips-per-region 390 \
-  --max-chips 77000
+  --chips-per-region 2520 \
+  --max-chips 1000000
 ```
 
-At 199 regions × 390 chips/region this samples up to 77,610 locations, and `--max-chips 77000`
-stops at 77,000. The build is resumable, so you can run it in batches and rerun the same command to
+At 399 regions × 2520 chips/region this samples up to 1,005,480 locations, and `--max-chips 1000000`
+stops at 1,000,000. The build is resumable, so you can run it in batches and rerun the same command to
 continue.
 
-If a region has too few OSM features, the actual count may be slightly below 77,000; report the
+If a region has too few OSM features, the actual count may be slightly below 1,000,000; report the
 actual `n` from `dataset_stats.json`, along with `failed_regions` and `skipped_chips`.
 
-The random sampler produces overlapping chips. Report this as **77,000 overlapping chips from 199
-regions**, not 77,000 independent locations.
+The random sampler produces overlapping chips. Report this as **1,000,000 overlapping chips from 399
+regions**, not 1M independent locations.
 
-Do not treat a larger, overlapping run as equivalent to 77,000 independent locations.
+Do not treat a larger, overlapping run as equivalent to 1M independent locations.
 
 ### Re-caption an older build
 
@@ -272,8 +274,8 @@ data/raw/osm_sentinel/
 - [ ] pyrosm and rasterio import
 - [ ] one-chip smoke run writes image + manifest + caption
 - [ ] 100-chip multi-region run has all three splits represented
-- [ ] full run stops at `--max-chips 77000`
-- [ ] `dataset_stats.json` reports the actual `n` and it is at most 77,000
+- [ ] full run stops at `--max-chips 1000000`
+- [ ] `dataset_stats.json` reports the actual `n` and it is at most 1,000,000
 - [ ] `failed_regions` and `skipped_chips` are recorded
 - [ ] captions are plain visible-feature sentences
 - [ ] training run produces `results_dinov2-small.json`

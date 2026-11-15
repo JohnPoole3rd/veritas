@@ -27,12 +27,12 @@
   selection. Weighting lines by raw degrees made rivers outrank every polygon; that is fixed in
   `osm_captions._weight`.
 - `build_dataset.py` appends a manifest row and caption per completed chip, flushes both, and on
-  restart skips completed tile IDs. This is required for the 77k-chip run.
-- `fit_procrustes` accumulates the cross-covariance in chunks; 77k rows do not allocate full centered
+  restart skips completed tile IDs. This is required for the 1M-chip run.
+- `fit_procrustes` accumulates the cross-covariance in chunks; 1M rows do not allocate full centered
   copies of both embedding matrices.
-- The default list has 199 regions across 93 countries, roughly 77,000 non-overlapping 1.28 km chips.
-  **77k is the run budget.** A 1M run would be mostly overlapping crops; expand the region list or
-  sampling radius if more geographic coverage is needed.
+- The default list has 399 regions across 125 countries, roughly 1.46M non-overlapping 1.28 km chips
+  worth of area. The 1M run is intentionally overlapping random crops from 399 regions, not 1M
+  independent locations.
 
 ## DINOv2
 
