@@ -113,8 +113,9 @@ python experiments/osm_sentinel/compare_eurosat.py \
   --num-workers 0
 ```
 
-Write the results to `results/T20-osm-1m.md`. The old `results/T19-osm-sentinel.md` remains the
-77k historical report; do not merge its data into the 1M run.
+Write the results to `results/T21-osm-1m-640.md`. The old `results/T19-osm-sentinel.md` remains the
+77k historical report, and `results/T20-osm-1m.md` is A's old 128 px 1M status; do not merge either
+into the 64 px run.
 
 ### Performance check
 
