@@ -1,0 +1,186 @@
+{
+  "tag": "prelim10k_areafix",
+  "data": "data/raw/osm_sentinel_snap_areafix",
+  "n": {
+    "osm_train": 7388,
+    "osm_val": 1950,
+    "osm_test": 780,
+    "eurosat_train": 18900,
+    "eurosat_test": 4050,
+    "upper_arlington": 50
+  },
+  "osm_test_regions": [
+    "cr_tortuguero",
+    "cu_havana_coast"
+  ],
+  "osm_classes": [
+    "airport",
+    "barren",
+    "built",
+    "coast",
+    "commercial",
+    "farmland",
+    "forest",
+    "green",
+    "industrial",
+    "other",
+    "residential",
+    "transport",
+    "water"
+  ],
+  "fits": {
+    "eurosat": {
+      "score": {
+        "eurosat_test": {
+          "accuracy": 0.8121,
+          "macro_f1": 0.7948,
+          "n": 4050
+        },
+        "upper_arlington": {
+          "accuracy": 0.64,
+          "macro_f1": 0.1682,
+          "n": 50
+        },
+        "upper_arlington_unambiguous": {
+          "accuracy": 0.8108,
+          "macro_f1": 0.1718,
+          "n": 37
+        },
+        "osm_test": {
+          "accuracy": 0.3282,
+          "macro_f1": 0.0825,
+          "n": 780
+        },
+        "eurosat_text_search": {
+          "top1": 0.96,
+          "top5": 1.0,
+          "queries": 50
+        }
+      },
+      "random_rotation_mean5": {
+        "eurosat_test": {
+          "accuracy": 0.1551,
+          "macro_f1": 0.1392
+        },
+        "upper_arlington": {
+          "accuracy": 0.108,
+          "macro_f1": 0.0315
+        },
+        "upper_arlington_unambiguous": {
+          "accuracy": 0.1243,
+          "macro_f1": 0.0362
+        },
+        "osm_test": {
+          "accuracy": 0.1551,
+          "macro_f1": 0.0447
+        },
+        "eurosat_text_search": {
+          "top1": 0.152,
+          "top5": 0.28
+        }
+      }
+    },
+    "osm": {
+      "score": {
+        "eurosat_test": {
+          "accuracy": 0.2501,
+          "macro_f1": 0.2442,
+          "n": 4050
+        },
+        "upper_arlington": {
+          "accuracy": 0.38,
+          "macro_f1": 0.1109,
+          "n": 50
+        },
+        "upper_arlington_unambiguous": {
+          "accuracy": 0.4595,
+          "macro_f1": 0.1271,
+          "n": 37
+        },
+        "osm_test": {
+          "accuracy": 0.2205,
+          "macro_f1": 0.0739,
+          "n": 780
+        },
+        "eurosat_text_search": {
+          "top1": 0.3,
+          "top5": 0.44,
+          "queries": 50
+        }
+      },
+      "random_rotation_mean5": {
+        "eurosat_test": {
+          "accuracy": 0.0951,
+          "macro_f1": 0.0917
+        },
+        "upper_arlington": {
+          "accuracy": 0.188,
+          "macro_f1": 0.0575
+        },
+        "upper_arlington_unambiguous": {
+          "accuracy": 0.2054,
+          "macro_f1": 0.0496
+        },
+        "osm_test": {
+          "accuracy": 0.0708,
+          "macro_f1": 0.0397
+        },
+        "eurosat_text_search": {
+          "top1": 0.1,
+          "top5": 0.252
+        }
+      }
+    },
+    "combined": {
+      "score": {
+        "eurosat_test": {
+          "accuracy": 0.8247,
+          "macro_f1": 0.8086,
+          "n": 4050
+        },
+        "upper_arlington": {
+          "accuracy": 0.58,
+          "macro_f1": 0.1402,
+          "n": 50
+        },
+        "upper_arlington_unambiguous": {
+          "accuracy": 0.7297,
+          "macro_f1": 0.1529,
+          "n": 37
+        },
+        "osm_test": {
+          "accuracy": 0.2936,
+          "macro_f1": 0.0925,
+          "n": 780
+        },
+        "eurosat_text_search": {
+          "top1": 0.98,
+          "top5": 1.0,
+          "queries": 50
+        }
+      },
+      "random_rotation_mean5": {
+        "eurosat_test": {
+          "accuracy": 0.0815,
+          "macro_f1": 0.0785
+        },
+        "upper_arlington": {
+          "accuracy": 0.064,
+          "macro_f1": 0.0341
+        },
+        "upper_arlington_unambiguous": {
+          "accuracy": 0.0865,
+          "macro_f1": 0.0455
+        },
+        "osm_test": {
+          "accuracy": 0.0936,
+          "macro_f1": 0.033
+        },
+        "eurosat_text_search": {
+          "top1": 0.064,
+          "top5": 0.156
+        }
+      }
+    }
+  }
+}

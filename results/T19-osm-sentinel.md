@@ -1,6 +1,7 @@
 # T19 — OSM-Sentinel experiment (77k chips): run report from A
 
-Status: **IN PROGRESS.** The dataset build is running; training and testing have not run yet.
+Status: **IN PROGRESS.** The dataset build is running. A **preliminary EuroSAT-vs-OSM comparison** on the first
+10,118 chips is below; the final runs start automatically when the build finishes.
 Owner of this run: A (instructions: `experiments/osm_sentinel/RUNBOOK.md`)
 For: J (owner of the experiment), cc D
 Branch: `j/exp-osm-sentinel`; A's commits: `ae69074` (crash fixes) and this report + `recaption.py`
@@ -14,7 +15,51 @@ Machine: Apple M1 Pro, 16 GB, MPS available; Python 3.14.5 (3.12 not installed);
 | 2 One-chip smoke run | OK: image + manifest row + plain caption (`Residential area with commercial area, grassland, dense buildings.`), no "Sentinel-2 image of" prefix |
 | 3 100-chip, 5-region run | 90 chips in 98 s. **All 5 example regions are `train`**, so the checklist item "all three splits represented" cannot pass with the runbook's own command (issue 4). `br_amazon` gave 9/20 (sparse OSM) |
 | 5 Full run | `build_dataset.py --chips-per-region 390 --max-chips 77000` started 14:17 ET, resumable, ~5 chips/s including downloads. **ETA ≈ 19:00–19:30 ET** for ~77k chips (exact `n` will come from `dataset_stats.json`) |
-| 6 Training / testing | **Not yet run**; waits for the build |
+| 6 Training / testing | Preliminary comparison done on a 10k-chip snapshot (next section). Full `train.py` + comparison queued to run when the build exits |
+
+## Does OSM training beat the original EuroSAT training? (preliminary)
+
+**Short answer so far: no.** On a 10,118-chip snapshot, the OSM-fitted rotation is much worse than the
+EuroSAT rotation on EuroSAT and on Upper Arlington. On its own held-out OSM regions it is only
+marginally better with the as-built captions, and worse with the fixed captions. Fitting on
+**EuroSAT + OSM together** slightly improves EuroSAT but costs Upper Arlington accuracy.
+
+Script: `experiments/osm_sentinel/compare_eurosat.py`. It uses the same frozen DINOv2-small, MiniLM
+and Procrustes for every fit; only the fitting pairs change. Scoring is shared with the main
+pipeline (`src.retrieval.class_scores`, max over captions). Every cell has a random-rotation control
+(mean of 5 seeds). Results: `experiments/osm_sentinel/compare_eurosat_prelim10k_{asbuilt,areafix}.json`.
+
+Snapshot: OSM train 7,388 / val 1,950 / test 780 chips from 26 regions. EuroSAT fit: 18,900 pairs.
+Accuracy shown; random-rotation control in brackets.
+
+| Fit (captions) | EuroSAT test (4,050) | EuroSAT text search top-1 (50 queries) | Upper Arlington (50) | UA unambiguous (37) | OSM held-out test (780) |
+|---|---|---|---|---|---|
+| **EuroSAT** (main pipeline) | **0.812** (0.155) | 0.960 (0.152) | **0.640** (0.108) | **0.811** (0.124) | 0.219 / 0.328 † |
+| OSM, as-built captions | 0.310 (0.098) | 0.360 (0.104) | 0.460 (0.172) | 0.568 (0.195) | 0.291 (0.065) |
+| OSM, area-fixed captions | 0.250 (0.095) | 0.300 (0.100) | 0.380 (0.188) | 0.460 (0.205) | 0.221 (0.071) |
+| EuroSAT + OSM (as-built) | **0.828** (0.083) | **0.980** (0.064) | 0.560 (0.052) | 0.703 (0.059) | 0.255 (0.080) |
+| EuroSAT + OSM (area-fixed) | 0.825 (0.082) | **0.980** (0.064) | 0.580 (0.064) | 0.730 (0.086) | 0.294 (0.094) |
+
+† EuroSAT fit scored against the as-built / area-fixed OSM test labels respectively.
+Upper Arlington references: always "Residential" = 0.62 (oracle); EuroSAT majority = 0.00.
+
+Reading:
+- **Upper Arlington, the out-of-distribution test that matters for our user: OSM training does not help.**
+  The OSM fit (0.38–0.46) is below the EuroSAT fit (0.64) and below the always-Residential oracle (0.62).
+  Adding OSM to EuroSAT also lowers it (0.56–0.58).
+- **EuroSAT: combined fitting is a small gain** (+1.3–1.6 points accuracy, text search 48/50 → 49/50).
+  That is within what more pairs alone could explain; it needs the full run to confirm.
+- **OSM held-out regions: every fit is weak** (≤ 0.33 accuracy, macro-F1 ≤ 0.11). The OSM labels are
+  hard to predict from 10 m RGB (issues 2–3). Here the "test set" is only 2 regions (Tortuguero
+  rainforest and the Havana coast), so treat those numbers as anecdotal until the full run has 30.
+- Why OSM-only fitting is weak, likely causes:
+  - captions describe *mapped* features, not visible cover (issue 3);
+  - many chips share near-identical captions (low text diversity for Procrustes);
+  - label noise from the line-weight bug (issue 2);
+  - 1.28 km chips at 128 px vs EuroSAT's 640 m at 64 px, so the image statistics differ.
+
+Caveats: 10% of the planned data, 2 test regions, single run. **The final numbers on the full ~77k build
+will replace this table.**
 
 ## Issues found
 
@@ -71,6 +116,10 @@ identical caption ("Residential area with … dense buildings."), so it will be 
 `image_to_label` accuracy and the random-rotation control are the meaningful numbers.
 
 ## Work left
+
+0. Queued, runs automatically after the build exits: the runbook's `train.py ... --eval-eurosat` (as-built), then
+   `compare_eurosat.py --tag full_asbuilt`, then `recaption.py`, then `compare_eurosat.py --tag full_areafix`, then
+   `train.py` on the area-fixed data. A updates this report with the final tables.
 
 1. Let the build finish (about 4 more hours); record the actual `n` from `dataset_stats.json`,
    split/country/label counts and any `REGION FAILED` lines.
