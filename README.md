@@ -143,3 +143,18 @@ Expected with current artifacts:
 Use `python app.py --mock` only for UI rehearsal. Pre-warm MiniLM and DINOv2 before recording; see `plan/09-demo-writeup-submission.md`.
 
 See `plan/TASKS.md` for the full task board.
+
+## Run the website (scroll story + Urban Heat Lab)
+
+```sh
+python app.py --prefetch          # once, online: caches MiniLM + DINOv2
+python -m web.server --port 8000  # http://localhost:8000/   (the Gradio demo stays at /classic/)
+```
+
+The site is in `web/static/` (vanilla JS, no build step); the API it uses is documented in `web/API.md`.
+
+- **Story:** a scroll-driven flight from the globe to Upper Arlington, the real embeddings aligning under the rotation, the logged metrics, plain-English search over the 50 local tiles, and a measured heat chapter (Sentinel-2 NDVI vs Landsat surface temperature).
+- **Lab (for climate and urban-forestry analysts):** draw a box anywhere (up to 400 squares of 640 m). The Lab fetches the clearest Sentinel-2 L2A pass and the nearest Landsat 8/9 thermal pass, labels every square with the frozen models, and reports cooling per +0.1 NDVI (OLS, r), the least-green minus greenest tercile contrast, a hot-and-bare planting priority list, cool refuges, text search and similar-square search, a cross-city comparison table, and per-square GeoJSON/CSV exports with scene IDs.
+- Land cover is a **model estimate**; NDVI and surface temperature are **measurements**. Live areas need internet; Upper Arlington is cached in `data/raw/web_cache/` and works offline.
+- `python -m web.bake_story` regenerates `web/static/data/story.json` and `web/static/img/ua-*` from committed artifacts and the cached pass.
+- Tests: `python -m pytest tests/test_web_server.py tests/test_web_geo.py`.

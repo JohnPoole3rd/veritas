@@ -17,3 +17,8 @@ shapely>=2.0
 pyproj>=3.6
 pystac-client>=0.7
 requests>=2.31
+
+# Website (web/server.py, owner D): python -m web.server
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
