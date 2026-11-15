@@ -138,6 +138,10 @@ scene_open=1.39s, scene_read=0.95s, scene_search=2.62s,
 worldcover_load=3.70s
 ```
 
+The build also prefetches the next region's OSM PBF/GeoParquet in one background thread while the
+current region crops chips, so `osm_load` overlaps the chip loop. It is on by default; use
+`--no-prefetch` if a provider is rate-limiting or memory is tight.
+
 Use that to find the next bottleneck:
 
 - `scene_read` / `worldcover_load` high → region I/O

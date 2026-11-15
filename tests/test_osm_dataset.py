@@ -128,3 +128,13 @@ def test_read_region_keeps_georeference_when_bbox_exceeds_the_scene(tmp_path):
     assert rgb.shape == (140, 130, 3)
     assert abs(transform.c - -1.2) < 1e-9
     assert abs(transform.f - 1.2) < 1e-9
+
+
+def test_region_geometry_honours_radius_override():
+    from experiments.osm_sentinel.build_dataset import region_geometry
+
+    region = {"lat": "40.0", "lon": "-83.0", "radius_km": "25"}
+    args = argparse.Namespace(radius_km=3.0)
+    lat, lon, radius, bbox = region_geometry(region, args)
+    assert (lat, lon, radius) == (40.0, -83.0, 3.0)
+    assert bbox[0] < lon < bbox[2] and bbox[1] < lat < bbox[3]

@@ -104,6 +104,11 @@ Data is written to `data/raw/osm_sentinel/` (gitignored) and cached by region in
 Existing chips are skipped on rerun; `manifest.csv` and `captions.jsonl` are appended per chip and
 repaired on restart. Use `--overwrite` to rebuild from scratch.
 
+The build prefetches the next region's OSM PBF/GeoParquet in a background thread while the current
+region crops chips (disable with `--no-prefetch`). Provider full extracts are also cached by pyrosm
+in `<out-dir>/_cache/pbf/`, so neighbouring regions in the same state/country do not re-download the
+same source extract.
+
 ### DINOv2
 
 The experiment uses the same public DINOv2-small encoder as the main project:

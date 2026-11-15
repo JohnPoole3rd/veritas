@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+from concurrent.futures import Future, ThreadPoolExecutor
 import hashlib
 import json
 import math
@@ -61,6 +62,13 @@ def bbox_from_center(lat: float, lon: float, radius_km: float) -> tuple[float, f
     dlat = radius_km / 111.32
     dlon = radius_km / (111.32 * max(math.cos(math.radians(lat)), 1e-6))
     return lon - dlon, lat - dlat, lon + dlon, lat + dlat
+
+
+def region_geometry(region: dict[str, Any], args) -> tuple[float, float, float, tuple[float, float, float, float]]:
+    """Return lat, lon, radius, bbox for a region and the current overrides."""
+    lat, lon = float(region["lat"]), float(region["lon"])
+    radius_km = args.radius_km if args.radius_km is not None else float(region["radius_km"])
+    return lat, lon, radius_km, bbox_from_center(lat, lon, radius_km)
 
 
 def find_scene(bbox: tuple[float, float, float, float], start: str, end: str, max_cloud: float):
@@ -369,6 +377,11 @@ def main() -> None:
     parser.add_argument("--max-cloud", type=float, default=20.0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--log-every", type=int, default=1000, help="Print every N successful chips")
+    parser.add_argument(
+        "--no-prefetch",
+        action="store_true",
+        help="Disable background OSM PBF/GeoParquet prefetch for the next region",
+    )
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
@@ -413,11 +426,26 @@ def main() -> None:
 
     rng = random.Random(args.seed)
     all_timings: Counter[str] = Counter()
-    for region in regions:
+    executor: ThreadPoolExecutor | None = None
+    prefetched: dict[str, Future] = {}
+    if not args.no_prefetch and len(regions) > 1:
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="osm-prefetch")
+
+    def prefetch_next(index: int) -> None:
+        """Download/parse the next region's OSM while this region crops chips."""
+        if executor is None or index >= len(regions):
+            return
+        nxt = regions[index]
+        nxt_id = nxt["region_id"]
+        if nxt_id in prefetched:
+            return
+        _, _, _, nxt_bbox = region_geometry(nxt, args)
+        prefetched[nxt_id] = executor.submit(load_region_features, nxt_id, nxt_bbox, cache_dir)
+
+    for index, region in enumerate(regions):
         region_id = region["region_id"]
-        lat, lon = float(region["lat"]), float(region["lon"])
-        radius_km = args.radius_km if args.radius_km is not None else float(region["radius_km"])
-        bbox = bbox_from_center(lat, lon, radius_km)
+        future = prefetched.pop(region_id, None)
+        lat, lon, radius_km, bbox = region_geometry(region, args)
         scene_bbox = bbox_from_center(lat, lon, radius_km + args.chip_m / 1000.0)
         timings: Counter[str] = Counter()
         region_start = time.perf_counter()
@@ -435,7 +463,17 @@ def main() -> None:
             if asset is None:
                 raise RuntimeError(f"Scene {item.id} has no visual asset")
             t0 = time.perf_counter()
-            region_features = load_region_features(region_id, bbox, cache_dir)
+            if future is not None:
+                try:
+                    region_features = future.result()
+                except Exception as exc:
+                    print(
+                        f"[{region_id}] OSM prefetch failed ({type(exc).__name__}: {exc}); retrying synchronously",
+                        flush=True,
+                    )
+                    region_features = load_region_features(region_id, bbox, cache_dir)
+            else:
+                region_features = load_region_features(region_id, bbox, cache_dir)
             timings["osm_load"] += time.perf_counter() - t0
         except Exception as exc:  # STAC/Geofabrik/pyrosm failure: skip the region (rerun to retry it)
             print(f"[{region_id}] REGION FAILED, skipped: {type(exc).__name__}: {exc}", flush=True)
@@ -443,6 +481,7 @@ def main() -> None:
             continue
         stats["failed_regions"].discard(region_id)
         print(f"[{region_id}] pyrosm region loaded", flush=True)
+        prefetch_next(index + 1)
         # WorldCover is a fallback: load it lazily the first time a chip has
         # no OSM land-cover polygon. Natural/farm regions then pay zero
         # WorldCover I/O, while sparse urban chips still get a fallback.
@@ -591,6 +630,8 @@ def main() -> None:
         if args.max_chips and stats["n"] >= args.max_chips:
             break
 
+    if executor is not None:
+        executor.shutdown(wait=False, cancel_futures=True)
     write_stats(stats_path, stats)
     print("timings: " + json.dumps({key: round(value, 2) for key, value in sorted(all_timings.items())}), flush=True)
     print(json.dumps(stats_payload(stats), indent=2))
