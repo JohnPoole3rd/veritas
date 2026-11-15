@@ -1,6 +1,6 @@
 # Experiment 6 — OSM-captioned Sentinel-2 training
 
-**Owner:** J experiment branch · **Branch:** `j/exp-osm-sentinel` · **Status:** implementation + smoke test
+**Owner:** J + A experiment branch · **Branch:** `aj/exp-osm-sentinel` · **Status:** implementation + smoke test
 
 **Question:** does training the rotation on real, globally sampled Sentinel-2 chips captioned from
 OpenStreetMap beat EuroSAT template captions, especially outside Upper Arlington?

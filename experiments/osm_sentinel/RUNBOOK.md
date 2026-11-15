@@ -1,8 +1,8 @@
 # OSM-Sentinel Runbook — Apple Silicon
 
-**Branch:** `j/exp-osm-sentinel`  
-**Minimum revision for the authoritative run:** `1bc18d4`  
-**Owner for this run:** A or D  
+**Branch:** `aj/exp-osm-sentinel`
+**Minimum revision for the authoritative run:** `de311e6` (includes A's `a/osm-1m-fixes`)
+**Owner for this run:** A or D
 **Backbone:** DINOv2-small, public and auto-downloaded  
 **Method:** frozen DINOv2 + frozen MiniLM + one Procrustes rotation fitted on OSM-captioned Sentinel-2 chips
 
@@ -36,9 +36,9 @@ guard, and the OSM prefetch. Do not reuse their images, manifest, interim snapsh
 
 ```sh
 cd /home/john/veritas
-git switch j/exp-osm-sentinel
-git pull --ff-only origin j/exp-osm-sentinel
-git rev-parse --short HEAD   # must be 1bc18d4 or newer
+git switch aj/exp-osm-sentinel
+git pull --ff-only origin aj/exp-osm-sentinel
+git rev-parse --short HEAD   # must be de311e6 or newer
 ```
 
 Use Python 3.12+ (3.14.5 already works on A's machine):
@@ -258,7 +258,7 @@ Use Python 3.12+ if available. A ran this successfully on Python 3.14.5; 3.12 is
 
 ```sh
 git fetch origin
-git switch j/exp-osm-sentinel
+git switch aj/exp-osm-sentinel
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
