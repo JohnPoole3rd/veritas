@@ -35,9 +35,8 @@
   OSM buildings or roads.
 - `fit_procrustes` accumulates the cross-covariance in chunks; 1M rows do not allocate full centered
   copies of both embedding matrices.
-- The default list has 399 regions across 125 countries, roughly 1.46M non-overlapping 1.28 km chips
-  worth of area. The 1M run is intentionally overlapping random crops from 399 regions, not 1M
-  independent locations.
+- The default list has 399 regions across 125 countries, roughly 5.8M non-overlapping 640 m chips.
+  The 1M run is a 640 m grid from 399 regions; the legacy random sampler is not the 1M path.
 
 ## DINOv2
 

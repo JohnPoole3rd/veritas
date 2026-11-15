@@ -32,6 +32,7 @@ import json
 import math
 import random
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -78,27 +79,23 @@ def find_scene(bbox: tuple[float, float, float, float], start: str, end: str, ma
     return min(items, key=lambda item: float(item.properties.get("eo:cloud_cover", 100)))
 
 
-def read_chip(item, lat: float, lon: float, chip_m: float, chip_px: int):
-    """Read a true-colour COG window and resize it to `chip_px`."""
+def read_region(src, bbox: tuple[float, float, float, float]):
+    """Read the region's RGB window once from the Sentinel COG.
+
+    Reading a 1.28 km or 640 m window directly from S3 for every chip costs
+    ~0.2 s/chip. One region-sized read followed by local crops removes that
+    latency.
+    """
     import numpy as np
-    import rasterio
-    from PIL import Image
     from rasterio.warp import transform_bounds
     from rasterio.windows import from_bounds
 
-    asset = item.assets.get("visual")
-    if asset is None:
-        raise RuntimeError(f"Scene {item.id} has no visual asset")
-    half_lat = chip_m / 2 / 111_320
-    half_lon = chip_m / 2 / (111_320 * max(math.cos(math.radians(lat)), 1e-6))
-    west, south, east, north = lon - half_lon, lat - half_lat, lon + half_lon, lat + half_lat
-
-    with rasterio.open(asset.href) as src:
-        bounds = transform_bounds("EPSG:4326", src.crs, west, south, east, north, densify_pts=21)
-        window = from_bounds(*bounds, src.transform).round_offsets().round_lengths()
-        if window.width < 8 or window.height < 8:
-            return None
-        data = src.read(window=window)
+    west, south, east, north = bbox
+    bounds = transform_bounds("EPSG:4326", src.crs, west, south, east, north, densify_pts=21)
+    window = from_bounds(*bounds, src.transform).round_offsets().round_lengths()
+    if window.width < 8 or window.height < 8:
+        return None
+    data = src.read(window=window)
     if data.size == 0:
         return None
     if data.shape[0] >= 3:
@@ -106,11 +103,31 @@ def read_chip(item, lat: float, lon: float, chip_m: float, chip_px: int):
     else:
         rgb = np.repeat(np.transpose(data[:1], (1, 2, 0)), 3, axis=2)
     if rgb.dtype != np.uint8:
-        # TCI is uint8; this fallback handles raw reflectance assets.
         rgb = np.clip(rgb.astype("float32") / 4000.0 * 255.0, 0, 255).astype("uint8")
-    image = Image.fromarray(rgb).resize((chip_px, chip_px), Image.BILINEAR)
-    if np.asarray(image).max() < 5:
+    if rgb.max() < 5:
         return None
+    return np.ascontiguousarray(rgb), src.window_transform(window), src.crs
+
+
+def read_chip(region_rgb, region_transform, region_crs, lat: float, lon: float, chip_m: float, chip_px: int):
+    """Crop a chip from an in-memory region raster."""
+    from PIL import Image
+    from rasterio.warp import transform_bounds
+    from rasterio.windows import from_bounds
+
+    half_lat = chip_m / 2 / 111_320
+    half_lon = chip_m / 2 / (111_320 * max(math.cos(math.radians(lat)), 1e-6))
+    west, south, east, north = lon - half_lon, lat - half_lat, lon + half_lon, lat + half_lat
+    bounds = transform_bounds("EPSG:4326", region_crs, west, south, east, north, densify_pts=21)
+    window = from_bounds(*bounds, region_transform).round_offsets().round_lengths()
+    row0 = max(0, int(window.row_off))
+    col0 = max(0, int(window.col_off))
+    row1 = min(region_rgb.shape[0], row0 + max(1, int(window.height)))
+    col1 = min(region_rgb.shape[1], col0 + max(1, int(window.width)))
+    if row1 - row0 < 8 or col1 - col0 < 8:
+        return None
+    crop = region_rgb[row0:row1, col0:col1]
+    image = Image.fromarray(crop).resize((chip_px, chip_px), Image.BILINEAR)
     return image
 
 
@@ -264,6 +281,8 @@ def append_chip(
 
 
 def main() -> None:
+    import rasterio
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--regions-csv", default=str(THIS / "regions.csv"))
     parser.add_argument("--out-dir", default=str(ROOT / "data" / "raw" / "osm_sentinel"))
@@ -278,8 +297,8 @@ def main() -> None:
     parser.add_argument("--no-worldcover", action="store_true", help="Disable ESA WorldCover fallback")
     parser.add_argument("--max-chips", type=int, default=0, help="Stop after N total chips (0 = no limit)")
     parser.add_argument("--radius-km", type=float, default=None, help="Override region radius")
-    parser.add_argument("--chip-m", type=float, default=1280.0, help="Chip side length in metres")
-    parser.add_argument("--chip-px", type=int, default=128)
+    parser.add_argument("--chip-m", type=float, default=640.0, help="Chip side length in metres")
+    parser.add_argument("--chip-px", type=int, default=64)
     parser.add_argument("--date-start", default="2024-01-01")
     parser.add_argument("--date-end", default="2025-12-31")
     parser.add_argument("--max-cloud", type=float, default=20.0)
@@ -322,19 +341,28 @@ def main() -> None:
         raise SystemExit("No regions selected")
 
     rng = random.Random(args.seed)
+    all_timings: Counter[str] = Counter()
     for region in regions:
         region_id = region["region_id"]
         lat, lon = float(region["lat"]), float(region["lon"])
         radius_km = args.radius_km if args.radius_km is not None else float(region["radius_km"])
         bbox = bbox_from_center(lat, lon, radius_km)
+        timings: Counter[str] = Counter()
         print(f"[{region_id}] searching Sentinel-2 scene", flush=True)
         try:
+            t0 = time.perf_counter()
             item = find_scene(bbox, args.date_start, args.date_end, args.max_cloud)
+            timings["scene_search"] += time.perf_counter() - t0
             if item is None:
                 print(f"[{region_id}] no scene below {args.max_cloud}% cloud; skipped", flush=True)
                 continue
             print(f"[{region_id}] scene {item.id} cloud={item.properties.get('eo:cloud_cover')}", flush=True)
+            asset = item.assets.get("visual")
+            if asset is None:
+                raise RuntimeError(f"Scene {item.id} has no visual asset")
+            t0 = time.perf_counter()
             region_features = load_region_features(region_id, bbox, cache_dir)
+            timings["osm_load"] += time.perf_counter() - t0
         except Exception as exc:  # STAC/Geofabrik/pyrosm failure: skip the region (rerun to retry it)
             print(f"[{region_id}] REGION FAILED, skipped: {type(exc).__name__}: {exc}", flush=True)
             stats["failed_regions"].add(region_id)
@@ -344,12 +372,30 @@ def main() -> None:
         region_wc = None
         if not args.no_worldcover:
             try:
+                t0 = time.perf_counter()
                 region_wc = RegionWorldCover(bbox)
+                timings["worldcover_load"] += time.perf_counter() - t0
                 print(f"[{region_id}] WorldCover region loaded", flush=True)
             except Exception as exc:
                 print(f"[{region_id}] WorldCover unavailable, continuing without it: {type(exc).__name__}: {exc}", flush=True)
 
+        try:
+            t0 = time.perf_counter()
+            scene = rasterio.open(asset.href)
+            timings["scene_open"] += time.perf_counter() - t0
+            t0 = time.perf_counter()
+            region_rgb, region_transform, region_crs = read_region(scene, bbox)
+            timings["scene_read"] += time.perf_counter() - t0
+            scene.close()
+            if region_rgb is None:
+                raise RuntimeError("empty Sentinel region window")
+        except Exception as exc:
+            print(f"[{region_id}] scene read failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+            stats["failed_regions"].add(region_id)
+            continue
+
         added = 0
+        chip_t0 = time.perf_counter()
         if args.sample_mode == "grid":
             candidates = list(grid_candidates(region_id, lat, lon, radius_km, args.chip_m))
             rng.shuffle(candidates)
@@ -362,7 +408,12 @@ def main() -> None:
             if tid in done:
                 continue
             try:
-                image = read_chip(item, chip_lat, chip_lon, args.chip_m, args.chip_px)
+                t0 = time.perf_counter()
+                image = read_chip(
+                    region_rgb, region_transform, region_crs,
+                    chip_lat, chip_lon, args.chip_m, args.chip_px,
+                )
+                timings["raster_read"] += time.perf_counter() - t0
             except Exception as exc:  # transient COG/network error: skip this chip, keep the run alive
                 print(f"[{region_id}] {tid} read failed, skipped: {type(exc).__name__}: {exc}", flush=True)
                 stats["skipped_chips"] += 1
@@ -380,10 +431,12 @@ def main() -> None:
                 except Exception:
                     wc = None
             try:
+                t0 = time.perf_counter()
                 features, buildings = region_features.for_bbox(chip_bbox)
                 caption, label, counts, building_count = build_caption_from_features(
                     features, buildings, chip_bbox, worldcover=wc
                 )
+                timings["caption"] += time.perf_counter() - t0
             except Exception as exc:  # malformed OSM data for this chip: skip it, keep the run alive
                 print(f"[{region_id}] {tid} caption failed, skipped: {type(exc).__name__}: {exc}", flush=True)
                 stats["skipped_chips"] += 1
@@ -392,7 +445,9 @@ def main() -> None:
                 stats["skipped_chips"] += 1
                 continue
             image_rel = f"images/{tid}.jpg"
+            t0 = time.perf_counter()
             image.save(out_dir / image_rel, quality=92)
+            timings["image_save"] += time.perf_counter() - t0
             wc_class = "" if wc is None else str(wc[2])
             wc_fraction = "" if wc is None else f"{wc[1]:.4f}"
             row = {
@@ -415,16 +470,27 @@ def main() -> None:
                 "worldcover_class": wc_class,
                 "worldcover_fraction": wc_fraction,
             }
+            t0 = time.perf_counter()
             append_chip(manifest_path, captions_path, row)
+            timings["append"] += time.perf_counter() - t0
             update_stats(stats, row)
             done.add(tid)
             added += 1
             print(f"[{region_id}] {tid} -> {caption}", flush=True)
+        elapsed = time.perf_counter() - chip_t0
+        rate = added / elapsed if elapsed > 0 else 0.0
+        all_timings.update(timings)
+        print(
+            f"[{region_id}] timing: {added} chips, {elapsed:.1f}s, {rate:.1f} chips/s, "
+            + ", ".join(f"{key}={value:.2f}s" for key, value in sorted(timings.items())),
+            flush=True,
+        )
         write_stats(stats_path, stats)
         if args.max_chips and stats["n"] >= args.max_chips:
             break
 
     write_stats(stats_path, stats)
+    print("timings: " + json.dumps({key: round(value, 2) for key, value in sorted(all_timings.items())}), flush=True)
     print(json.dumps(stats_payload(stats), indent=2))
 
 

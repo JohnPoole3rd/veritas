@@ -24,7 +24,7 @@ CUSTOM_FILTER: dict[str, Any] = {
     "building": True,
     "amenity": [
         "parking", "school", "university", "college", "hospital",
-        "place_of_worship", "marketplace", "bus_station", "fuel",
+        "place_of_worship", "marketplace", "bus_station", "fuel", "stadium",
     ],
 }
 

@@ -142,10 +142,20 @@ def cls_metrics(scores, labels: list[str], classes: list[str]) -> dict:
     }
 
 
-def pair_recall(images, text, ks=(1, 10)) -> dict:
-    sims = text @ images.T
-    rank = (sims > sims[np.arange(len(sims)), np.arange(len(sims))][:, None]).sum(1)
-    return {f"recall@{k}": round(float((rank < k).mean()), 4) for k in ks} | {"n": int(len(images))}
+def pair_recall(images, text, ks=(1, 10), chunk_size: int = 512) -> dict:
+    """Caption→image recall without an N×N similarity matrix.
+
+    A full matrix is hundreds of GB at 1M-row scale. Score a chunk of captions
+    against all images at a time and rank only the diagonal target.
+    """
+    n = len(images)
+    ranks = np.empty(n, dtype=np.int64)
+    for start in range(0, n, chunk_size):
+        stop = min(start + chunk_size, n)
+        sims = text[start:stop] @ images.T
+        diagonal = sims[np.arange(stop - start), np.arange(start, stop)]
+        ranks[start:stop] = (sims > diagonal[:, None]).sum(axis=1)
+    return {f"recall@{k}": round(float((ranks < k).mean()), 4) for k in ks} | {"n": int(n)}
 
 
 def main() -> None:

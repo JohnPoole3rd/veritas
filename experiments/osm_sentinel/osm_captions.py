@@ -57,6 +57,10 @@ TAG_MAPS: tuple[tuple[str, dict[str, str]], ...] = (
         "park": "park",
         "golf_course": "golf course",
         "pitch": "sports field",
+        "stadium": "stadium",
+        "track": "running track",
+        "sports_centre": "sports centre",
+        "swimming_pool": "swimming pool",
         "nature_reserve": "nature reserve",
         "marina": "marina",
         "garden": "garden",
@@ -90,6 +94,8 @@ TAG_MAPS: tuple[tuple[str, dict[str, str]], ...] = (
         "garages": "garages",
         "hangar": "hangar",
         "terminal": "airport terminal",
+        "stadium": "stadium",
+        "sports_hall": "sports hall",
     }),
     ("highway", {
         "motorway": "major road",
@@ -147,14 +153,34 @@ TAG_MAPS: tuple[tuple[str, dict[str, str]], ...] = (
         "marketplace": "market",
         "bus_station": "bus station",
         "fuel": "fuel station",
+        "stadium": "stadium",
     }),
     ("aeroway", {
+        "aerodrome": "airport",
+        "helipad": "helipad",
         "runway": "airport runway",
         "taxiway": "airport taxiway",
         "apron": "airport apron",
         "terminal": "airport terminal",
     }),
 )
+
+# OSM `sport=*` detail. These are still visible features, but only when mapped.
+SPORT_PHRASES: dict[str, str] = {
+    "baseball": "baseball field",
+    "softball": "softball field",
+    "soccer": "soccer field",
+    "american_football": "football field",
+    "rugby": "rugby field",
+    "cricket": "cricket field",
+    "tennis": "tennis court",
+    "basketball": "basketball court",
+    "volleyball": "volleyball court",
+    "athletics": "running track",
+    "golf": "golf course",
+    "swimming": "swimming pool",
+    "equestrian": "equestrian arena",
+}
 
 # Primary-phrase priority. Used only to order extras after the subject is chosen.
 PRIORITY: tuple[str, ...] = (
@@ -184,10 +210,14 @@ AREA_SUBJECTS: tuple[str, ...] = (
     "glacier", "forest", "scrubland", "heathland", "grassland", "meadow",
     "farmland", "orchard", "vineyard", "greenhouses", "aquaculture ponds",
     "quarry", "landfill", "bare rock", "scree", "snow", "bare ground", "moss",
-    "mangrove", "park", "golf course", "sports field", "nature reserve", "garden",
+    "mangrove", "park", "golf course", "sports field", "baseball field",
+    "softball field", "soccer field", "football field", "rugby field",
+    "cricket field", "tennis court", "basketball court", "volleyball court",
+    "running track", "sports centre", "swimming pool", "stadium",
+    "equestrian arena", "nature reserve", "garden",
     "residential area", "commercial area", "industrial area", "port",
-    "construction site", "built-up area", "airport runway", "airport apron",
-    "airport terminal", "cemetery",
+    "construction site", "built-up area", "airport", "helipad",
+    "airport runway", "airport apron", "airport terminal", "cemetery",
 )
 
 BUILT_PHRASES: tuple[str, ...] = (
@@ -198,8 +228,9 @@ BUILT_PHRASES: tuple[str, ...] = (
 
 MAJOR_INFRA: tuple[str, ...] = (
     "major road", "railway", "rail station", "tram line", "parking lot",
-    "bridge", "pier", "breakwater", "port", "airport runway",
-    "airport taxiway", "airport apron", "airport terminal", "bus station",
+    "bridge", "pier", "breakwater", "port", "airport",
+    "airport runway", "airport taxiway", "airport apron", "airport terminal",
+    "helipad", "stadium", "sports centre", "swimming pool", "bus station",
     "lighthouse", "storage tanks", "silo", "water treatment plant",
     "waterworks", "farm track",
 )
@@ -240,12 +271,18 @@ LABEL_BY_PHRASE: dict[str, str] = {
     "quarry": "industrial", "landfill": "industrial", "bare rock": "barren",
     "scree": "barren", "snow": "ice", "bare ground": "barren", "moss": "green",
     "mangrove": "forest", "built-up area": "built", "park": "green",
-    "golf course": "green", "sports field": "green", "nature reserve": "green",
+    "golf course": "green", "sports field": "green",
+    "baseball field": "green", "softball field": "green", "soccer field": "green",
+    "football field": "green", "rugby field": "green", "cricket field": "green",
+    "tennis court": "built", "basketball court": "built", "volleyball court": "built",
+    "running track": "built", "sports centre": "built", "swimming pool": "water",
+    "stadium": "built", "equestrian arena": "built", "nature reserve": "green",
     "garden": "green",
     "residential area": "residential", "commercial area": "commercial",
     "industrial area": "industrial", "port": "industrial",
     "construction site": "built", "railway": "transport",
     "rail station": "transport", "tram line": "transport",
+    "airport": "airport", "helipad": "airport",
     "airport runway": "airport", "airport taxiway": "airport",
     "airport apron": "airport", "airport terminal": "airport",
     "major road": "transport", "residential street": "transport",
@@ -290,6 +327,17 @@ def visible_phrases(tags: dict[str, Any]) -> list[str]:
             phrase = mapping[value]
             if phrase not in phrases:
                 phrases.append(phrase)
+    sport = tags.get("sport")
+    if isinstance(sport, str):
+        for value in sport.split(";"):
+            phrase = SPORT_PHRASES.get(value.strip())
+            if phrase and phrase not in phrases:
+                phrases.append(phrase)
+    # A specific sport is more useful than the generic pitch phrase.
+    if "sports field" in phrases and any(
+        phrase in phrases for phrase in SPORT_PHRASES.values()
+    ):
+        phrases.remove("sports field")
     return phrases
 
 

@@ -10,7 +10,7 @@ This is an experiment branch. Do not merge the generated data, PBFs, embeddings,
 ## Run budget
 
 **Run target: 1,000,000 chips.** The region list has 399 regions across 125 countries. Its combined
-area contains roughly 1.46M non-overlapping 1.28 km grid cells. The default sampler is a
+area contains roughly 5.8M non-overlapping 640 m grid cells. The default sampler is a
 non-overlapping grid, so the 1M run is **1,000,000 non-overlapping grid chips from 399 regions**.
 Some cells are skipped for water/cloud/OSM reasons; report the actual `n`.
 
@@ -48,19 +48,20 @@ PY
 Remove only the fresh 1M directory if it exists. Leave the 77k build alone:
 
 ```sh
-rm -rf data/raw/osm_sentinel_1m
+rm -rf data/raw/osm_sentinel_1m_640
 ```
 
 Run the full grid + WorldCover build:
 
 ```sh
-mkdir -p data/raw/osm_sentinel_1m
+mkdir -p data/raw/osm_sentinel_1m_640
 python experiments/osm_sentinel/build_dataset.py \
-  --out-dir data/raw/osm_sentinel_1m \
+  --out-dir data/raw/osm_sentinel_1m_640 \
+  --chip-m 640 --chip-px 64 \
   --sample-mode grid \
   --chips-per-region 8000 \
   --max-chips 1000000 \
-  2>&1 | tee data/raw/osm_sentinel_1m/_run.log
+  2>&1 | tee data/raw/osm_sentinel_1m_640/_run.log
 ```
 
 Defaults are intentional:
@@ -68,19 +69,19 @@ Defaults are intentional:
 - `grid`: non-overlapping cells, stable IDs, resume-safe
 - WorldCover on
 - 399 regions / 125 countries
-- fresh PBF and GeoParquet caches under `data/raw/osm_sentinel_1m/_cache/`
+- fresh PBF and GeoParquet caches under `data/raw/osm_sentinel_1m_640/_cache/`
 
 Do not add `--no-worldcover`. Do not point this at the old 77k directory.
 
 The build is resumable: if it stops, rerun the same command. It will continue from the new
-`data/raw/osm_sentinel_1m/manifest.csv`.
+`data/raw/osm_sentinel_1m_640/manifest.csv`.
 
 While it runs:
 
 ```sh
-tail -f data/raw/osm_sentinel_1m/manifest.csv
-grep "REGION FAILED" data/raw/osm_sentinel_1m/_run.log 2>/dev/null || true
-cat data/raw/osm_sentinel_1m/dataset_stats.json
+tail -f data/raw/osm_sentinel_1m_640/manifest.csv
+grep "REGION FAILED" data/raw/osm_sentinel_1m_640/_run.log 2>/dev/null || true
+cat data/raw/osm_sentinel_1m_640/dataset_stats.json
 ```
 
 When it finishes, record the actual `n`, `failed_regions`, and `skipped_chips`. If `n` is below
@@ -90,7 +91,7 @@ Train on the new 1M data:
 
 ```sh
 python experiments/osm_sentinel/train.py \
-  --data data/raw/osm_sentinel_1m \
+  --data data/raw/osm_sentinel_1m_640 \
   --device mps \
   --dtype fp32 \
   --batch-size 32 \
@@ -102,7 +103,7 @@ Run the EuroSAT-vs-OSM comparison on the same 1M data:
 
 ```sh
 python experiments/osm_sentinel/compare_eurosat.py \
-  --data data/raw/osm_sentinel_1m \
+  --data data/raw/osm_sentinel_1m_640 \
   --tag full_1m \
   --dtype fp32 \
   --batch-size 64 \
@@ -111,6 +112,30 @@ python experiments/osm_sentinel/compare_eurosat.py \
 
 Write the results to `results/T20-osm-1m.md`. The old `results/T19-osm-sentinel.md` remains the
 77k historical report; do not merge its data into the 1M run.
+
+### Performance check
+
+The optimized build reads each Sentinel scene window **once per region**, then crops chips from
+memory. On the Malta smoke region, this changed the measured build from ~4.3 to **~26.6 chips/s**.
+A 1M-chip run is still data-bound, but it should be hours rather than days.
+
+Each region prints a line like:
+
+```text
+[region] timing: 29 chips, 1.1s, 26.6 chips/s,
+append=0.01s, caption=1.03s, image_save=0.01s, osm_load=0.43s,
+raster_read=0.03s, scene_open=1.39s, scene_read=0.95s,
+scene_search=2.62s, worldcover_load=3.70s
+```
+
+Use that to find the next bottleneck:
+
+- `scene_read` / `worldcover_load` high → region I/O
+- `caption` high → OSM geometry/caption cost
+- `raster_read` high → Sentinel cropping or memory
+- `scene_search` high → STAC
+
+Do not run the old 128 px build again for this comparison.
 
 ## 1. Setup
 
@@ -254,17 +279,18 @@ Use the 1M budget. Use a fresh output directory so you do not resume A's existin
 
 ```sh
 python experiments/osm_sentinel/build_dataset.py \
-  --out-dir data/raw/osm_sentinel_1m \
+  --out-dir data/raw/osm_sentinel_1m_640 \
+  --chip-m 640 --chip-px 64 \
   --chips-per-region 8000 \
   --max-chips 1000000
 ```
 
-With the non-overlapping grid, the 399 regions contain about 1.46M candidate cells. `--chips-per-region 8000`
+With the non-overlapping grid, the 399 regions contain about 5.8M candidate cells. `--chips-per-region 8000`
 allows every region to contribute its full grid, and `--max-chips 1000000` stops at 1M. The build is resumable, so you can run it in batches and rerun the same command to
 continue.
 
 Do **not** point this at `data/raw/osm_sentinel`: that is A's existing 77k build made with the old
-captioner. Keep it for comparison; the 1M run uses `data/raw/osm_sentinel_1m`.
+captioner. Keep it for comparison; the 1M run uses `data/raw/osm_sentinel_1m_640`.
 
 If a region has too few OSM features, the actual count may be slightly below 1,000,000; report the
 actual `n` from `dataset_stats.json`, along with `failed_regions` and `skipped_chips`.
@@ -310,7 +336,7 @@ Once there is at least one train, one validation, and one test region:
 
 ```sh
 python experiments/osm_sentinel/train.py \
-  --data data/raw/osm_sentinel_1m \
+  --data data/raw/osm_sentinel_1m_640 \
   --device mps \
   --dtype fp32 \
   --batch-size 32 \
@@ -327,7 +353,7 @@ Optional slower evaluation on EuroSAT:
 
 ```sh
 python experiments/osm_sentinel/train.py \
-  --data data/raw/osm_sentinel_1m \
+  --data data/raw/osm_sentinel_1m_640 \
   --device mps --dtype fp32 --eval-eurosat
 ```
 

@@ -115,5 +115,11 @@ def test_worldcover_fills_missing_natural_land_cover():
     assert counts["forest"] == 1
 
 
+def test_specific_osm_detail_is_preserved():
+    assert visible_phrases({"leisure": "pitch", "sport": "baseball"}) == ["baseball field"]
+    assert "airport" in visible_phrases({"aeroway": "aerodrome"})
+    assert "stadium" in visible_phrases({"leisure": "stadium"})
+
+
 def test_every_mapped_label_has_a_prompt():
     assert set(LABEL_BY_PHRASE.values()) <= set(LABEL_PROMPTS)

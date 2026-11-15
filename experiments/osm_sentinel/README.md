@@ -18,7 +18,7 @@ smoke runs, resume behavior, MPS training, and what to report.
 regions.csv
   -> Sentinel-2 L2A scene per region (STAC / Element84 Earth Search)
   -> local OSM PBF per region (pyrosm)
-  -> non-overlapping 1.28 km grid chips (random sampler optional)
+  -> non-overlapping 640 m grid chips (random sampler optional)
   -> OSM caption per chip + WorldCover fallback for natural land cover
   -> DINOv2 embeddings + MiniLM caption embeddings
   -> Procrustes fit on train regions
@@ -155,8 +155,8 @@ extraction plus a tiny Procrustes SVD, so the GPU is not the binding constraint.
 224 px, bf16, batch 512, `inference_mode`: roughly **900–1,500 images/s**. The 8 GB and 16 GB 5060 Ti
 have the same compute; 16 GB just allows larger batches.
 
-**Run target for this region list: 1,000,000 chips.** The 399-region list contains roughly 1.46M
-non-overlapping grid cells. The default sampler is `grid`; report the actual `n` from
+**Run target for this region list: 1,000,000 chips.** The 399-region list contains roughly 5.8M
+non-overlapping 640 m grid cells. The default sampler is `grid`; report the actual `n` from
 `dataset_stats.json` after water/cloud/OSM skips. The old random sampler remains available with
 `--sample-mode random`, but it produces overlapping chips.
 
@@ -178,8 +178,8 @@ enough; 16 GB is convenience/headroom.
 
 ## Data scale and leakage
 
-- The default `regions.csv` has 399 regions across 125 countries and six continents. At 1.28 km per
-  chip the total area contains roughly 1.46M non-overlapping grid cells. The default sampler is a
+- The default `regions.csv` has 399 regions across 125 countries and six continents. At 640 m per
+  chip the total area contains roughly 5.8M non-overlapping grid cells. The default sampler is a
   non-overlapping grid; `--sample-mode random` is the legacy overlapping sampler.
 - The first 199 anchors are hand-picked biome/location regions. The additional 200 are Natural Earth
   1:50m populated places with a 60 km radius, used to reach the 1M-tile area budget without inventing
@@ -203,7 +203,7 @@ enough; 16 GB is convenience/headroom.
 - OSM PBF extracts come from Geofabrik/BBBike/Movisda via `pyrosm.get_data_by_bbox`; record the
   snapshot date. The first run per region downloads a cropped PBF; later chip lookups are in-memory
   and have no API rate limit. OSM data is © OpenStreetMap contributors, ODbL 1.0.
-- Sentinel-2 is 10 m; a 1.28 km chip is 128 px before the model resize. Fine-grained land use
+- Sentinel-2 is 10 m; a 640 m chip is 64 px before the model resize. Fine-grained land use
   (e.g. individual buildings) is not resolvable at this scale.
 - Sentinel-2: Copernicus Sentinel data, processed by ESA; accessed through the public
   Element84 Earth Search STAC API. OSM: © OpenStreetMap contributors, ODbL.
