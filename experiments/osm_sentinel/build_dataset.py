@@ -269,12 +269,16 @@ def main() -> None:
         radius_km = args.radius_km if args.radius_km is not None else float(region["radius_km"])
         bbox = bbox_from_center(lat, lon, radius_km)
         print(f"[{region_id}] searching Sentinel-2 scene", flush=True)
-        item = find_scene(bbox, args.date_start, args.date_end, args.max_cloud)
-        if item is None:
-            print(f"[{region_id}] no scene below {args.max_cloud}% cloud; skipped", flush=True)
+        try:
+            item = find_scene(bbox, args.date_start, args.date_end, args.max_cloud)
+            if item is None:
+                print(f"[{region_id}] no scene below {args.max_cloud}% cloud; skipped", flush=True)
+                continue
+            print(f"[{region_id}] scene {item.id} cloud={item.properties.get('eo:cloud_cover')}", flush=True)
+            region_features = load_region_features(region_id, bbox, cache_dir)
+        except Exception as exc:  # STAC/Geofabrik/pyrosm failure: skip the region (rerun to retry it)
+            print(f"[{region_id}] REGION FAILED, skipped: {type(exc).__name__}: {exc}", flush=True)
             continue
-        print(f"[{region_id}] scene {item.id} cloud={item.properties.get('eo:cloud_cover')}", flush=True)
-        region_features = load_region_features(region_id, bbox, cache_dir)
         print(f"[{region_id}] pyrosm region loaded", flush=True)
 
         added = 0
@@ -290,16 +294,24 @@ def main() -> None:
             tid = tile_id(region_id, chip_lat, chip_lon)
             if tid in done:
                 continue
-            image = read_chip(item, chip_lat, chip_lon, args.chip_m, args.chip_px)
+            try:
+                image = read_chip(item, chip_lat, chip_lon, args.chip_m, args.chip_px)
+            except Exception as exc:  # transient COG/network error: skip this chip, keep the run alive
+                print(f"[{region_id}] {tid} read failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+                continue
             if image is None:
                 continue
             half_lat = args.chip_m / 2 / 111_320
             half_lon = args.chip_m / 2 / (111_320 * max(math.cos(math.radians(chip_lat)), 1e-6))
             chip_bbox = (chip_lon - half_lon, chip_lat - half_lat, chip_lon + half_lon, chip_lat + half_lat)
-            features, buildings = region_features.for_bbox(chip_bbox)
-            caption, label, counts, building_count = build_caption_from_features(
-                features, buildings, chip_bbox
-            )
+            try:
+                features, buildings = region_features.for_bbox(chip_bbox)
+                caption, label, counts, building_count = build_caption_from_features(
+                    features, buildings, chip_bbox
+                )
+            except Exception as exc:  # malformed OSM data for this chip: skip it, keep the run alive
+                print(f"[{region_id}] {tid} caption failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+                continue
             if caption is None or len(counts) < 1:
                 continue
             image_rel = f"images/{tid}.jpg"

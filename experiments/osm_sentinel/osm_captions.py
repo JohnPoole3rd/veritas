@@ -266,7 +266,15 @@ def visible_phrases(tags: dict[str, Any]) -> list[str]:
 
 
 def _weight(geom, chip) -> float:
-    inter = geom.intersection(chip)
+    try:
+        inter = geom.intersection(chip)
+    except Exception:  # invalid OSM geometry (e.g. GEOS TopologyException): repair once, else ignore
+        try:
+            from shapely import make_valid
+
+            inter = make_valid(geom).intersection(chip)
+        except Exception:
+            return 0.0
     if inter.is_empty:
         return 0.0
     if inter.geom_type in ("Polygon", "MultiPolygon"):
