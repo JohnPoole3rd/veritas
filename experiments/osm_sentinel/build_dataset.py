@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import csv
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -540,6 +541,259 @@ def append_chip(
         handle.flush()
 
 
+# --- region-level parallelism (a/speed-agent1) ------------------------------------------------
+# A region is the unit of work: prepare (STAC search + OSM load + mosaic read) and the chip loop
+# (crop, caption, JPEG write) run in a worker process. The main process stays the single writer of
+# manifest.csv / captions.jsonl / dataset_stats.json / region_status.json. With --workers 1 the
+# same functions run in-process with the old one-region prefetch thread and per-chip appends.
+STAC_MIN_GAP_S = 1.0  # minimum gap between STAC searches across all worker processes
+
+
+@contextmanager
+def _file_lock(path: Path):
+    """Exclusive cross-process lock (flock) on `path`; yields the open handle."""
+    import fcntl
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a+") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield handle
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def _serialized_find_scenes(lock_path: Path, bbox, start: str, end: str, max_cloud: float):
+    """find_scenes under a cross-process lock with >= STAC_MIN_GAP_S between searches (the
+    Earth Search API returns 403 when hammered). Retries/backoff inside find_scenes also hold
+    the lock, so a throttled worker slows every worker down, which is what we want."""
+    with _file_lock(lock_path) as handle:
+        handle.seek(0)
+        try:
+            last = float(handle.read().strip() or 0.0)
+        except ValueError:
+            last = 0.0
+        wait = last + STAC_MIN_GAP_S - time.time()
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            return find_scenes(bbox, start, end, max_cloud)
+        finally:
+            handle.seek(0)
+            handle.truncate()
+            handle.write(f"{time.time():.3f}\n")
+            handle.flush()
+
+
+def _load_features_locked(region_id: str, bbox, cache_dir: Path):
+    """load_region_features, but a missing PBF is downloaded under a cross-process lock so two
+    workers never fetch (or write) the same Geofabrik extract at once. Parsing stays parallel."""
+    from osm_source import cache_key, ensure_region_pbf
+
+    key = cache_key(region_id, bbox)
+    if not (cache_dir / "osm" / f"{key}.geoparquet").exists() and not (
+        cache_dir / "pbf" / f"{key}.osm.pbf"
+    ).exists():
+        with _file_lock(cache_dir / ".osm_download.lock"):
+            ensure_region_pbf(key, bbox, cache_dir)
+    return load_region_features(region_id, bbox, cache_dir)
+
+
+def prepare_region(region: dict[str, Any], args, cache_dir: Path) -> dict[str, Any]:
+    """Scene search + OSM load + mosaic read for one region."""
+    rid = region["region_id"]
+    lat, lon, radius_km, bbox = region_geometry(region, args)
+    scene_bbox = bbox_from_center(lat, lon, radius_km + args.chip_m / 1000.0)
+    t: Counter[str] = Counter()
+    t0 = time.perf_counter()
+    ranked = _serialized_find_scenes(cache_dir / ".stac.lock", bbox, args.date_start, args.date_end,
+                                     args.max_cloud)
+    t["scene_search"] += time.perf_counter() - t0
+    if not ranked:
+        return {"ranked": [], "timings": t}
+    t0 = time.perf_counter()
+    features = _load_features_locked(rid, bbox, cache_dir)
+    t["osm_load"] += time.perf_counter() - t0
+    t0 = time.perf_counter()
+    mosaic = read_region_mosaic(ranked, scene_bbox, log=lambda m: print(f"[{rid}] {m}", flush=True))
+    t["scene_read"] += time.perf_counter() - t0
+    return {"ranked": ranked, "features": features, "mosaic": mosaic, "timings": t}
+
+
+def chip_region(region: dict[str, Any], args, prepared: dict[str, Any], out_dir: Path, done: set[str],
+                existing: int, cap: int, budget: int | None, emit) -> dict[str, Any]:
+    """Run the chip loop for one prepared region.
+
+    `done` holds already-written tile IDs, `existing` the region's chips already in the manifest,
+    `budget` the chips still allowed by --max-chips (None = no limit). Each finished row goes to
+    `emit(row)` (append to the manifest in-process, or collect it in a worker). Images are written
+    here. Returns counters and timings; `prepared["timings"]` is included.
+    """
+    region_id = region["region_id"]
+    lat, lon, radius_km, bbox = region_geometry(region, args)
+    timings: Counter[str] = Counter(prepared["timings"])
+    skipped = 0
+    worldcover_missing = 0
+    region_features = prepared["features"]
+    region_rgb, region_transform, region_crs, source_index, used_items = prepared["mosaic"]
+    valid_pct = 100.0 * float((source_index > 0).mean())
+    print(f"[{region_id}] scenes {[it.id for it in used_items]} valid={valid_pct:.0f}%", flush=True)
+    # WorldCover is a fallback: load it lazily the first time a chip has no OSM land-cover polygon.
+    region_wc = None
+    region_wc_attempted = bool(args.no_worldcover)
+
+    added = 0
+    budget_hit = False
+    chip_t0 = time.perf_counter()
+    if args.sample_mode == "grid":
+        candidates = list(grid_candidates(region_id, lat, lon, radius_km, args.chip_m))
+        # per-region RNG: a region's order no longer depends on which earlier regions ran or failed
+        random.Random(f"{args.seed}:{region_id}").shuffle(candidates)
+    else:
+        candidates = random_candidates(region_id, lat, lon, radius_km, args.chips_per_region,
+                                       random.Random(f"{args.seed}:{region_id}"))
+    for tid, chip_lat, chip_lon in candidates:
+        if budget is not None and added >= budget:
+            budget_hit = True
+            break
+        if existing + added >= cap:
+            break
+        if tid in done:
+            continue
+        try:
+            t0 = time.perf_counter()
+            image = read_chip(
+                region_rgb, region_transform, region_crs,
+                chip_lat, chip_lon, args.chip_m, args.chip_px,
+            )
+            timings["raster_read"] += time.perf_counter() - t0
+        except Exception as exc:  # transient COG/network error: skip this chip, keep the run alive
+            print(f"[{region_id}] {tid} read failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+            skipped += 1
+            continue
+        if image is None:
+            skipped += 1
+            continue
+        half_lat = args.chip_m / 2 / 111_320
+        half_lon = args.chip_m / 2 / (111_320 * max(math.cos(math.radians(chip_lat)), 1e-6))
+        chip_bbox = (chip_lon - half_lon, chip_lat - half_lat, chip_lon + half_lon, chip_lat + half_lat)
+        try:
+            t0 = time.perf_counter()
+            features, buildings = region_features.for_bbox(chip_bbox)
+            caption, label, counts, building_count = build_caption_from_features(
+                features, buildings, chip_bbox
+            )
+            timings["caption"] += time.perf_counter() - t0
+        except Exception as exc:  # malformed OSM data for this chip: skip it, keep the run alive
+            print(f"[{region_id}] {tid} caption failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+            skipped += 1
+            continue
+        k = chip_source(source_index, region_transform, region_crs, chip_lat, chip_lon)
+        chip_item = used_items[k - 1] if k > 0 else used_items[0]
+        wc = None
+        needs_worldcover = not any(p in AREA_SUBJECTS for p in counts)
+        if needs_worldcover and not region_wc_attempted:
+            region_wc_attempted = True
+            if not args.no_worldcover:
+                try:
+                    t0 = time.perf_counter()
+                    region_wc = RegionWorldCover(bbox)
+                    timings["worldcover_load"] += time.perf_counter() - t0
+                    print(f"[{region_id}] WorldCover region loaded lazily", flush=True)
+                except Exception as exc:
+                    worldcover_missing += 1
+                    print(
+                        f"[{region_id}] WorldCover unavailable, continuing without it: "
+                        f"{type(exc).__name__}: {exc}",
+                        flush=True,
+                    )
+        if needs_worldcover and region_wc is not None:
+            try:
+                wc = region_wc.for_bbox(chip_bbox)
+            except Exception:
+                wc = None
+            if wc is not None:
+                try:
+                    caption, label, counts, building_count = build_caption_from_features(
+                        features, buildings, chip_bbox, worldcover=wc
+                    )
+                except Exception:
+                    wc = None
+        if caption is None or len(counts) < 1:
+            skipped += 1
+            continue
+        image_rel = f"images/{tid}.jpg"
+        try:
+            t0 = time.perf_counter()
+            image.save(out_dir / image_rel, quality=92)
+            timings["image_save"] += time.perf_counter() - t0
+        except Exception as exc:
+            print(f"[{region_id}] {tid} image save failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+            skipped += 1
+            continue
+        wc_class = "" if wc is None else str(wc[2])
+        wc_fraction = "" if wc is None else f"{wc[1]:.4f}"
+        row = {
+            "tile_id": tid,
+            "image": image_rel,
+            "region_id": region_id,
+            "country": region["country"],
+            "biome": region["biome"],
+            "split": region["split"],
+            "lat": f"{chip_lat:.6f}",
+            "lon": f"{chip_lon:.6f}",
+            "scene_id": chip_item.id,
+            "datetime": str(chip_item.datetime)[:10],
+            "cloud_cover": chip_item.properties.get("eo:cloud_cover", ""),
+            "label": label,
+            "caption": caption,
+            "n_features": len(counts),
+            "building_count": building_count,
+            "feature_counts": json.dumps(counts, sort_keys=True),
+            "worldcover_class": wc_class,
+            "worldcover_fraction": wc_fraction,
+        }
+        t0 = time.perf_counter()
+        emit(row)
+        timings["append"] += time.perf_counter() - t0
+        added += 1
+        if args.log_every <= 1 or added % args.log_every == 0:
+            print(f"[{region_id}] {tid} -> {caption}", flush=True)
+    if budget is not None and added >= budget:
+        budget_hit = True
+    return {
+        "added": added,
+        "skipped_chips": skipped,
+        "worldcover_missing": worldcover_missing,
+        "timings": timings,
+        "chips_time": time.perf_counter() - chip_t0,
+        "valid_pct": valid_pct,
+        "scenes": [it.id for it in used_items],
+        "budget_hit": budget_hit,
+    }
+
+
+def run_region_worker(region: dict[str, Any], args, out_dir: str, done: set[str], existing: int, cap: int,
+                      budget: int | None) -> dict[str, Any]:
+    """Worker-process entry: prepare + chip one region; rows are returned to the single writer."""
+    out = Path(out_dir)
+    region_id = region["region_id"]
+    start = time.perf_counter()
+    try:
+        prepared = prepare_region(region, args, out / "_cache")
+    except Exception as exc:  # STAC/Geofabrik/pyrosm/scene failure: retried once at the end of the run
+        return {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
+    if not prepared["ranked"]:
+        return {"status": "no_scene", "timings": prepared["timings"]}
+    if prepared["mosaic"] is None:
+        return {"status": "no_mosaic", "n_ranked": len(prepared["ranked"]), "timings": prepared["timings"]}
+    rows: list[dict[str, Any]] = []
+    result = chip_region(region, args, prepared, out, done, existing, cap, budget, rows.append)
+    del prepared
+    result.update(status="ok", rows=rows, wall_time=time.perf_counter() - start)
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--regions-csv", default=str(THIS / "regions.csv"))
@@ -565,7 +819,13 @@ def main() -> None:
     parser.add_argument(
         "--no-prefetch",
         action="store_true",
-        help="Disable background OSM PBF/GeoParquet prefetch for the next region",
+        help="Disable background OSM PBF/GeoParquet prefetch for the next region (--workers 1 only)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=3,
+        help="Regions processed concurrently in worker processes (~1.5 GB RSS each); 1 = in-process",
     )
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
@@ -616,11 +876,14 @@ def main() -> None:
     except (OSError, json.JSONDecodeError):
         region_status = {}
     per_region: Counter[str] = Counter()  # chips already in the manifest, per region (cap + resume skip)
+    done_by_region: dict[str, set[str]] = {}  # tile IDs per region, shipped to that region's worker
     if manifest_path.exists():
         with manifest_path.open(newline="") as handle:
             for row in csv.DictReader(handle):
                 if row.get("region_id"):
                     per_region[row["region_id"]] += 1
+                    if row.get("tile_id"):
+                        done_by_region.setdefault(row["region_id"], set()).add(row["tile_id"])
 
     def region_cap(region: dict[str, Any]) -> tuple[int, int]:
         lat, lon, radius_km, _ = region_geometry(region, args)
@@ -642,200 +905,52 @@ def main() -> None:
     print(f"[resume] {len(regions) - len(todo)} regions complete or already attempted; {len(todo)} to process",
           flush=True)
 
-    def prepare_region(region: dict[str, Any]) -> dict[str, Any]:
-        """Scene search + OSM load + mosaic read for one region (runs in the prefetch thread)."""
-        rid = region["region_id"]
-        lat, lon, radius_km, bbox = region_geometry(region, args)
-        scene_bbox = bbox_from_center(lat, lon, radius_km + args.chip_m / 1000.0)
-        t: Counter[str] = Counter()
-        t0 = time.perf_counter()
-        ranked = find_scenes(bbox, args.date_start, args.date_end, args.max_cloud)
-        t["scene_search"] += time.perf_counter() - t0
-        if not ranked:
-            return {"ranked": [], "timings": t}
-        t0 = time.perf_counter()
-        features = load_region_features(rid, bbox, cache_dir)
-        t["osm_load"] += time.perf_counter() - t0
-        t0 = time.perf_counter()
-        mosaic = read_region_mosaic(ranked, scene_bbox, log=lambda m: print(f"[{rid}] {m}", flush=True))
-        t["scene_read"] += time.perf_counter() - t0
-        return {"ranked": ranked, "features": features, "mosaic": mosaic, "timings": t}
-
     def save_region_status() -> None:
         tmp = status_path.with_name(status_path.name + ".tmp")
         tmp.write_text(json.dumps(region_status, indent=1, sort_keys=True) + "\n")
         tmp.replace(status_path)
 
-    all_timings: Counter[str] = Counter()
-    executor: ThreadPoolExecutor | None = None
-    if not args.no_prefetch and len(todo) > 1:
-        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="region-prefetch")
-    next_future: Future | None = executor.submit(prepare_region, todo[0]) if executor and todo else None
+    def remaining_budget() -> int | None:
+        return max(args.max_chips - stats["n"], 0) if args.max_chips else None
 
+    def max_reached() -> bool:
+        return bool(args.max_chips and stats["n"] >= args.max_chips)
+
+    def emit_row(row: dict[str, Any]) -> None:
+        append_chip(manifest_path, captions_path, row)
+        update_stats(stats, row)
+        done.add(row["tile_id"])
+
+    all_timings: Counter[str] = Counter()
     retried: set[str] = set()
-    for index, region in enumerate(todo):
+
+    def handle_failure(region: dict[str, Any], status: str, detail: str, queue: list) -> None:
+        """Failed-region bookkeeping shared by the sequential and parallel paths."""
         region_id = region["region_id"]
-        lat, lon, radius_km, bbox = region_geometry(region, args)
-        cap, n_cells = region_cap(region)
-        existing = per_region[region_id]
-        region_start = time.perf_counter()
-        print(f"[{region_id}] preparing (have {existing}/{cap} chips, {n_cells} cells)", flush=True)
-        try:
-            if next_future is not None:
-                prepared = next_future.result()
-            else:
-                prepared = prepare_region(region)
-        except Exception as exc:  # STAC/Geofabrik/pyrosm/scene failure: rerun retries the region
-            print(f"[{region_id}] REGION FAILED, skipped: {type(exc).__name__}: {exc}", flush=True)
+        if status == "failed":
+            print(f"[{region_id}] REGION FAILED, skipped: {detail}", flush=True)
             stats["failed_regions"].add(region_id)
-            prepared = None
-        # start the next region's setup now so it overlaps this region's chip loop
-        next_future = (executor.submit(prepare_region, todo[index + 1])
-                       if executor is not None and index + 1 < len(todo) else None)
-        if prepared is None:
             if region_id not in retried:  # A: one automatic retry at the end of this run
                 retried.add(region_id)
-                todo.append(region)
+                queue.append(region)
                 print(f"[{region_id}] queued for one retry at the end of this run", flush=True)
-            continue
-        timings: Counter[str] = Counter(prepared["timings"])
-        if not prepared["ranked"]:
+        elif status == "no_scene":
             print(f"[{region_id}] no readable scene below {args.max_cloud}% cloud; skipped", flush=True)
             stats["failed_regions"].add(region_id)
-            continue
-        if prepared["mosaic"] is None:
-            print(f"[{region_id}] REGION FAILED, skipped: no usable scene among {len(prepared['ranked'])} candidates",
-                  flush=True)
-            stats["failed_regions"].add(region_id)
-            continue
-        region_features = prepared["features"]
-        region_rgb, region_transform, region_crs, source_index, used_items = prepared["mosaic"]
-        valid_pct = 100.0 * float((source_index > 0).mean())
-        print(f"[{region_id}] scenes {[it.id for it in used_items]} valid={valid_pct:.0f}%", flush=True)
-        stats["failed_regions"].discard(region_id)
-        # WorldCover is a fallback: load it lazily the first time a chip has no OSM land-cover polygon.
-        region_wc = None
-        region_wc_attempted = bool(args.no_worldcover)
-
-        added = 0
-        chip_t0 = time.perf_counter()
-        if args.sample_mode == "grid":
-            candidates = list(grid_candidates(region_id, lat, lon, radius_km, args.chip_m))
-            # per-region RNG: a region's order no longer depends on which earlier regions ran or failed
-            random.Random(f"{args.seed}:{region_id}").shuffle(candidates)
         else:
-            candidates = random_candidates(region_id, lat, lon, radius_km, args.chips_per_region,
-                                           random.Random(f"{args.seed}:{region_id}"))
-        for tid, chip_lat, chip_lon in candidates:
-            if args.max_chips and stats["n"] >= args.max_chips:
-                break
-            if existing + added >= cap:
-                break
-            if tid in done:
-                continue
-            try:
-                t0 = time.perf_counter()
-                image = read_chip(
-                    region_rgb, region_transform, region_crs,
-                    chip_lat, chip_lon, args.chip_m, args.chip_px,
-                )
-                timings["raster_read"] += time.perf_counter() - t0
-            except Exception as exc:  # transient COG/network error: skip this chip, keep the run alive
-                print(f"[{region_id}] {tid} read failed, skipped: {type(exc).__name__}: {exc}", flush=True)
-                stats["skipped_chips"] += 1
-                continue
-            if image is None:
-                stats["skipped_chips"] += 1
-                continue
-            half_lat = args.chip_m / 2 / 111_320
-            half_lon = args.chip_m / 2 / (111_320 * max(math.cos(math.radians(chip_lat)), 1e-6))
-            chip_bbox = (chip_lon - half_lon, chip_lat - half_lat, chip_lon + half_lon, chip_lat + half_lat)
-            try:
-                t0 = time.perf_counter()
-                features, buildings = region_features.for_bbox(chip_bbox)
-                caption, label, counts, building_count = build_caption_from_features(
-                    features, buildings, chip_bbox
-                )
-                timings["caption"] += time.perf_counter() - t0
-            except Exception as exc:  # malformed OSM data for this chip: skip it, keep the run alive
-                print(f"[{region_id}] {tid} caption failed, skipped: {type(exc).__name__}: {exc}", flush=True)
-                stats["skipped_chips"] += 1
-                continue
-            k = chip_source(source_index, region_transform, region_crs, chip_lat, chip_lon)
-            chip_item = used_items[k - 1] if k > 0 else used_items[0]
-            wc = None
-            needs_worldcover = not any(p in AREA_SUBJECTS for p in counts)
-            if needs_worldcover and not region_wc_attempted:
-                region_wc_attempted = True
-                if not args.no_worldcover:
-                    try:
-                        t0 = time.perf_counter()
-                        region_wc = RegionWorldCover(bbox)
-                        timings["worldcover_load"] += time.perf_counter() - t0
-                        print(f"[{region_id}] WorldCover region loaded lazily", flush=True)
-                    except Exception as exc:
-                        stats["worldcover_missing"] += 1
-                        print(
-                            f"[{region_id}] WorldCover unavailable, continuing without it: "
-                            f"{type(exc).__name__}: {exc}",
-                            flush=True,
-                        )
-            if needs_worldcover and region_wc is not None:
-                try:
-                    wc = region_wc.for_bbox(chip_bbox)
-                except Exception:
-                    wc = None
-                if wc is not None:
-                    try:
-                        caption, label, counts, building_count = build_caption_from_features(
-                            features, buildings, chip_bbox, worldcover=wc
-                        )
-                    except Exception:
-                        wc = None
-            if caption is None or len(counts) < 1:
-                stats["skipped_chips"] += 1
-                continue
-            image_rel = f"images/{tid}.jpg"
-            try:
-                t0 = time.perf_counter()
-                image.save(out_dir / image_rel, quality=92)
-                timings["image_save"] += time.perf_counter() - t0
-            except Exception as exc:
-                print(f"[{region_id}] {tid} image save failed, skipped: {type(exc).__name__}: {exc}", flush=True)
-                stats["skipped_chips"] += 1
-                continue
-            wc_class = "" if wc is None else str(wc[2])
-            wc_fraction = "" if wc is None else f"{wc[1]:.4f}"
-            row = {
-                "tile_id": tid,
-                "image": image_rel,
-                "region_id": region_id,
-                "country": region["country"],
-                "biome": region["biome"],
-                "split": region["split"],
-                "lat": f"{chip_lat:.6f}",
-                "lon": f"{chip_lon:.6f}",
-                "scene_id": chip_item.id,
-                "datetime": str(chip_item.datetime)[:10],
-                "cloud_cover": chip_item.properties.get("eo:cloud_cover", ""),
-                "label": label,
-                "caption": caption,
-                "n_features": len(counts),
-                "building_count": building_count,
-                "feature_counts": json.dumps(counts, sort_keys=True),
-                "worldcover_class": wc_class,
-                "worldcover_fraction": wc_fraction,
-            }
-            t0 = time.perf_counter()
-            append_chip(manifest_path, captions_path, row)
-            timings["append"] += time.perf_counter() - t0
-            update_stats(stats, row)
-            done.add(tid)
-            added += 1
-            if args.log_every <= 1 or added % args.log_every == 0:
-                print(f"[{region_id}] {tid} -> {caption}", flush=True)
-        elapsed = time.perf_counter() - chip_t0
-        wall_elapsed = time.perf_counter() - region_start
+            print(f"[{region_id}] REGION FAILED, skipped: no usable scene among {detail} candidates", flush=True)
+            stats["failed_regions"].add(region_id)
+
+    def finish_region(region: dict[str, Any], result: dict[str, Any], wall_elapsed: float, cap: int,
+                      n_cells: int) -> bool:
+        """Book a finished region (rows already emitted). Returns True when --max-chips is reached."""
+        region_id = region["region_id"]
+        added = result["added"]
+        timings = result["timings"]
+        stats["skipped_chips"] += result["skipped_chips"]
+        stats["worldcover_missing"] += result["worldcover_missing"]
+        stats["failed_regions"].discard(region_id)
+        elapsed = result["chips_time"]
         rate = added / elapsed if elapsed > 0 else 0.0
         wall_rate = added / wall_elapsed if wall_elapsed > 0 else 0.0
         all_timings.update(timings)
@@ -847,19 +962,161 @@ def main() -> None:
             flush=True,
         )
         write_stats(stats_path, stats)
-        if args.max_chips and stats["n"] >= args.max_chips:
-            break
+        if max_reached() or result.get("budget_hit"):
+            return True
         region_status[region_id] = {
             "policy": SCENE_POLICY, "attempted": True, "chips": per_region[region_id], "cap": cap,
-            "cells": n_cells, "valid_pct": round(valid_pct, 1), "scenes": [it.id for it in used_items],
+            "cells": n_cells, "valid_pct": round(result["valid_pct"], 1), "scenes": result["scenes"],
         }
         save_region_status()
+        return False
 
-    if executor is not None:
-        executor.shutdown(wait=False, cancel_futures=True)
+    run_t0 = time.perf_counter()
+    n_start = stats["n"]
+    if args.workers <= 1:
+        _run_sequential(args, todo, cache_dir, out_dir, done, per_region, region_cap, remaining_budget,
+                        emit_row, handle_failure, finish_region)
+    else:
+        _run_parallel(args, todo, out_dir, done_by_region, per_region, region_cap, remaining_budget,
+                      max_reached, emit_row, handle_failure, finish_region, stats, stats_path)
+
     write_stats(stats_path, stats)
+    run_s = time.perf_counter() - run_t0
+    made = stats["n"] - n_start
+    print(f"run: {made} chips in {run_s:.1f}s ({made / run_s if run_s > 0 else 0:.1f} chips/s, "
+          f"workers={args.workers})", flush=True)
     print("timings: " + json.dumps({key: round(value, 2) for key, value in sorted(all_timings.items())}), flush=True)
     print(json.dumps(stats_payload(stats), indent=2))
+
+
+def _run_sequential(args, todo, cache_dir, out_dir, done, per_region, region_cap, remaining_budget,
+                    emit_row, handle_failure, finish_region) -> None:
+    """--workers 1: the original loop (one prefetch thread, per-chip manifest appends)."""
+    executor: ThreadPoolExecutor | None = None
+    if not args.no_prefetch and len(todo) > 1:
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="region-prefetch")
+    next_future: Future | None = (executor.submit(prepare_region, todo[0], args, cache_dir)
+                                  if executor and todo else None)
+    index = 0
+    while index < len(todo):  # todo can grow (one retry per failed region)
+        region = todo[index]
+        region_id = region["region_id"]
+        cap, n_cells = region_cap(region)
+        existing = per_region[region_id]
+        region_start = time.perf_counter()
+        print(f"[{region_id}] preparing (have {existing}/{cap} chips, {n_cells} cells)", flush=True)
+        try:
+            prepared = next_future.result() if next_future is not None else prepare_region(region, args, cache_dir)
+            error = ""
+        except Exception as exc:
+            prepared, error = None, f"{type(exc).__name__}: {exc}"
+        # start the next region's setup now so it overlaps this region's chip loop
+        next_future = (executor.submit(prepare_region, todo[index + 1], args, cache_dir)
+                       if executor is not None and index + 1 < len(todo) else None)
+        index += 1
+        if prepared is None:
+            handle_failure(region, "failed", error, todo)
+            if next_future is None and executor is not None and index < len(todo):
+                next_future = executor.submit(prepare_region, todo[index], args, cache_dir)
+            continue
+        if not prepared["ranked"]:
+            handle_failure(region, "no_scene", "", todo)
+            continue
+        if prepared["mosaic"] is None:
+            handle_failure(region, "no_mosaic", str(len(prepared["ranked"])), todo)
+            continue
+        result = chip_region(region, args, prepared, out_dir, done, existing, cap, remaining_budget(), emit_row)
+        del prepared
+        if finish_region(region, result, time.perf_counter() - region_start, cap, n_cells):
+            break
+    if executor is not None:
+        executor.shutdown(wait=False, cancel_futures=True)
+
+
+def _run_parallel(args, todo, out_dir, done_by_region, per_region, region_cap, remaining_budget, max_reached,
+                  emit_row, handle_failure, finish_region, stats, stats_path) -> None:
+    """--workers N: N regions in flight in worker processes; this process appends their rows."""
+    import multiprocessing as mp
+    import signal
+    from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
+
+    queue = list(todo)
+    pool = ProcessPoolExecutor(max_workers=args.workers, mp_context=mp.get_context("spawn"),
+                               max_tasks_per_child=8)
+
+    def kill_workers() -> None:
+        for proc in list((getattr(pool, "_processes", None) or {}).values()):
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+
+    def on_term(signum, frame):  # pkill of the main process must not leave orphan workers behind
+        kill_workers()
+        raise SystemExit(128 + signum)
+
+    old_term = signal.signal(signal.SIGTERM, on_term)
+    running: dict[Future, tuple[dict[str, Any], int, int, float]] = {}
+    stop = False
+
+    def refill(reserved: int) -> None:
+        """Keep N regions in flight. `reserved` = rows received but not yet appended (--max-chips)."""
+        while queue and len(running) < args.workers and not max_reached():
+            budget = remaining_budget()
+            if budget is not None:
+                budget -= reserved
+                if budget <= 0:
+                    return
+            region = queue.pop(0)
+            region_id = region["region_id"]
+            cap, n_cells = region_cap(region)
+            existing = per_region[region_id]
+            print(f"[{region_id}] submitted (have {existing}/{cap} chips, {n_cells} cells)", flush=True)
+            fut = pool.submit(run_region_worker, region, args, str(out_dir),
+                              done_by_region.get(region_id, set()), existing, cap, budget)
+            running[fut] = (region, cap, n_cells, time.perf_counter())
+
+    try:
+        refill(0)
+        while running and not stop:
+            finished, _ = wait(list(running), return_when=FIRST_COMPLETED)
+            ok = []
+            for fut in finished:
+                region, cap, n_cells, started = running.pop(fut)
+                try:
+                    result = fut.result()
+                except Exception as exc:
+                    if type(exc).__name__ == "BrokenProcessPool":
+                        raise  # a worker died (OOM kill?): stop; a rerun resumes from the manifest
+                    # unexpected chip-loop crash in a worker: treat it as a failed region
+                    result = {"status": "failed", "error": f"worker crashed: {type(exc).__name__}: {exc}"}
+                if result["status"] == "ok":
+                    ok.append((region, cap, n_cells, started, result))
+                else:
+                    handle_failure(region, result["status"],
+                                   result.get("error", str(result.get("n_ranked", ""))), queue)
+                    write_stats(stats_path, stats)
+            # resubmit before the (slower) manifest appends so no worker idles meanwhile
+            refill(sum(len(item[4]["rows"]) for item in ok))
+            for region, cap, n_cells, started, result in ok:
+                kept = 0
+                for row in result.pop("rows"):
+                    if max_reached():
+                        result["budget_hit"] = True
+                        break
+                    emit_row(row)
+                    kept += 1
+                result["added"] = kept
+                if finish_region(region, result, time.perf_counter() - started, cap, n_cells):
+                    stop = True
+                    break
+            if not stop:
+                refill(0)
+    finally:
+        signal.signal(signal.SIGTERM, old_term)
+        if stop or running:
+            kill_workers()
+        pool.shutdown(wait=True, cancel_futures=True)
 
 
 if __name__ == "__main__":
