@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import random
@@ -43,7 +44,7 @@ for path in (ROOT, THIS):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from osm_captions import build_caption_from_features  # noqa: E402
+from osm_captions import AREA_SUBJECTS, build_caption_from_features  # noqa: E402
 from osm_source import load_region_features  # noqa: E402
 from worldcover import RegionWorldCover  # noqa: E402
 
@@ -95,7 +96,10 @@ def read_region(src, bbox: tuple[float, float, float, float]):
     window = from_bounds(*bounds, src.transform).round_offsets().round_lengths()
     if window.width < 8 or window.height < 8:
         return None
-    data = src.read(window=window)
+    # boundless=True keeps the requested georeference when a 120 km region
+    # extends past one Sentinel granule; outside pixels are zero and chips that
+    # fall entirely outside are rejected later.
+    data = src.read(window=window, boundless=True, fill_value=0)
     if data.size == 0:
         return None
     if data.shape[0] >= 3:
@@ -120,13 +124,19 @@ def read_chip(region_rgb, region_transform, region_crs, lat: float, lon: float, 
     west, south, east, north = lon - half_lon, lat - half_lat, lon + half_lon, lat + half_lat
     bounds = transform_bounds("EPSG:4326", region_crs, west, south, east, north, densify_pts=21)
     window = from_bounds(*bounds, region_transform).round_offsets().round_lengths()
-    row0 = max(0, int(window.row_off))
-    col0 = max(0, int(window.col_off))
-    row1 = min(region_rgb.shape[0], row0 + max(1, int(window.height)))
-    col1 = min(region_rgb.shape[1], col0 + max(1, int(window.width)))
+    row0 = int(round(window.row_off))
+    col0 = int(round(window.col_off))
+    row1 = row0 + max(1, int(round(window.height)))
+    col1 = col0 + max(1, int(round(window.width)))
+    if row0 < 0 or col0 < 0 or row1 > region_rgb.shape[0] or col1 > region_rgb.shape[1]:
+        return None
     if row1 - row0 < 8 or col1 - col0 < 8:
         return None
     crop = region_rgb[row0:row1, col0:col1]
+    # Boundless scene reads leave zero fill outside the granule. Skip chips
+    # that are mostly nodata (e.g. the edge of a 60 km region).
+    if (crop.max(axis=2) == 0).mean() > 0.5:
+        return None
     image = Image.fromarray(crop).resize((chip_px, chip_px), Image.BILINEAR)
     return image
 
@@ -192,6 +202,7 @@ def new_stats() -> dict[str, Any]:
         "regions": set(),
         "failed_regions": set(),
         "skipped_chips": 0,
+        "worldcover_missing": 0,
     }
 
 
@@ -212,11 +223,53 @@ def stats_payload(stats: dict[str, Any]) -> dict[str, Any]:
         "regions": sorted(stats["regions"]),
         "failed_regions": sorted(stats["failed_regions"]),
         "skipped_chips": stats["skipped_chips"],
+        "worldcover_missing": stats["worldcover_missing"],
     }
 
 
 def write_stats(path: Path, stats: dict[str, Any]) -> None:
-    path.write_text(json.dumps(stats_payload(stats), indent=2) + "\n")
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(stats_payload(stats), indent=2) + "\n")
+    tmp.replace(path)
+
+
+def build_meta(args) -> dict[str, Any]:
+    source = Path(args.regions_csv)
+    return {
+        "version": 1,
+        "chip_m": float(args.chip_m),
+        "chip_px": int(args.chip_px),
+        "sample_mode": args.sample_mode,
+        "radius_km_override": args.radius_km,
+        "regions_sha256": hashlib.sha256(source.read_bytes()).hexdigest()[:16],
+    }
+
+
+def check_build_meta(out_dir: Path, args, overwrite: bool) -> None:
+    """Refuse to append a different chip/sampling config into an existing build."""
+    meta_path = out_dir / "build_meta.json"
+    manifest_path = out_dir / "manifest.csv"
+    expected = build_meta(args)
+    if overwrite:
+        for path in (meta_path, manifest_path, out_dir / "captions.jsonl"):
+            if path.exists():
+                path.unlink()
+    elif meta_path.exists():
+        existing = json.loads(meta_path.read_text())
+        if existing != expected:
+            raise SystemExit(
+                "Existing build metadata does not match this command:\n"
+                f"  existing: {existing}\n  requested: {expected}\n"
+                "Use a new --out-dir or --overwrite."
+            )
+    elif manifest_path.exists():
+        raise SystemExit(
+            f"{manifest_path} exists but {meta_path} is missing (legacy build). "
+            "Use a new --out-dir or --overwrite so chip size/sampling cannot be mixed."
+        )
+    tmp = meta_path.with_name(meta_path.name + ".tmp")
+    tmp.write_text(json.dumps(expected, indent=2) + "\n")
+    tmp.replace(meta_path)
 
 
 def caption_record(row: dict[str, Any]) -> dict[str, Any]:
@@ -226,13 +279,13 @@ def caption_record(row: dict[str, Any]) -> dict[str, Any]:
         counts = {}
     return {
         "tile_id": row["tile_id"],
-        "image": row["image"],
+        "image": row.get("image", ""),
         "caption": row["caption"],
         "label": row["label"],
         "split": row["split"],
         "region_id": row["region_id"],
-        "country": row["country"],
-        "biome": row["biome"],
+        "country": row.get("country", ""),
+        "biome": row.get("biome", ""),
         "feature_counts": counts,
         "worldcover_class": row.get("worldcover_class", ""),
         "worldcover_fraction": row.get("worldcover_fraction", ""),
@@ -244,6 +297,8 @@ def rewrite_captions(manifest_path: Path, captions_path: Path) -> None:
     tmp = captions_path.with_name(captions_path.name + ".tmp")
     with manifest_path.open(newline="") as source, tmp.open("w") as out:
         for row in csv.DictReader(source):
+            if any(not row.get(key) for key in ("tile_id", "caption", "label", "split", "region_id")):
+                continue
             out.write(json.dumps(caption_record(row), sort_keys=True) + "\n")
     tmp.replace(captions_path)
 
@@ -252,8 +307,18 @@ def load_existing(manifest_path: Path, captions_path: Path) -> tuple[set[str], d
     stats = new_stats()
     done: set[str] = set()
     if manifest_path.exists():
+        raw = manifest_path.read_bytes()
+        if raw and not raw.endswith(b"\n"):
+            # A crash can leave a torn final CSV row. Drop it before parsing.
+            cut = raw.rfind(b"\n")
+            manifest_path.write_bytes(raw[: cut + 1] if cut >= 0 else b"")
+            print(f"[resume] dropped a torn final manifest row from {manifest_path}", flush=True)
         with manifest_path.open(newline="") as handle:
             for row in csv.DictReader(handle):
+                required = ("tile_id", "split", "country", "label", "region_id")
+                if any(not row.get(key) for key in required):
+                    print(f"[resume] skipped malformed manifest row: {row}", flush=True)
+                    continue
                 done.add(row["tile_id"])
                 update_stats(stats, row)
         rewrite_captions(manifest_path, captions_path)
@@ -303,6 +368,7 @@ def main() -> None:
     parser.add_argument("--date-end", default="2025-12-31")
     parser.add_argument("--max-cloud", type=float, default=20.0)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--log-every", type=int, default=1000, help="Print every N successful chips")
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
@@ -314,6 +380,7 @@ def main() -> None:
 
     manifest_path = out_dir / "manifest.csv"
     captions_path = out_dir / "captions.jsonl"
+    check_build_meta(out_dir, args, args.overwrite)
     if args.overwrite:
         for path in (manifest_path, captions_path):
             if path.exists():
@@ -324,9 +391,13 @@ def main() -> None:
         done, stats = load_existing(manifest_path, captions_path)
     stats_path = out_dir / "dataset_stats.json"
     if stats_path.exists() and not args.overwrite:
-        previous = json.loads(stats_path.read_text())
+        try:
+            previous = json.loads(stats_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            previous = {}
         stats["failed_regions"].update(previous.get("failed_regions", []))
         stats["skipped_chips"] = previous.get("skipped_chips", 0)
+        stats["worldcover_missing"] = previous.get("worldcover_missing", 0)
     write_stats(stats_path, stats)
 
     if args.max_chips and stats["n"] >= args.max_chips:
@@ -347,7 +418,9 @@ def main() -> None:
         lat, lon = float(region["lat"]), float(region["lon"])
         radius_km = args.radius_km if args.radius_km is not None else float(region["radius_km"])
         bbox = bbox_from_center(lat, lon, radius_km)
+        scene_bbox = bbox_from_center(lat, lon, radius_km + args.chip_m / 1000.0)
         timings: Counter[str] = Counter()
+        region_start = time.perf_counter()
         print(f"[{region_id}] searching Sentinel-2 scene", flush=True)
         try:
             t0 = time.perf_counter()
@@ -355,6 +428,7 @@ def main() -> None:
             timings["scene_search"] += time.perf_counter() - t0
             if item is None:
                 print(f"[{region_id}] no scene below {args.max_cloud}% cloud; skipped", flush=True)
+                stats["failed_regions"].add(region_id)
                 continue
             print(f"[{region_id}] scene {item.id} cloud={item.properties.get('eo:cloud_cover')}", flush=True)
             asset = item.assets.get("visual")
@@ -369,22 +443,18 @@ def main() -> None:
             continue
         stats["failed_regions"].discard(region_id)
         print(f"[{region_id}] pyrosm region loaded", flush=True)
+        # WorldCover is a fallback: load it lazily the first time a chip has
+        # no OSM land-cover polygon. Natural/farm regions then pay zero
+        # WorldCover I/O, while sparse urban chips still get a fallback.
         region_wc = None
-        if not args.no_worldcover:
-            try:
-                t0 = time.perf_counter()
-                region_wc = RegionWorldCover(bbox)
-                timings["worldcover_load"] += time.perf_counter() - t0
-                print(f"[{region_id}] WorldCover region loaded", flush=True)
-            except Exception as exc:
-                print(f"[{region_id}] WorldCover unavailable, continuing without it: {type(exc).__name__}: {exc}", flush=True)
+        region_wc_attempted = bool(args.no_worldcover)
 
         try:
             t0 = time.perf_counter()
             scene = rasterio.open(asset.href)
             timings["scene_open"] += time.perf_counter() - t0
             t0 = time.perf_counter()
-            region_rgb, region_transform, region_crs = read_region(scene, bbox)
+            region_rgb, region_transform, region_crs = read_region(scene, scene_bbox)
             timings["scene_read"] += time.perf_counter() - t0
             scene.close()
             if region_rgb is None:
@@ -424,30 +494,58 @@ def main() -> None:
             half_lat = args.chip_m / 2 / 111_320
             half_lon = args.chip_m / 2 / (111_320 * max(math.cos(math.radians(chip_lat)), 1e-6))
             chip_bbox = (chip_lon - half_lon, chip_lat - half_lat, chip_lon + half_lon, chip_lat + half_lat)
-            wc = None
-            if region_wc is not None:
-                try:
-                    wc = region_wc.for_bbox(chip_bbox)
-                except Exception:
-                    wc = None
             try:
                 t0 = time.perf_counter()
                 features, buildings = region_features.for_bbox(chip_bbox)
                 caption, label, counts, building_count = build_caption_from_features(
-                    features, buildings, chip_bbox, worldcover=wc
+                    features, buildings, chip_bbox
                 )
                 timings["caption"] += time.perf_counter() - t0
             except Exception as exc:  # malformed OSM data for this chip: skip it, keep the run alive
                 print(f"[{region_id}] {tid} caption failed, skipped: {type(exc).__name__}: {exc}", flush=True)
                 stats["skipped_chips"] += 1
                 continue
+            wc = None
+            needs_worldcover = not any(p in AREA_SUBJECTS for p in counts)
+            if needs_worldcover and not region_wc_attempted:
+                region_wc_attempted = True
+                if not args.no_worldcover:
+                    try:
+                        t0 = time.perf_counter()
+                        region_wc = RegionWorldCover(bbox)
+                        timings["worldcover_load"] += time.perf_counter() - t0
+                        print(f"[{region_id}] WorldCover region loaded lazily", flush=True)
+                    except Exception as exc:
+                        stats["worldcover_missing"] += 1
+                        print(
+                            f"[{region_id}] WorldCover unavailable, continuing without it: "
+                            f"{type(exc).__name__}: {exc}",
+                            flush=True,
+                        )
+            if needs_worldcover and region_wc is not None:
+                try:
+                    wc = region_wc.for_bbox(chip_bbox)
+                except Exception:
+                    wc = None
+                if wc is not None:
+                    try:
+                        caption, label, counts, building_count = build_caption_from_features(
+                            features, buildings, chip_bbox, worldcover=wc
+                        )
+                    except Exception:
+                        wc = None
             if caption is None or len(counts) < 1:
                 stats["skipped_chips"] += 1
                 continue
             image_rel = f"images/{tid}.jpg"
-            t0 = time.perf_counter()
-            image.save(out_dir / image_rel, quality=92)
-            timings["image_save"] += time.perf_counter() - t0
+            try:
+                t0 = time.perf_counter()
+                image.save(out_dir / image_rel, quality=92)
+                timings["image_save"] += time.perf_counter() - t0
+            except Exception as exc:
+                print(f"[{region_id}] {tid} image save failed, skipped: {type(exc).__name__}: {exc}", flush=True)
+                stats["skipped_chips"] += 1
+                continue
             wc_class = "" if wc is None else str(wc[2])
             wc_fraction = "" if wc is None else f"{wc[1]:.4f}"
             row = {
@@ -476,12 +574,16 @@ def main() -> None:
             update_stats(stats, row)
             done.add(tid)
             added += 1
-            print(f"[{region_id}] {tid} -> {caption}", flush=True)
+            if args.log_every <= 1 or added % args.log_every == 0:
+                print(f"[{region_id}] {tid} -> {caption}", flush=True)
         elapsed = time.perf_counter() - chip_t0
+        wall_elapsed = time.perf_counter() - region_start
         rate = added / elapsed if elapsed > 0 else 0.0
+        wall_rate = added / wall_elapsed if wall_elapsed > 0 else 0.0
         all_timings.update(timings)
         print(
-            f"[{region_id}] timing: {added} chips, {elapsed:.1f}s, {rate:.1f} chips/s, "
+            f"[{region_id}] timing: {added} chips, chip={rate:.1f}/s, wall={wall_rate:.1f}/s, "
+            f"chips_time={elapsed:.1f}s, setup={wall_elapsed - elapsed:.1f}s, "
             + ", ".join(f"{key}={value:.2f}s" for key, value in sorted(timings.items())),
             flush=True,
         )

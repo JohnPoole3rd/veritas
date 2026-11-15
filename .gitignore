@@ -11,3 +11,5 @@ __pycache__/
 .ipynb_checkpoints/
 .env
 .venv/
+experiments/osm_sentinel/results_*.json
+experiments/osm_sentinel/compare_eurosat_full_*.json

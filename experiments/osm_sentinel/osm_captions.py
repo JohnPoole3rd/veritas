@@ -182,26 +182,6 @@ SPORT_PHRASES: dict[str, str] = {
     "equestrian": "equestrian arena",
 }
 
-# Primary-phrase priority. Used only to order extras after the subject is chosen.
-PRIORITY: tuple[str, ...] = (
-    "water", "bay", "strait", "coastline", "beach", "sand", "wetland", "river",
-    "stream", "canal", "drainage channel", "dock", "marina", "glacier",
-    "forest", "scrubland", "heathland", "tree row", "grassland", "meadow",
-    "farmland", "orchard", "vineyard", "greenhouses", "aquaculture ponds",
-    "quarry", "landfill", "bare rock", "scree",
-    "park", "golf course", "sports field", "nature reserve", "garden",
-    "residential area", "commercial area", "industrial area", "port",
-    "construction site", "railway", "rail station", "tram line",
-    "airport runway", "airport taxiway", "airport apron", "airport terminal",
-    "major road", "residential street", "service road", "farm track",
-    "parking lot", "bridge", "pier", "breakwater", "lighthouse", "tower",
-    "storage tanks", "silo", "water treatment plant", "waterworks",
-    "apartment buildings", "houses", "shops", "commercial buildings",
-    "industrial buildings", "warehouses", "school", "campus", "hospital",
-    "hotel", "place of worship", "garages", "hangar", "farm buildings",
-    "buildings", "dense buildings",
-)
-
 # Polygonal land cover/use can be the subject only if it covers a meaningful
 # fraction of the chip. A tiny pond or a single building must not outrank the
 # surrounding neighbourhood.
@@ -214,7 +194,7 @@ AREA_SUBJECTS: tuple[str, ...] = (
     "softball field", "soccer field", "football field", "rugby field",
     "cricket field", "tennis court", "basketball court", "volleyball court",
     "running track", "sports centre", "swimming pool", "stadium",
-    "equestrian arena", "nature reserve", "garden",
+    "equestrian arena", "nature reserve", "garden", "playground",
     "residential area", "commercial area", "industrial area", "port",
     "construction site", "built-up area", "airport", "helipad",
     "airport runway", "airport apron", "airport terminal", "cemetery",
@@ -263,7 +243,7 @@ LABEL_BY_PHRASE: dict[str, str] = {
     "water": "water", "bay": "water", "strait": "water", "coastline": "coast",
     "beach": "coast", "sand": "coast", "wetland": "water", "river": "water",
     "stream": "water", "canal": "water", "drainage channel": "water",
-    "dock": "water", "marina": "water", "glacier": "ice",
+    "dock": "water", "marina": "water", "river bank": "water", "glacier": "ice",
     "forest": "forest", "scrubland": "forest", "heathland": "forest",
     "tree row": "forest", "grassland": "green", "meadow": "green",
     "farmland": "farmland", "orchard": "farmland", "vineyard": "farmland",
@@ -277,8 +257,9 @@ LABEL_BY_PHRASE: dict[str, str] = {
     "tennis court": "built", "basketball court": "built", "volleyball court": "built",
     "running track": "built", "sports centre": "built", "swimming pool": "water",
     "stadium": "built", "equestrian arena": "built", "nature reserve": "green",
-    "garden": "green",
+    "garden": "green", "cemetery": "green", "playground": "green",
     "residential area": "residential", "commercial area": "commercial",
+    "market": "commercial",
     "industrial area": "industrial", "port": "industrial",
     "construction site": "built", "railway": "transport",
     "rail station": "transport", "tram line": "transport",
@@ -287,14 +268,17 @@ LABEL_BY_PHRASE: dict[str, str] = {
     "airport apron": "airport", "airport terminal": "airport",
     "major road": "transport", "residential street": "transport",
     "service road": "transport", "farm track": "transport",
-    "parking lot": "transport", "bridge": "transport", "pier": "transport",
+    "path": "transport", "cycle path": "transport", "bus station": "transport",
+    "fuel station": "transport", "parking lot": "transport", "bridge": "transport",
+    "pier": "transport",
     "breakwater": "transport", "lighthouse": "built", "tower": "built",
     "storage tanks": "industrial", "silo": "farmland",
     "water treatment plant": "industrial", "waterworks": "industrial",
     "apartment buildings": "residential", "houses": "residential",
     "shops": "commercial", "commercial buildings": "commercial",
     "industrial buildings": "industrial", "warehouses": "industrial",
-    "school": "built", "campus": "built", "hospital": "built",
+    "school": "built", "campus": "built", "campus buildings": "built",
+    "sports hall": "built", "hospital": "built",
     "hotel": "built", "place of worship": "built", "garages": "built",
     "hangar": "airport", "farm buildings": "farmland", "buildings": "built",
     "dense buildings": "built",
@@ -331,8 +315,9 @@ def visible_phrases(tags: dict[str, Any]) -> list[str]:
     if isinstance(sport, str):
         for value in sport.split(";"):
             phrase = SPORT_PHRASES.get(value.strip())
-            if phrase and phrase not in phrases:
+            if phrase:
                 phrases.append(phrase)
+                break
     # A specific sport is more useful than the generic pitch phrase.
     if "sports field" in phrases and any(
         phrase in phrases for phrase in SPORT_PHRASES.values()
@@ -341,12 +326,33 @@ def visible_phrases(tags: dict[str, Any]) -> list[str]:
     return phrases
 
 
+def _metric_line_length(line, lat: float) -> float:
+    from shapely.geometry import LineString, MultiLineString
+
+    m_lat = METRES_PER_DEG
+    m_lon = METRES_PER_DEG * max(math.cos(math.radians(lat)), 1e-6)
+
+    def one(part):
+        coords = list(part.coords)
+        return sum(
+            math.hypot((x2 - x1) * m_lon, (y2 - y1) * m_lat)
+            for (x1, y1), (x2, y2) in zip(coords, coords[1:])
+        )
+
+    if isinstance(line, LineString):
+        return one(line)
+    if isinstance(line, MultiLineString):
+        return sum(one(part) for part in line.geoms)
+    return 0.0
+
+
 def _weight(geom, chip, phrase: str) -> float:
     """Return the feature's share of the chip area (0..1).
 
-    Polygons use area directly. Lines use length × nominal width, so a river
-    line cannot outweigh a land-cover polygon. Invalid OSM geometry is repaired
-    once with `make_valid`; if that fails, the feature is ignored.
+    Polygons use area directly. Lines use metric length × nominal width, so a
+    river line cannot outweigh a land-cover polygon and orientation does not
+    change the weight. Invalid geometry is repaired once; if that fails it is
+    ignored.
     """
     try:
         inter = geom.intersection(chip)
@@ -362,11 +368,10 @@ def _weight(geom, chip, phrase: str) -> float:
     if inter.geom_type in ("Polygon", "MultiPolygon"):
         return float(inter.area / chip.area)
     if inter.geom_type in ("LineString", "MultiLineString"):
-        lat = math.radians(chip.centroid.y)
-        width_deg = LINE_WIDTH_M.get(phrase, DEFAULT_LINE_WIDTH_M) / (
-            METRES_PER_DEG * max(math.cos(lat), 1e-6)
-        )
-        return float(inter.length * width_deg / chip.area)
+        lat = chip.centroid.y
+        chip_area_m2 = chip.area * METRES_PER_DEG * METRES_PER_DEG * max(math.cos(math.radians(lat)), 1e-6)
+        width_m = LINE_WIDTH_M.get(phrase, DEFAULT_LINE_WIDTH_M)
+        return float(_metric_line_length(inter, lat) * width_m / chip_area_m2) if chip_area_m2 > 0 else 0.0
     if inter.geom_type == "GeometryCollection":
         return sum(_weight(part, chip, phrase) for part in inter.geoms)
     return 0.0
@@ -387,8 +392,8 @@ def _finish_caption(
     else:
         density = ""
     if density:
-        counts[density] += building_count
-        weights[density] += building_count
+        counts[density] += 1
+        weights[density] = max(weights[density], 1.0)
 
     present = set(counts)
     area_candidates = [
@@ -414,17 +419,15 @@ def _finish_caption(
         reverse=True,
     )
     extras.extend(area_extras[:2])
-    density = "dense buildings" if building_count >= 25 else "buildings" if building_count >= 5 else "scattered buildings"
     if building_count > 0 and density in present and primary != density:
         extras.append(density)
-    else:
-        built_extras = sorted(
-            (p for p in present if p in BUILT_PHRASES and p != primary),
-            key=rank,
-            reverse=True,
-        )
-        if built_extras:
-            extras.append(built_extras[0])
+    built_extras = sorted(
+        (p for p in present if p in BUILT_PHRASES and p != primary),
+        key=rank,
+        reverse=True,
+    )
+    if built_extras and built_extras[0] not in extras:
+        extras.append(built_extras[0])
     infra_extras = sorted(
         (p for p in present if p in MAJOR_INFRA and p != primary),
         key=rank,
@@ -463,16 +466,25 @@ def build_caption_from_features(
             counts[phrase] += 1
             weights[phrase] += weight
 
+    # WorldCover is a fallback/auxiliary layer, not a competing land-use map.
+    # If OSM already has a polygonal land-cover subject, keep the WorldCover
+    # class only in the manifest; otherwise add it with a capped weight so a
+    # broad 2021 map cannot outrank detailed OSM features.
     if worldcover is not None:
         phrase, fraction, _code, _label = worldcover
-        if phrase and fraction > 0:
+        has_osm_area = any(p in AREA_SUBJECTS and weights[p] >= 0.01 for p in counts)
+        if phrase and fraction > 0 and not has_osm_area:
             counts[phrase] += 1
-            weights[phrase] += float(fraction)
+            weights[phrase] += min(float(fraction), 0.5)
 
     building_count = 0
     for geom in building_geometries:
         if geom is None or geom.is_empty:
             continue
-        if chip.contains(geom.centroid):
+        try:
+            point = geom.representative_point()
+        except Exception:
+            continue
+        if chip.contains(point):
             building_count += 1
     return _finish_caption(counts, weights, building_count)

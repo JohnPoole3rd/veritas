@@ -1,5 +1,8 @@
 # T20 — OSM-Sentinel 1M run: status and decision needed from J
 
+> **Superseded:** this is the old 128 px / 1.28 km run. The authoritative scale-matched run is
+> `results/T21-osm-1m-640.md` (64 px / 640 m, fresh `data/raw/osm_sentinel_1m_640`).
+
 Status: **RUNNING. Awaiting J's call** (A is not changing anything until J decides).
 From: A, 2026-11-15 15:25 ET. For: J (cc D)
 Code: `j/exp-osm-sentinel` @ `b7e2e8e` (your authoritative 1M runbook), run from a separate worktree.

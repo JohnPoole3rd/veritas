@@ -7,7 +7,8 @@ then writes a parallel data directory. Images are symlinked, not downloaded
 again.
 
     python experiments/osm_sentinel/recaption.py \
-        --src data/raw/osm_sentinel --dst data/raw/osm_sentinel_recaption
+        --src data/raw/osm_sentinel --dst data/raw/osm_sentinel_recaption \
+        --chip-m 1280  # old 77k/128 px build; use 640 for a 64 px build
 
     python experiments/osm_sentinel/train.py --data data/raw/osm_sentinel_recaption ...
 """
@@ -40,7 +41,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--src", default=str(ROOT / "data/raw/osm_sentinel"))
     parser.add_argument("--dst", default=str(ROOT / "data/raw/osm_sentinel_recaption"))
-    parser.add_argument("--chip-m", type=float, default=1280.0)
+    parser.add_argument("--chip-m", type=float, default=640.0)
     args = parser.parse_args()
 
     import geopandas as gpd
@@ -59,9 +60,10 @@ def main() -> None:
     label_changes: Counter[str] = Counter()
     dropped = 0
     for region_id, region_rows in by_region.items():
-        parquet = src / "_cache" / "osm" / f"{region_id}.geoparquet"
-        if not parquet.exists():
-            raise SystemExit(f"Missing cached OSM features: {parquet}")
+        candidates = sorted((src / "_cache" / "osm").glob(f"{region_id}*.geoparquet"))
+        if not candidates:
+            raise SystemExit(f"Missing cached OSM features for {region_id}")
+        parquet = candidates[-1]
         features = RegionFeatures(gpd.read_parquet(parquet))
         for row in region_rows:
             lat, lon = float(row["lat"]), float(row["lon"])

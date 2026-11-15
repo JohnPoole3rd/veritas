@@ -40,6 +40,10 @@ def get_device(preferred: str | None = None) -> str:
             "xpu": bool(getattr(torch, "xpu", None) and torch.xpu.is_available()),
             "cpu": True,
         }.get(kind, False)
+        if available and ":" in requested and kind in ("cuda", "xpu"):
+            index = int(requested.split(":", 1)[1])
+            count = torch.cuda.device_count() if kind == "cuda" else torch.xpu.device_count()
+            available = 0 <= index < count
         if not available:
             raise RuntimeError(f"Requested device {requested!r} is not available on this machine")
         return requested
@@ -76,15 +80,19 @@ def resolve_dtype(device: str, dtype: str = "fp32"):
     """
     import torch
 
+    kind = _device_type(device)
     if dtype in ("fp32", "float32"):
         return torch.float32
     if dtype in ("bf16", "bfloat16"):
-        return torch.bfloat16
+        return torch.float32 if kind == "mps" else torch.bfloat16
     if dtype in ("fp16", "float16"):
-        return torch.float16
+        return torch.float32 if kind in ("mps", "cpu") else torch.float16
     if dtype != "auto":
         raise ValueError(f"Unknown dtype {dtype!r}; use fp32, bf16, fp16, or auto")
-    kind = _device_type(device)
+    if kind == "mps":
+        # PyTorch MPS does not expose autocast; keep the actual compute dtype
+        # in sync with what is logged instead of silently claiming bf16.
+        return torch.float32
     if kind == "cuda" and torch.cuda.is_bf16_supported():
         return torch.bfloat16
     if kind == "xpu":

@@ -51,10 +51,10 @@ class PILList:
         return self.transform(Image.open(self.paths[index]).convert("RGB"))
 
 
-def image_transform():
+def image_transform(input_size: int = 224):
     from src.data import get_transforms
 
-    return get_transforms(224, train=False)
+    return get_transforms(input_size, train=False)
 
 
 def load_rows(data_dir: Path) -> list[dict]:
@@ -79,27 +79,40 @@ def load_rows(data_dir: Path) -> list[dict]:
                             captions[item["tile_id"]] = item
             row["caption"] = captions.get(row["tile_id"], {}).get("caption", "")
         row["path"] = data_dir / row["image"]
+        if not row["caption"]:
+            print(f"skipping {row['tile_id']}: empty caption", flush=True)
+            continue
         rows.append(row)
+    if not rows:
+        raise SystemExit(f"No captioned chips in {manifest}")
     return rows
 
 
-def _cache_ok(path: Path, meta_path: Path, rows: list[dict], backbone: str) -> bool:
+def _cache_ok(path: Path, meta_path: Path, rows: list[dict], backbone: str, args) -> bool:
     if not (path.exists() and meta_path.exists()):
         return False
-    meta = json.loads(meta_path.read_text())
+    try:
+        meta = json.loads(meta_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
     ids = [row["tile_id"] for row in rows]
-    return meta.get("backbone") == backbone and meta.get("tile_ids") == ids
+    return (
+        meta.get("backbone") == backbone
+        and meta.get("tag") == args.tag
+        and meta.get("input_size") == args.input_size
+        and meta.get("tile_ids") == ids
+    )
 
 
 def embed(model, rows: list[dict], backbone: str, split: str, args) -> np.ndarray:
     from src.encoders import extract_image_embeddings
 
-    path = CACHE / f"{backbone}_{split}.npy"
-    meta_path = CACHE / f"{backbone}_{split}.json"
-    if not args.force and _cache_ok(path, meta_path, rows, backbone):
+    path = CACHE / f"{backbone}_{args.tag}_{split}.npy"
+    meta_path = CACHE / f"{backbone}_{args.tag}_{split}.json"
+    if not args.force and _cache_ok(path, meta_path, rows, backbone, args):
         print(f"cache {path.relative_to(ROOT)} ({len(rows)} rows)", flush=True)
         return np.load(path)
-    transform = image_transform()
+    transform = image_transform(args.input_size)
     dataset = PILList([row["path"] for row in rows], transform)
     print(f"embedding {split}: {len(rows)} images", flush=True)
     embeddings = extract_image_embeddings(
@@ -115,6 +128,8 @@ def embed(model, rows: list[dict], backbone: str, split: str, args) -> np.ndarra
     meta_path.write_text(json.dumps({
         "backbone": backbone,
         "split": split,
+        "tag": args.tag,
+        "input_size": args.input_size,
         "tile_ids": [row["tile_id"] for row in rows],
         "n": len(rows),
     }, indent=2) + "\n")
@@ -122,12 +137,11 @@ def embed(model, rows: list[dict], backbone: str, split: str, args) -> np.ndarra
 
 
 def class_scores(images, text, caption_labels: list[str], classes: list[str]):
-    sims = images @ text.T
-    index = np.array([classes.index(label) for label in caption_labels])
-    scores = np.full((len(images), len(classes)), -np.inf, dtype=np.float32)
-    for column, class_index in enumerate(index):
-        scores[:, class_index] = np.maximum(scores[:, class_index], sims[:, column])
-    return scores
+    # Use the one shared classification rule, so train.py and compare_eurosat.py
+    # cannot drift on normalization or max-over-captions.
+    from src.retrieval import class_scores as shared_class_scores
+
+    return shared_class_scores(images, text, caption_labels, classes)
 
 
 def cls_metrics(scores, labels: list[str], classes: list[str]) -> dict:
@@ -137,7 +151,9 @@ def cls_metrics(scores, labels: list[str], classes: list[str]) -> dict:
     pred = scores.argmax(1)
     return {
         "accuracy": round(float((pred == y).mean()), 4),
-        "macro_f1": round(float(f1_score(y, pred, average="macro", zero_division=0)), 4),
+        "macro_f1": round(float(f1_score(
+            y, pred, labels=list(range(len(classes))), average="macro", zero_division=0
+        )), 4),
         "n": int(len(y)),
     }
 
@@ -149,6 +165,10 @@ def pair_recall(images, text, ks=(1, 10), chunk_size: int = 512) -> dict:
     against all images at a time and rank only the diagonal target.
     """
     n = len(images)
+    if n == 0:
+        return {f"recall@{k}": float("nan") for k in ks} | {"n": 0}
+    # Keep the caption chunk around ~256 MB even when n is large.
+    chunk_size = max(1, min(chunk_size, (256 * 1024 * 1024) // (4 * n)))
     ranks = np.empty(n, dtype=np.int64)
     for start in range(0, n, chunk_size):
         stop = min(start + chunk_size, n)
@@ -160,7 +180,8 @@ def pair_recall(images, text, ks=(1, 10), chunk_size: int = 512) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data", default=str(ROOT / "data" / "raw" / "osm_sentinel"))
+    parser.add_argument("--data", default=str(ROOT / "data" / "raw" / "osm_sentinel_1m_640"))
+    parser.add_argument("--tag", default="default", help="Namespace for cached embeddings and results")
     parser.add_argument("--device", default=None, help="Override autodetection (cuda/mps/xpu/cpu)")
     parser.add_argument("--dtype", default="fp32", choices=["fp32", "bf16", "fp16", "auto"])
     parser.add_argument("--batch-size", type=int, default=32)
@@ -171,11 +192,17 @@ def main() -> None:
 
     from src.alignment import fit_procrustes, orthogonality_error, save_procrustes, transform_images, transform_texts
     from src.config import load_config
-    from src.encoders import device_summary, encode_texts, get_device, load_dinov2, load_minilm
+    from src.encoders import device_summary, encode_texts, get_device, load_dinov2, load_minilm, resolve_dtype
 
     config = load_config(str(ROOT / "configs" / "default.yaml"))
+    args.input_size = int(config["image"]["input_size"])
     args.device_resolved = get_device(args.device)
-    print(f"backbone={BACKBONE} device={device_summary(args.device_resolved)} dtype={args.dtype}", flush=True)
+    args.dtype_effective = str(resolve_dtype(args.device_resolved, args.dtype)).replace("torch.", "")
+    print(
+        f"backbone={BACKBONE} device={device_summary(args.device_resolved)} "
+        f"dtype={args.dtype}/{args.dtype_effective}",
+        flush=True,
+    )
     model_label = config["image"]["model_name"]
     model = load_dinov2(model_label, device=args.device_resolved)
 
@@ -190,11 +217,21 @@ def main() -> None:
     text_model = load_minilm(config["text"]["model_name"], device=args.device_resolved)
     Y = {split: encode_texts(text_model, [row["caption"] for row in items]) for split, items in by_split.items()}
 
-    params = fit_procrustes(X["train"], Y["train"], center=True)
-    random_params = fit_procrustes(X["train"], Y["train"], center=True, shuffle_y=True, seed=int(config["seed"]))
-    params.update(backbone=BACKBONE, model_name=model_label, data=str(Path(args.data)), train_n=len(by_split["train"]))
+    center = bool(config["alignment"]["center"])
+    params = fit_procrustes(X["train"], Y["train"], center=center)
+    random_params = fit_procrustes(
+        X["train"], Y["train"], center=center, shuffle_y=True, seed=int(config["seed"])
+    )
+    params.update(
+        backbone=BACKBONE,
+        model_name=model_label,
+        data=str(Path(args.data)),
+        tag=args.tag,
+        input_size=args.input_size,
+        train_n=len(by_split["train"]),
+    )
     ALIGN.mkdir(parents=True, exist_ok=True)
-    save_procrustes(ALIGN / f"osm_sentinel_{BACKBONE}.npz", params)
+    save_procrustes(ALIGN / f"osm_sentinel_{BACKBONE}_{args.tag}.npz", params)
 
     labels = sorted({row["label"] for row in rows})
     prompt_text = []
@@ -208,9 +245,13 @@ def main() -> None:
         "model_name": model_label,
         "device": device_summary(args.device_resolved),
         "dtype": args.dtype,
+        "dtype_effective": args.dtype_effective,
         "n_train": len(by_split["train"]),
         "n_val": len(by_split["val"]),
         "n_test": len(by_split["test"]),
+        "tag": args.tag,
+        "data": str(Path(args.data)),
+        "input_size": args.input_size,
         "countries": sorted({row["country"] for row in rows}),
         "orthogonality_error": round(orthogonality_error(params), 6),
         "classes": labels,
@@ -249,13 +290,13 @@ def main() -> None:
         local_paths = [ROOT / row["path"] for row in local_rows]
         from src.encoders import extract_image_embeddings
 
-        local_cache = CACHE / f"{BACKBONE}_upper_arlington.npy"
+        local_cache = CACHE / f"{BACKBONE}_{args.tag}_upper_arlington.npy"
         if not args.force and local_cache.exists():
             local_emb = np.load(local_cache)
         else:
             local_emb = extract_image_embeddings(
                 model,
-                PILList(local_paths, image_transform()),
+                PILList(local_paths, image_transform(args.input_size)),
                 batch_size=args.batch_size,
                 device=args.device_resolved,
                 num_workers=args.num_workers,
@@ -267,7 +308,15 @@ def main() -> None:
         euro_classes = sorted({row["label"] for row in euro_rows})
         euro_text = encode_texts(text_model, [row["text"] for row in euro_rows])
         local_labels = [row["label"] for row in local_rows]
+        keep = [i for i, label in enumerate(local_labels) if label in euro_classes]
+        if not keep:
+            print("upper_arlington: no labels overlap EuroSAT; skipping", flush=True)
+        else:
+            local_emb = local_emb[keep]
+            local_labels = [local_labels[i] for i in keep]
         for name, fit in (("osm_fit", params), ("random_rotation", random_params)):
+            if not keep:
+                break
             scores = class_scores(
                 transform_images(local_emb, fit),
                 transform_texts(euro_text, fit),
@@ -283,13 +332,13 @@ def main() -> None:
             items = json.loads(split_path.read_text())["items"]
             from src.encoders import extract_image_embeddings
 
-            cache_path = CACHE / f"{BACKBONE}_eurosat_test.npy"
+            cache_path = CACHE / f"{BACKBONE}_{args.tag}_eurosat_test.npy"
             if not args.force and cache_path.exists():
                 euro_emb = np.load(cache_path)
             else:
                 euro_emb = extract_image_embeddings(
                     model,
-                    PILList([euro_root / item["path"] for item in items], image_transform()),
+                    PILList([euro_root / item["path"] for item in items], image_transform(args.input_size)),
                     batch_size=args.batch_size,
                     device=args.device_resolved,
                     num_workers=args.num_workers,
@@ -311,7 +360,7 @@ def main() -> None:
                     scores, [item["label"] for item in items], euro_classes
                 )
 
-    output = THIS / f"results_{BACKBONE}.json"
+    output = THIS / f"results_{BACKBONE}_{args.tag}.json"
     output.write_text(json.dumps(results, indent=2) + "\n")
     print(json.dumps(results, indent=2))
     print(f"wrote {output.relative_to(ROOT)}")

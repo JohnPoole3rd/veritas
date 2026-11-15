@@ -46,13 +46,13 @@ The full mapping is in `osm_captions.py`; it is covered by `tests/test_osm_capti
 
 ### WorldCover fallback
 
-ESA WorldCover 2021 (10 m, CC BY 4.0) fills natural land cover where OSM has no polygon. It is on by
-default and is used as a fallback subject, not a replacement for OSM:
+ESA WorldCover 2021 (10 m source, CC BY 4.0) fills natural land cover where OSM has no polygon. It is
+on by default, loaded lazily per region, and used as a fallback subject, not a replacement for OSM:
 
 - OSM supplies buildings, roads, land use, and infrastructure.
 - WorldCover supplies forest, shrub, grass, crop, built-up, bare, water, wetland, mangrove, snow, and
-  moss.
-- `manifest.csv` records `worldcover_class` and `worldcover_fraction`.
+  moss when OSM has no land-cover polygon.
+- `manifest.csv` records `worldcover_class` and `worldcover_fraction` on chips where it was used.
 - Disable it with `--no-worldcover`.
 
 The captioner combines them, e.g. `Forest with river.` or
@@ -82,6 +82,7 @@ Smoke test one region and one chip:
 
 ```sh
 python experiments/osm_sentinel/build_dataset.py \
+  --out-dir data/raw/osm_sentinel_smoke \
   --region us_columbus --chips-per-region 1 --max-chips 1
 ```
 
@@ -120,15 +121,18 @@ The OSM experiment reports:
   share the same caption);
 - held-out **image→coarse OSM label** accuracy / macro-F1 (headline);
 - one-canonical-caption-per-class **label search** top-1;
-- optional **Upper Arlington** transfer (`--eval-local`, on by default);
+- **Upper Arlington** transfer when `data/local_tiles/manifest.csv` exists (automatic);
 - optional **EuroSAT test** (`--eval-eurosat`, slower);
 - a random-rotation control, so the rotation's contribution is visible.
 
-Outputs:
+Outputs for `--tag full_1m_640`:
 
-- `experiments/osm_sentinel/results_dinov2-small.json`
-- `artifacts/alignment/osm_sentinel_dinov2-small.npz` (gitignored)
-- `artifacts/embeddings/osm_sentinel/*.npy` (gitignored cache)
+- `experiments/osm_sentinel/results_dinov2-small_full_1m_640.json`
+- `artifacts/alignment/osm_sentinel_dinov2-small_full_1m_640.npz` (gitignored)
+- `artifacts/embeddings/osm_sentinel/dinov2-small_full_1m_640_*.npy` (gitignored cache)
+
+Use a distinct `--tag` per build (for example `full_1m_640`) so the 1M run cannot overwrite the
+77k or old 128 px artifacts.
 
 ## Hardware acceleration
 
@@ -156,9 +160,11 @@ extraction plus a tiny Procrustes SVD, so the GPU is not the binding constraint.
 have the same compute; 16 GB just allows larger batches.
 
 **Run target for this region list: 1,000,000 chips.** The 399-region list contains roughly 5.8M
-non-overlapping 640 m grid cells. The default sampler is `grid`; report the actual `n` from
-`dataset_stats.json` after water/cloud/OSM skips. The old random sampler remains available with
-`--sample-mode random`, but it produces overlapping chips.
+non-overlapping 640 m grid cells. A uniform `--chips-per-region 3500` cap reaches 1M in the 398th
+region (the last is partial); an 8000 cap would stop around 286 regions and drop many test regions.
+The default sampler is `grid`; report the actual `n` from `dataset_stats.json` after water/cloud/OSM
+skips. The old random sampler remains available with `--sample-mode random`, but it produces
+overlapping chips.
 
 | Chips | DINOv2 ViT-S/14 (384-d) | JPEG + embeddings |
 |---:|---:|---:|
@@ -190,10 +196,10 @@ enough; 16 GB is convenience/headroom.
 - `fit_procrustes` accumulates the cross-covariance in chunks, so 1M rows do not require full
   centered copies of both embedding matrices.
 - `train.py` refuses to run if a split is empty.
-- Changing `regions.csv` or adding chips invalidates cached embeddings only if tile IDs change; use
-  `--force` when in doubt.
+- Cached embeddings and results are namespaced by `--tag`. Use a distinct tag per build; `--force`
+  recomputes the cache if the images or captioner changed under the same tag.
 - The local-PBF path may download roughly 9 GB of Geofabrik subregions for the default region list
-  (not full country extracts). `pyrosm` caches the cropped PBFs under `data/raw/osm_sentinel/_cache/`.
+  (not full country extracts). `pyrosm` caches the cropped PBFs under `<out-dir>/_cache/`.
 
 ## Limits
 

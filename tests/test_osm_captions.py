@@ -123,3 +123,37 @@ def test_specific_osm_detail_is_preserved():
 
 def test_every_mapped_label_has_a_prompt():
     assert set(LABEL_BY_PHRASE.values()) <= set(LABEL_PROMPTS)
+
+
+def test_multiple_sport_values_emit_one_specific_phrase():
+    assert visible_phrases({"leisure": "pitch", "sport": "baseball;tennis"}) == ["baseball field"]
+
+
+def test_every_visible_phrase_has_a_coarse_label():
+    from experiments.osm_sentinel.osm_captions import SPORT_PHRASES, TAG_MAPS
+
+    phrases = {phrase for _, mapping in TAG_MAPS for phrase in mapping.values()}
+    phrases.update(SPORT_PHRASES.values())
+    assert phrases <= set(LABEL_BY_PHRASE)
+
+
+def test_line_weight_is_orientation_independent_at_high_latitude():
+    from experiments.osm_sentinel.osm_captions import _weight
+
+    chip = box(0.0, 60.0, 0.04, 60.02)
+    horizontal = LineString([(0.0, 60.01), (0.04, 60.01)])
+    vertical = LineString([(0.01, 60.0), (0.01, 60.02)])
+    a = _weight(horizontal, chip, "river")
+    b = _weight(vertical, chip, "river")
+    assert abs(a - b) / max(a, b) < 0.01
+
+
+def test_worldcover_does_not_override_an_osm_land_cover_polygon():
+    features = [
+        ({"landuse": "residential"}, box(0.001, 0.001, 0.019, 0.019)),
+    ]
+    caption, label, counts, _ = build_caption_from_features(
+        features, [], (0.0, 0.0, 0.02, 0.02), worldcover=("forest", 1.0, 10, "forest")
+    )
+    assert label == "residential"
+    assert "forest" not in counts

@@ -14,7 +14,8 @@ Every fit is scored with the same rule (src.retrieval.class_scores, max over a c
 plus EuroSAT text→image search (50 caption queries), and a random-rotation control (mean of 5 seeds)
 for every fit.
 
-    python experiments/osm_sentinel/compare_eurosat.py --data data/raw/osm_sentinel --tag asbuilt
+    python experiments/osm_sentinel/compare_eurosat.py \
+        --data data/raw/osm_sentinel_1m_640 --tag full_1m_640
 Writes experiments/osm_sentinel/compare_eurosat_<tag>.json and prints a markdown table.
 """
 
@@ -51,8 +52,8 @@ def main() -> None:
     from src.retrieval import class_scores
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", default=str(ROOT / "data/raw/osm_sentinel"))
-    ap.add_argument("--tag", default="asbuilt", help="label for this caption variant")
+    ap.add_argument("--data", default=str(ROOT / "data/raw/osm_sentinel_1m_640"))
+    ap.add_argument("--tag", default="full_1m_640", help="label for this caption variant")
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--num-workers", type=int, default=0)
     ap.add_argument("--dtype", default="fp32")
@@ -61,6 +62,7 @@ def main() -> None:
     args.device_resolved = get_device(None)
 
     cfg = load_config()
+    args.input_size = int(cfg["image"]["input_size"])
     emb = resolve_path("artifacts/embeddings", cfg)
 
     # ---- EuroSAT side (main pipeline artifacts, full split) ----
@@ -93,11 +95,12 @@ def main() -> None:
     Y_osm_prompts = encode_texts(text_model, prompts)
     y_osm_test = [r["label"] for r in by["test"]]
 
+    center = bool(cfg["alignment"]["center"])
     fits = {
         "eurosat": load_procrustes(resolve_path("artifacts/alignment/procrustes.npz", cfg)),
-        "osm": fit_procrustes(X_osm["train"], Y_osm_train, center=True),
+        "osm": fit_procrustes(X_osm["train"], Y_osm_train, center=center),
         "combined": fit_procrustes(np.vstack([X_eu_train, X_osm["train"]]),
-                                   np.vstack([Y_eu_train, Y_osm_train]), center=True),
+                                   np.vstack([Y_eu_train, Y_osm_train]), center=center),
     }
     train_pairs = {"eurosat": (X_eu_train, Y_eu_train), "osm": (X_osm["train"], Y_osm_train),
                    "combined": (np.vstack([X_eu_train, X_osm["train"]]), np.vstack([Y_eu_train, Y_osm_train]))}
@@ -128,7 +131,7 @@ def main() -> None:
                "osm_classes": osm_classes, "fits": {}}
     for name, fit in fits.items():
         X, Y = train_pairs[name]
-        controls = [score(fit_procrustes(X, Y, center=True, shuffle_y=True, seed=s)) for s in SEEDS]
+        controls = [score(fit_procrustes(X, Y, center=center, shuffle_y=True, seed=s)) for s in SEEDS]
         ctrl = {k: {m: round(float(np.mean([c[k][m] for c in controls])), 4)
                     for m in controls[0][k] if m not in ("n", "queries")} for k in controls[0]}
         results["fits"][name] = {"score": score(fit), "random_rotation_mean5": ctrl}

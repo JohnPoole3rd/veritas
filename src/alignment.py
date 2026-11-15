@@ -51,9 +51,14 @@ def fit_procrustes(
     Y = np.asarray(Y, dtype=np.float32)
     if X.shape[0] != Y.shape[0]:
         raise ValueError(f"X and Y have different row counts: {X.shape[0]} vs {Y.shape[0]}")
+    if X.shape[0] == 0:
+        raise ValueError("Cannot fit Procrustes alignment with zero rows")
+    if X.ndim != 2 or Y.ndim != 2:
+        raise ValueError(f"Expected 2-D embeddings, got X{X.shape} and Y{Y.shape}")
+    permutation = None
     if shuffle_y:
         rng = np.random.default_rng(seed)
-        Y = Y[rng.permutation(Y.shape[0])]
+        permutation = rng.permutation(Y.shape[0])
     if center:
         mu_x = X.mean(axis=0, dtype=np.float32)
         mu_y = Y.mean(axis=0, dtype=np.float32)
@@ -65,7 +70,10 @@ def fit_procrustes(
     for start in range(0, X.shape[0], step):
         stop = min(start + step, X.shape[0])
         Xc = X[start:stop] - mu_x
-        Yc = Y[start:stop] - mu_y
+        if permutation is None:
+            Yc = Y[start:stop] - mu_y
+        else:
+            Yc = Y[permutation[start:stop]] - mu_y
         cross += Xc.T @ Yc
     U, singular_values, Vt = np.linalg.svd(cross, full_matrices=False)
     W = (U @ Vt).astype(np.float32)

@@ -1,7 +1,8 @@
+import argparse
 import csv
 import json
 
-from experiments.osm_sentinel.build_dataset import append_chip, load_existing
+from experiments.osm_sentinel.build_dataset import append_chip, check_build_meta, load_existing
 
 
 def _row(tile_id: str):
@@ -61,3 +62,69 @@ def test_grid_candidates_are_unique_and_inside_radius():
         dy = (lat - 40.0) * 111.32
         dx = (lon - -83.0) * 111.32 * 0.766
         assert (dx * dx + dy * dy) <= 3.05**2
+
+
+def test_resume_drops_a_torn_final_manifest_row(tmp_path):
+    manifest = tmp_path / "manifest.csv"
+    captions = tmp_path / "captions.jsonl"
+    append_chip(manifest, captions, _row("t1"))
+    with manifest.open("a") as handle:
+        handle.write("torn,row")
+
+    done, stats = load_existing(manifest, captions)
+    assert done == {"t1"}
+    assert stats["n"] == 1
+    assert not manifest.read_text().endswith("torn,row")
+
+
+def test_build_meta_refuses_mixed_chip_configs(tmp_path):
+    regions = tmp_path / "regions.csv"
+    regions.write_text("region_id,lat,lon,radius_km,country,biome,split\n")
+    base = argparse.Namespace(
+        regions_csv=str(regions),
+        chip_m=640.0,
+        chip_px=64,
+        sample_mode="grid",
+        radius_km=None,
+    )
+    check_build_meta(tmp_path, base, overwrite=False)
+    check_build_meta(tmp_path, base, overwrite=False)
+    changed = argparse.Namespace(**vars(base))
+    changed.chip_px = 128
+    try:
+        check_build_meta(tmp_path, changed, overwrite=False)
+    except SystemExit as exc:
+        assert "chip_px" in str(exc)
+    else:
+        raise AssertionError("mismatched chip size must be refused")
+
+
+def test_read_chip_rejects_a_window_outside_the_region_array():
+    import numpy as np
+    from rasterio.transform import from_origin
+
+    from experiments.osm_sentinel.build_dataset import read_chip
+
+    rgb = np.zeros((64, 64, 3), dtype=np.uint8)
+    transform = from_origin(0.0, 0.01, 0.0001, 0.0001)
+    assert read_chip(rgb, transform, "EPSG:4326", 0.02, 0.02, 640.0, 64) is None
+
+
+def test_read_region_keeps_georeference_when_bbox_exceeds_the_scene(tmp_path):
+    import numpy as np
+    import rasterio
+    from rasterio.transform import from_origin
+
+    from experiments.osm_sentinel.build_dataset import read_region
+
+    path = tmp_path / "scene.tif"
+    with rasterio.open(
+        path, "w", driver="GTiff", width=100, height=100, count=3,
+        dtype="uint8", crs="EPSG:4326", transform=from_origin(-1.0, 1.0, 0.01, 0.01),
+    ) as dst:
+        dst.write(np.full((3, 100, 100), 30, dtype=np.uint8))
+    with rasterio.open(path) as scene:
+        rgb, transform, _ = read_region(scene, (-1.2, -0.2, 0.1, 1.2))
+    assert rgb.shape == (140, 130, 3)
+    assert abs(transform.c - -1.2) < 1e-9
+    assert abs(transform.f - 1.2) < 1e-9
