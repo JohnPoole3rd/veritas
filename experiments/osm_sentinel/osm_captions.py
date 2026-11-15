@@ -188,6 +188,20 @@ AREA_SUBJECTS: tuple[str, ...] = (
     "airport runway", "airport apron", "airport terminal", "cemetery",
 )
 
+BUILT_PHRASES: tuple[str, ...] = (
+    "apartment buildings", "houses", "shops", "commercial buildings",
+    "industrial buildings", "warehouses", "school", "campus", "hospital",
+    "hotel", "place of worship", "garages", "hangar", "farm buildings",
+)
+
+MAJOR_INFRA: tuple[str, ...] = (
+    "major road", "railway", "rail station", "tram line", "parking lot",
+    "bridge", "pier", "breakwater", "port", "airport runway",
+    "airport taxiway", "airport apron", "airport terminal", "bus station",
+    "lighthouse", "storage tanks", "silo", "water treatment plant",
+    "waterworks", "farm track",
+)
+
 LABEL_BY_PHRASE: dict[str, str] = {
     "water": "water", "bay": "water", "strait": "water", "coastline": "coast",
     "beach": "coast", "sand": "coast", "wetland": "water", "river": "water",
@@ -292,11 +306,34 @@ def _finish_caption(
     if primary == "buildings" and building_count >= 25:
         primary = "dense buildings"
 
-    ordered = sorted(
-        (p for p in present if p != primary),
-        key=lambda p: (-weights[p], -counts[p], PRIORITY.index(p) if p in PRIORITY else 999),
+    def rank(phrase: str):
+        return (weights[phrase], counts[phrase])
+
+    extras: list[str] = []
+    area_extras = sorted(
+        (p for p in present if p in AREA_SUBJECTS and p != primary),
+        key=rank,
+        reverse=True,
     )
-    extras = ordered[:4]
+    extras.extend(area_extras[:2])
+    density = "dense buildings" if building_count >= 25 else "buildings" if building_count >= 5 else "scattered buildings"
+    if building_count > 0 and density in present and primary != density:
+        extras.append(density)
+    else:
+        built_extras = sorted(
+            (p for p in present if p in BUILT_PHRASES and p != primary),
+            key=rank,
+            reverse=True,
+        )
+        if built_extras:
+            extras.append(built_extras[0])
+    infra_extras = sorted(
+        (p for p in present if p in MAJOR_INFRA and p != primary),
+        key=rank,
+        reverse=True,
+    )
+    extras.extend(infra_extras[: max(0, 3 - len(extras))])
+    extras = list(dict.fromkeys(extras))[:3]
     caption = f"A 10 m Sentinel-2 satellite image of {primary}"
     if extras:
         caption += " with " + ", ".join(extras)

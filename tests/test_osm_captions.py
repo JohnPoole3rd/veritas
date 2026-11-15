@@ -83,5 +83,16 @@ def test_tiny_water_does_not_outrank_the_surrounding_land_use():
     assert "water" in counts
 
 
+def test_caption_prefers_major_infrastructure_over_minor_paths():
+    features = [
+        ({"landuse": "residential"}, box(0.001, 0.001, 0.019, 0.019)),
+        ({"highway": "primary"}, LineString([(0.0, 0.010), (0.02, 0.010)])),
+        ({"highway": "footway"}, LineString([(0.0, 0.005), (0.02, 0.005)])),
+    ]
+    caption, _, _, _ = build_caption_from_features(features, [], (0.0, 0.0, 0.02, 0.02))
+    assert "major road" in caption
+    assert "path" not in caption
+
+
 def test_every_mapped_label_has_a_prompt():
     assert set(LABEL_BY_PHRASE.values()) <= set(LABEL_PROMPTS)
