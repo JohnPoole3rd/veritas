@@ -630,18 +630,23 @@ def _serialized_find_scenes(lock_path: Path, bbox, start: str, end: str, max_clo
             handle.flush()
 
 
-def _load_features_locked(region_id: str, bbox, cache_dir: Path):
+def _load_features_locked(region_id: str, bbox, cache_dir: Path, require_cache: bool = False):
     """load_region_features, but a missing PBF is downloaded under a cross-process lock so two
     workers never fetch (or write) the same Geofabrik extract at once. Parsing stays parallel."""
     from osm_source import cache_key, ensure_region_pbf
 
     key = cache_key(region_id, bbox)
-    if not (cache_dir / "osm" / f"{key}.geoparquet").exists() and not (
-        cache_dir / "pbf" / f"{key}.osm.pbf"
-    ).exists():
-        with _file_lock(cache_dir / ".osm_download.lock"):
-            ensure_region_pbf(key, bbox, cache_dir)
-    return load_region_features(region_id, bbox, cache_dir)
+    parquet = cache_dir / "osm" / f"{key}.geoparquet"
+    cropped = cache_dir / "pbf" / f"{key}.osm.pbf"
+    if not parquet.exists():
+        if require_cache and not cropped.exists():
+            # ensure_region_pbf validates the provider source cache and fails clearly
+            # without starting a network download.
+            ensure_region_pbf(key, bbox, cache_dir, require_cache=True)
+        elif not cropped.exists():
+            with _file_lock(cache_dir / ".osm_download.lock"):
+                ensure_region_pbf(key, bbox, cache_dir)
+    return load_region_features(region_id, bbox, cache_dir, require_cache=require_cache)
 
 
 def prepare_region(region: dict[str, Any], args, cache_dir: Path) -> dict[str, Any]:
@@ -657,7 +662,9 @@ def prepare_region(region: dict[str, Any], args, cache_dir: Path) -> dict[str, A
     if not ranked:
         return {"ranked": [], "timings": t}
     t0 = time.perf_counter()
-    features = _load_features_locked(rid, bbox, cache_dir)
+    features = _load_features_locked(
+        rid, bbox, cache_dir, require_cache=args.require_osm_cache
+    )
     t["osm_load"] += time.perf_counter() - t0
     t0 = time.perf_counter()
     mosaic = read_region_mosaic(ranked, scene_bbox, log=lambda m: print(f"[{rid}] {m}", flush=True))
@@ -871,6 +878,11 @@ def main() -> None:
         type=int,
         default=3,
         help="Regions processed concurrently in worker processes (~1.5 GB RSS each); 1 = in-process",
+    )
+    parser.add_argument(
+        "--require-osm-cache",
+        action="store_true",
+        help="Fail if a source PBF is not already in the prefetched provider cache",
     )
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()

@@ -78,6 +78,18 @@ nix-shell -p python312 --run 'python -m venv .venv'
 region downloads the smallest covering Geofabrik/BBBike/Movisda extract; later runs reuse the
 cropped PBF and GeoParquet cache.
 
+Prefetch provider PBFs in parallel before a large build:
+
+```sh
+python experiments/osm_sentinel/prefetch_osm.py \
+  --cache-dir data/raw/osm_sentinel_1m_640/_cache \
+  --workers 4 --per-provider 3
+```
+
+Then pass `--require-osm-cache` to `build_dataset.py` so a missing prefetched
+PBF fails clearly instead of silently starting a new download. The prefetcher
+downloads only raw provider extracts; it does not create chips or manifests.
+
 Smoke test one region and one chip:
 
 ```sh

@@ -12,6 +12,7 @@ import json
 import shutil
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 CUSTOM_FILTER: dict[str, Any] = {
     "landuse": True,
@@ -40,13 +41,79 @@ def cache_key(region_id: str, bbox: tuple[float, float, float, float]) -> str:
     return f"{region_id}_{digest}"
 
 
-def ensure_region_pbf(region_id: str, bbox: tuple[float, float, float, float], cache_dir: Path) -> Path:
+def provider_for_url(url: str) -> str:
+    """Return pyrosm's provider name for a provider extract URL."""
+    host = (urlparse(url).hostname or "").lower()
+    if "geofabrik" in host:
+        return "geofabrik"
+    if "bbbike" in host:
+        return "bbbike"
+    if "movisda" in host:
+        return "movisda"
+    raise ValueError(f"Unrecognized OSM provider URL: {url}")
+
+
+def provider_cache_name(url: str) -> str:
+    """Filename pyrosm uses for this provider extract inside its download directory."""
+    from pyrosm.data.geofabrik_index import extract_file_name
+
+    return f"{provider_for_url(url)}_{extract_file_name(url)}"
+
+
+def provider_cache_path(cache_dir: Path, url: str) -> Path:
+    """Where pyrosm expects the complete provider extract."""
+    return cache_dir / "pbf" / provider_cache_name(url)
+
+
+def resolve_provider_urls(
+    bbox: tuple[float, float, float, float], cache_dir: Path | None = None
+) -> list[str]:
+    """Resolve the provider URL(s) pyrosm would use for a bbox, without downloading."""
+    from pyrosm import get_data_by_bbox
+
+    directory = str((cache_dir or Path(".")) / "pbf")
+    result = get_data_by_bbox(
+        list(bbox),
+        download=False,
+        directory=directory,
+        strategy="smallest_total",
+    )
+    if isinstance(result, str):
+        return [result]
+    return [str(url) for url in result]
+
+
+def require_provider_cache(
+    bbox: tuple[float, float, float, float], cache_dir: Path
+) -> list[Path]:
+    """Fail unless every source PBF pyrosm needs is already in the local cache."""
+    urls = resolve_provider_urls(bbox, cache_dir)
+    paths = [provider_cache_path(cache_dir, url) for url in urls]
+    missing = [path for path in paths if not path.exists() or path.stat().st_size == 0]
+    if missing:
+        names = ", ".join(str(path) for path in missing)
+        raise FileNotFoundError(
+            "Required OSM provider PBF is not in the prefetched cache: "
+            f"{names}. Run prefetch_osm.py without --require-osm-cache."
+        )
+    return paths
+
+
+def ensure_region_pbf(
+    region_id: str,
+    bbox: tuple[float, float, float, float],
+    cache_dir: Path,
+    *,
+    require_cache: bool = False,
+) -> Path:
     """Download the smallest covering OSM extract once and cache it."""
     from pyrosm import get_data_by_bbox
 
     target = cache_dir / "pbf" / f"{region_id}.osm.pbf"
     if target.exists():
         return target
+    if require_cache:
+        require_provider_cache(bbox, cache_dir)
     target.parent.mkdir(parents=True, exist_ok=True)
     downloaded = get_data_by_bbox(
         list(bbox),
@@ -156,7 +223,13 @@ class RegionFeatures:
         return features, buildings
 
 
-def load_region_features(region_id: str, bbox: tuple[float, float, float, float], cache_dir: Path) -> RegionFeatures:
+def load_region_features(
+    region_id: str,
+    bbox: tuple[float, float, float, float],
+    cache_dir: Path,
+    *,
+    require_cache: bool = False,
+) -> RegionFeatures:
     """Load/cache a region's OSM features as GeoParquet."""
     import geopandas as gpd
 
@@ -164,7 +237,7 @@ def load_region_features(region_id: str, bbox: tuple[float, float, float, float]
     parquet = cache_dir / "osm" / f"{key}.geoparquet"
     if parquet.exists():
         return RegionFeatures(gpd.read_parquet(parquet))
-    pbf = ensure_region_pbf(key, bbox, cache_dir)
+    pbf = ensure_region_pbf(key, bbox, cache_dir, require_cache=require_cache)
     gdf = load_region_gdf(pbf, bbox)
     parquet.parent.mkdir(parents=True, exist_ok=True)
     tmp = parquet.with_suffix(parquet.suffix + ".tmp")

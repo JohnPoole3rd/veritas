@@ -62,6 +62,18 @@ alone:
 rm -rf data/raw/osm_sentinel_1m_640 data/raw/osm_sentinel_1m_640_interim
 ```
 
+For a fresh provider cache, prefetch OSM extracts in parallel before the build:
+
+```sh
+python experiments/osm_sentinel/prefetch_osm.py \
+  --cache-dir data/raw/osm_sentinel_1m_640/_cache \
+  --workers 4 --per-provider 3
+```
+
+The prefetcher only downloads raw provider PBFs into pyrosm's expected cache
+paths. Add `--require-osm-cache` to the build command below if you want a hard
+failure when a required source PBF is missing.
+
 Run the full grid + WorldCover build:
 
 ```sh
