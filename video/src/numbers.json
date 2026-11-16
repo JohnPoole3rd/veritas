@@ -1,0 +1,365 @@
+{
+ "search": {
+  "ours": 96.0,
+  "random": 15.2,
+  "none": 10.0,
+  "queries": 50,
+  "tiles": 4050
+ },
+ "label": {
+  "ours": 81.2,
+  "resnet": 98.2,
+  "majority": 11.1,
+  "random": 15.5,
+  "n": 4050
+ },
+ "local": {
+  "ours": 64.0,
+  "resnet": 64.0,
+  "oracle": 62.0,
+  "n": 50,
+  "river_right": 0,
+  "river_n": 10
+ },
+ "heat": {
+  "slope": -1.69,
+  "r": -0.64,
+  "n": 164,
+  "tercile": 4.1,
+  "hot": 42.4,
+  "green": 38.3,
+  "lst_max": 48.3,
+  "phoenix_slope": -1.13
+ },
+ "river_demo": {
+  "right": 6,
+  "k": 6
+ },
+ "eurosat_n": 4050,
+ "local_n": 50,
+ "probe": {
+  "query": "climate change",
+  "top": 0.0455
+ },
+ "disclaimer": "Prototype, not a land-use determination.",
+ "dates": {
+  "s2": "1 Aug 2025",
+  "lst": "23 Jul 2025"
+ },
+ "river_tiles": [
+  "ua_049",
+  "ua_041",
+  "ua_045",
+  "ua_050",
+  "ua_042",
+  "ua_043"
+ ],
+ "river_wrong": [
+  {
+   "id": "ua_041",
+   "pred": "Highway"
+  },
+  {
+   "id": "ua_042",
+   "pred": "Highway"
+  },
+  {
+   "id": "ua_043",
+   "pred": "Residential"
+  },
+  {
+   "id": "ua_044",
+   "pred": "Highway"
+  },
+  {
+   "id": "ua_045",
+   "pred": "Highway"
+  },
+  {
+   "id": "ua_046",
+   "pred": "Residential"
+  },
+  {
+   "id": "ua_047",
+   "pred": "Residential"
+  },
+  {
+   "id": "ua_048",
+   "pred": "AnnualCrop"
+  },
+  {
+   "id": "ua_049",
+   "pred": "Highway"
+  },
+  {
+   "id": "ua_050",
+   "pred": "Highway"
+  }
+ ],
+ "site_url": "johnpoole3rd.github.io/veritas",
+ "repo_url": "github.com/JohnPoole3rd/veritas",
+ "timeline": [
+  {
+   "key": "hook",
+   "start": 0,
+   "dur": 6.41,
+   "voices": [
+    {
+     "src": "audio/voice_hook_0.wav",
+     "at": 0.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 6.41,
+     "text": "In Upper Arlington, Ohio, the least green part of town was 4.1 degrees hotter than the greenest part."
+    }
+   ]
+  },
+  {
+   "key": "problem",
+   "start": 6.41,
+   "dur": 9.73,
+   "voices": [
+    {
+     "src": "audio/voice_problem_0.wav",
+     "at": 0.3
+    },
+    {
+     "src": "audio/voice_problem_1.wav",
+     "at": 4.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 4.1,
+     "text": "So where should the city plant new trees?"
+    },
+    {
+     "from": 4.1,
+     "to": 9.73,
+     "text": "Satellites take a new picture of every street every few days. That's too much to look through."
+    }
+   ]
+  },
+  {
+   "key": "idea",
+   "start": 16.14,
+   "dur": 6.11,
+   "voices": [
+    {
+     "src": "audio/voice_idea_0.wav",
+     "at": 0.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 6.11,
+     "text": "So we built a way to search satellite photos in plain English, without training a new AI."
+    }
+   ]
+  },
+  {
+   "key": "search",
+   "start": 22.25,
+   "dur": 15.56,
+   "voices": [
+    {
+     "src": "audio/voice_search_0.wav",
+     "at": 0.3
+    },
+    {
+     "src": "audio/voice_search_1.wav",
+     "at": 3.8
+    },
+    {
+     "src": "audio/voice_search_2.wav",
+     "at": 9.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 3.6,
+     "text": "Type “river corridor”."
+    },
+    {
+     "from": 3.6,
+     "to": 9.1,
+     "text": "All 6 top results really are the river. We checked them against our own labels."
+    },
+    {
+     "from": 9.1,
+     "to": 15.56,
+     "text": "Any words work, like “tall trees near a river”. The number is a match score, not a percent."
+    }
+   ]
+  },
+  {
+   "key": "heat",
+   "start": 37.81,
+   "dur": 21.48,
+   "voices": [
+    {
+     "src": "audio/voice_heat_0.wav",
+     "at": 0.3
+    },
+    {
+     "src": "audio/voice_heat_1.wav",
+     "at": 6.3
+    },
+    {
+     "src": "audio/voice_heat_2.wav",
+     "at": 12.3
+    },
+    {
+     "src": "audio/voice_heat_3.wav",
+     "at": 17.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 6.1,
+     "text": "The Heat Lab adds two satellite measurements: how green, and how hot."
+    },
+    {
+     "from": 6.1,
+     "to": 12.1,
+     "text": "Greener squares are cooler, by about 1.7 degrees for every step in green."
+    },
+    {
+     "from": 12.1,
+     "to": 17.1,
+     "text": "“Plant first” marks hot squares with few trees."
+    },
+    {
+     "from": 17.1,
+     "to": 21.48,
+     "text": "Search “parking lot”, see the hottest ones, and download the list."
+    }
+   ]
+  },
+  {
+   "key": "how",
+   "start": 59.29,
+   "dur": 19.7,
+   "voices": [
+    {
+     "src": "audio/voice_how_0.wav",
+     "at": 0.3
+    },
+    {
+     "src": "audio/voice_how_1.wav",
+     "at": 6.3
+    },
+    {
+     "src": "audio/voice_how_2.wav",
+     "at": 12.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 6.1,
+     "text": "How does it work? One AI turns photos into numbers. Another turns words into numbers."
+    },
+    {
+     "from": 6.1,
+     "to": 12.1,
+     "text": "We line the two up with one rotation. No training."
+    },
+    {
+     "from": 12.1,
+     "to": 19.7,
+     "text": "On new photos, the right land type comes first 96% of the time. A random rotation gets 15%."
+    }
+   ]
+  },
+  {
+   "key": "baseline",
+   "start": 78.99,
+   "dur": 7.26,
+   "voices": [
+    {
+     "src": "audio/voice_baseline_0.wav",
+     "at": 0.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 7.26,
+     "text": "A trained ResNet labels photos better: 98% to our 81%. But it can't search by words."
+    }
+   ]
+  },
+  {
+   "key": "limits",
+   "start": 86.25,
+   "dur": 12.85,
+   "voices": [
+    {
+     "src": "audio/voice_limits_0.wav",
+     "at": 0.3
+    },
+    {
+     "src": "audio/voice_limits_1.wav",
+     "at": 7.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 7.1,
+     "text": "In our own town, it's a tie: 64% right, versus 62% for always guessing “Residential”."
+    },
+    {
+     "from": 7.1,
+     "to": 12.85,
+     "text": "Rivers: zero out of ten right. From space, a thin river looks like a road."
+    }
+   ]
+  },
+  {
+   "key": "next",
+   "start": 99.1,
+   "dur": 4.7,
+   "voices": [
+    {
+     "src": "audio/voice_next_0.wav",
+     "at": 0.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 4.7,
+     "text": "Next: sharper photos, and an AI that can say “I don't know”."
+    }
+   ]
+  },
+  {
+   "key": "end",
+   "start": 103.8,
+   "dur": 5,
+   "voices": [
+    {
+     "src": "audio/voice_end_0.wav",
+     "at": 0.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 5,
+     "text": "Platonic Earth. Try it at the link below."
+    }
+   ]
+  }
+ ],
+ "total_s": 108.8
+}

@@ -641,9 +641,20 @@ function initGlossary() {
 }
 export const term = (k, text) => `<span class="term" data-term="${k}" tabindex="0">${text}</span>`;
 
+// --------------------------------------------------------------- demo video (click-to-load YouTube, no cookies until played)
+function initWatch() {
+  const el = $("#watch"); const id = (el?.dataset.youtube || "").trim();
+  if (!el || !/^[\w-]{6,20}$/.test(id)) return;
+  el.hidden = false;
+  el.innerHTML = `<button class="watch-btn" aria-label="Play the 2-minute demo video"><img src="https://i.ytimg.com/vi/${id}/hqdefault.jpg" alt=""><span class="play">▶</span><span class="lbl">Watch the 2-minute demo</span></button>`;
+  $("button", el).addEventListener("click", () => {
+    el.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?autoplay=1&cc_load_policy=1&rel=0" title="Platonic Earth demo" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  });
+}
+
 // --------------------------------------------------------------- boot
 async function boot() {
-  initChrome(); initSteps(); initManifesto(); initGlossary();
+  initChrome(); initSteps(); initManifesto(); initGlossary(); initWatch();
   const [meta, story] = await Promise.all([
     api("/api/meta").catch((e) => { toast(`API unavailable: ${e.message}`); return null; }),
     fetch("/static/data/story.json").then((r) => r.json()).catch(() => null),
