@@ -435,9 +435,10 @@ def run_benchmark(
     num_workers: int = 8,
     force: bool = False,
     out: str | Path | None = None,
+    rotation_out: str | Path | None = None,
 ) -> dict[str, Any]:
     import train
-    from src.alignment import fit_procrustes, load_procrustes, transform_images, transform_texts
+    from src.alignment import fit_procrustes, save_procrustes, transform_images, transform_texts
     from src.config import load_config
     from src.encoders import device_summary, encode_texts, get_device, load_dinov2, load_minilm
     from src.retrieval import class_scores
@@ -484,6 +485,24 @@ def run_benchmark(
     )
     y_train = text_unique[text_index]
     fit = fit_procrustes(x_train, y_train, center=True)
+    output = Path(out) if out else THIS / f"benchmark_{tag}.json"
+    rotation_path = Path(rotation_out) if rotation_out else output.with_suffix(".npz")
+    b3_sha = Path(str(b3_csv) + ".sha256")
+    fit.update(
+        tag=tag,
+        data=str(data_dir),
+        fit_split="all non-test rows (train + builder val)",
+        n_fit=len(train_rows),
+        n_b3=len(b3_rows),
+        b3_sha256=b3_sha.read_text().strip() if b3_sha.exists() else None,
+        model_name=config["image"]["model_name"],
+        text_model=config["text"]["model_name"],
+        input_size=args.input_size,
+        device=device_summary(device_resolved),
+        dtype=dtype,
+    )
+    save_procrustes(rotation_path, fit)
+    rotation_sha = hashlib.sha256(rotation_path.read_bytes()).hexdigest()
 
     b3_labels = [r["label"] for r in b3_rows]
     b3_b4 = [b4_label(label, "osm") for label in b3_labels]
@@ -503,7 +522,9 @@ def run_benchmark(
         "b3_rows_in_file": len(b3_meta),
         "b3_coverage": round(len(b3_rows) / max(len(b3_meta), 1), 4),
         "excluded_from_fit": excluded,
-        "b3_sha256": Path(str(b3_csv) + ".sha256").read_text().strip() if Path(str(b3_csv) + ".sha256").exists() else None,
+        "b3_sha256": fit.get("b3_sha256"),
+        "rotation_path": str(rotation_path),
+        "rotation_sha256": rotation_sha,
         "b3": {
             "osm": _eval_fit(fit, x_b3, b3_labels, osm_text, osm_classes, osm_classes, groups=b3_regions),
             "b4": _eval_fit(fit, x_b3, b3_b4, b4_text, b4_classes, b4_classes, groups=b3_regions),
@@ -541,7 +562,7 @@ def run_benchmark(
         }
     result["controls"] = controls
 
-    output = Path(out) if out else THIS / f"benchmark_{tag}.json"
+    output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + "\n")
     print(f"[bench] wrote {output}", flush=True)
     return result
@@ -568,6 +589,8 @@ def main() -> None:
     run.add_argument("--num-workers", type=int, default=8)
     run.add_argument("--force", action="store_true")
     run.add_argument("--out", default=None)
+    run.add_argument("--rotation-out", default=None,
+                     help="Path for the portable .npz rotation (default: alongside --out)")
 
     args = parser.parse_args()
     if args.command == "sample":
@@ -577,7 +600,7 @@ def main() -> None:
     else:
         run_benchmark(args.data, args.b3, tag=args.tag, device=args.device, dtype=args.dtype,
                       batch_size=args.batch_size, num_workers=args.num_workers,
-                      force=args.force, out=args.out)
+                      force=args.force, out=args.out, rotation_out=args.rotation_out)
 
 
 if __name__ == "__main__":
