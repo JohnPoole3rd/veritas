@@ -657,6 +657,12 @@ def prepare_region(region: dict[str, Any], args, cache_dir: Path) -> dict[str, A
     lat, lon, radius_km, bbox = region_geometry(region, args)
     scene_bbox = bbox_from_center(lat, lon, radius_km + args.chip_m / 1000.0)
     t: Counter[str] = Counter()
+    if args.require_osm_cache:  # A: check the OSM sources BEFORE spending a STAC search on the region
+        from osm_source import cache_key, require_provider_cache
+
+        key = cache_key(rid, bbox)
+        if not (cache_dir / "osm" / f"{key}.geoparquet").exists() and not (cache_dir / "pbf" / f"{key}.osm.pbf").exists():
+            require_provider_cache(bbox, cache_dir)  # raises FileNotFoundError -> region retried next run
     t0 = time.perf_counter()
     ranked = _serialized_find_scenes(cache_dir / ".stac.lock", bbox, args.date_start, args.date_end,
                                      args.max_cloud)

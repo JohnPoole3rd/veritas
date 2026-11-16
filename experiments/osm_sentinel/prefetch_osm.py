@@ -158,6 +158,10 @@ def main() -> None:
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--no-resume", action="store_true", help="Discard existing .part files")
     parser.add_argument("--dry-run", action="store_true", help="Resolve URLs only; download nothing")
+    parser.add_argument("--max-file-gb", type=float, default=3.0,
+                        help="A: skip provider files larger than this (europe-latest is 35 GB); 0 = no cap")
+    parser.add_argument("--skip-ready-regions-from", default=None,
+                        help="A: manifest.csv / region_status.json dir of a live build; skip regions already built")
     args = parser.parse_args()
 
     if args.workers < 1 or args.per_provider < 1:
@@ -180,6 +184,16 @@ def main() -> None:
     if not regions:
         raise SystemExit("No regions selected")
 
+    if args.skip_ready_regions_from:  # A: don't resolve/download for regions the live build already has
+        import csv as _csv
+        live = Path(args.skip_ready_regions_from)
+        built: set[str] = set()
+        if (live / "region_status.json").exists():
+            built |= set(json.loads((live / "region_status.json").read_text()))
+        if (live / "manifest.csv").exists():
+            with (live / "manifest.csv").open(newline="") as handle:
+                built |= {row["region_id"] for row in _csv.DictReader(handle)}
+        regions = [region for region in regions if region["region_id"] not in built]
     print(f"[prefetch] resolving {len(regions)} regions", flush=True)
     region_urls: dict[str, list[str]] = {}
     all_urls: set[str] = set()
@@ -240,9 +254,37 @@ def main() -> None:
         with provider_semaphore(provider):
             return url, _download_one(url, args, status, status_lock)
 
+    # A: order downloads so regions become ready as early as possible (smallest total need first),
+    # and skip giant continent files (HEAD request for sizes; one per missing URL).
+    import requests
+
+    missing = [u for u in all_urls if not (provider_cache_path(args.cache_dir, u).exists()
+                                            and provider_cache_path(args.cache_dir, u).stat().st_size > 0)]
+
+    def _size(url: str) -> int:
+        try:
+            return int(requests.head(url, allow_redirects=True, timeout=20,
+                                     headers={"User-Agent": "veritas-osm-prefetch/1.0"}).headers.get("Content-Length", 0))
+        except Exception:
+            return 0
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        sizes = dict(zip(missing, pool.map(_size, missing)))
+    cap = args.max_file_gb * 1e9
+    too_big = {u for u, n in sizes.items() if cap and n > cap}
+    for u in sorted(too_big):
+        print(f"[prefetch] SKIP (>{args.max_file_gb} GB): {u} ({sizes[u] / 1e9:.1f} GB)", flush=True)
+    region_need = {rid: sum(sizes.get(u, 0) for u in urls) for rid, urls in region_urls.items()
+                   if not (set(urls) & too_big)}
+    order: list[str] = []
+    for rid, _need in sorted(region_need.items(), key=lambda kv: kv[1]):
+        order += [u for u in region_urls[rid] if u in sizes and u not in order]
+    print(f"[prefetch] downloading {len(order)} files, {sum(sizes[u] for u in order) / 1e9:.1f} GB, "
+          f"for {len(region_need)} regions (smallest need first)", flush=True)
+
     started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=args.workers, thread_name_prefix="osm-prefetch") as pool:
-        futures = {pool.submit(run, url): url for url in sorted(all_urls)}
+        futures = {pool.submit(run, url): url for url in order}
         for future in as_completed(futures):
             url, outcome = future.result()
             print(f"[prefetch] {outcome}: {url}", flush=True)
