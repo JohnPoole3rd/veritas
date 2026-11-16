@@ -3,8 +3,8 @@
     python colab/prepare.py            # then: PE_ROTATION=colab/artifacts/osm_1m_rotation.npz python -m web.server
 
 - colab/artifacts/osm_1m_rotation.npz : the production OSM-Sentinel rotation fitted on the RTX 5060 Ti
-  (1,000,000 all captioned rows from the 1M build, including test rows; sha256 358c5b94aa58...).
-  This is the deployment rotation, not a held-out benchmark rotation.
+  (all 1,000,000 image-caption pairs of the 1M build, 331 regions, 117 countries; sha256 358c5b94aa58...).
+  This is the deployment rotation, so it includes test rows and is not a held-out benchmark artifact.
 - dinov2_test.npy, minilm_captions.npy, minilm_caption_index.json : precomputed EuroSAT test-image and
   class-caption embeddings the backend needs to start in REAL mode (from the main pipeline).
 """
