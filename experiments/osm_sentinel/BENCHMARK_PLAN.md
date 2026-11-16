@@ -1,6 +1,13 @@
 # Benchmark plan: show what the product actually does
 
-Owner: A (proposal) · for J and the team to review · status: **proposal, not implemented**
+Owner: A (proposal) · for J and the team to review · status: **Headline 1 has run in automatic form (v1)**; the rest is a proposal
+
+> **v1 result (automatic relevance; see [`results/search_benchmark_v1/`](../../results/search_benchmark_v1/search_benchmark_v1.md) and `search_benchmark.py`):**
+> - Setup: 18 frozen queries, 50 held-out regions, 170,454 squares.
+> - Precision@10 for the 1M OSM rotation: **0.340** (chance 0.105). EuroSAT rotation 0.302, 91k rotation 0.309.
+> - Open-vocabulary queries: **0.202** vs 0.142 (EuroSAT); chance 0.043.
+> - Paired, 1M minus EuroSAT: **+0.060** [+0.036, +0.084] on open-vocabulary queries; a tie on land cover.
+> - Relevance here is "mapped in OSM", which favours the OSM rotations; human judging (§2) is the next step.
 Builds on `benchmark.py` (J's fixed-data harness: B1–B4, controls, hashed eval files). That harness stays; this plan changes *what we measure* and *what we headline*.
 
 ## 1. Why the current numbers don't show merit
