@@ -1,6 +1,6 @@
 # Run Platonic Earth in Google Colab
 
-**Open:** [`colab/Platonic_Earth_backend.ipynb`](Platonic_Earth_backend.ipynb) in Colab (File → Open notebook → GitHub → `JohnPoole3rd/veritas`, branch `colab`), then choose *Runtime → Run all*.
+**Open:** [`colab/Platonic_Earth_backend.ipynb`](Platonic_Earth_backend.ipynb) in Colab (File → Open notebook → GitHub → `JohnPoole3rd/veritas`, branch `main`), then choose *Runtime → Run all*.
 
 It runs the real backend (`web/server.py`) and the website in Colab, using the **already-fitted OSM-Sentinel 1M rotation**. Nothing is trained.
 
@@ -14,7 +14,7 @@ It runs the real backend (`web/server.py`) and the website in Colab, using the *
 **Run it on your own computer instead:**
 
 ```sh
-git clone --branch colab https://github.com/JohnPoole3rd/veritas.git && cd veritas
+git clone --branch main https://github.com/JohnPoole3rd/veritas.git && cd veritas
 pip install -r requirements.txt
 python colab/prepare.py && python app.py --prefetch
 PE_ROTATION=colab/artifacts/osm_1m_rotation.npz python -m web.server --port 8000 --no-classic --online
