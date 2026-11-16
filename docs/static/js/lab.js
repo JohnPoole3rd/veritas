@@ -6,6 +6,9 @@ const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
 const S = {
   map: null, meta: null, box: null, boxName: null, when: "", region: null, climate: null, mode: "rgb",
   opacity: .8, match: null, matchLabel: "", selected: null, drawing: false, busy: false, classes: {}, estimateOk: false,
+  // grid selection (A): picks are analysed squares ("t:i", the server's own grid) or, outside an analysed area,
+  // 640 m planning cells ("c,r") on a fixed Web Mercator lattice of step gridStep
+  sel: new Map(), gridOn: false, gridStep: null, lastAsk: null,
 };
 const STORE = "pe-compare-v1";
 
@@ -53,10 +56,20 @@ function initMap() {
     map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", paint: { "fill-color": "#000", "fill-opacity": 0 } }, "labels");
     map.addLayer({ id: "tiles-line", type: "line", source: "tiles", paint: { "line-color": "#ffffff", "line-opacity": 0, "line-width": .5 } }, "labels");
     map.addLayer({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": "#ffd36b", "line-width": 3 } });
-    map.on("click", "tiles-fill", (e) => { if (!S.drawing && e.features?.[0]) selectTile(e.features[0].properties.i, false); });
-    map.on("mouseenter", "tiles-fill", () => { if (!S.drawing) map.getCanvas().style.cursor = "pointer"; });
-    map.on("mouseleave", "tiles-fill", () => { if (!S.drawing) map.getCanvas().style.cursor = ""; });
+    // grid selection: analysed squares outside the picked cells are dimmed
+    map.addLayer({ id: "tiles-out", type: "fill", source: "tiles", filter: ["==", ["get", "out"], 1],
+      paint: { "fill-color": "#0a120d", "fill-opacity": .62 } }, "labels");
+    map.addSource("grid", { type: "geojson", data: empty });
+    map.addSource("gsel", { type: "geojson", data: empty });
+    map.addLayer({ id: "grid-lines", type: "line", source: "grid", paint: { "line-color": "#eef3e6", "line-opacity": .22, "line-width": .6 } });
+    map.addLayer({ id: "gsel-fill", type: "fill", source: "gsel", paint: { "fill-color": "#d9ec7c", "fill-opacity": .16 } });
+    map.addLayer({ id: "gsel-line", type: "line", source: "gsel", paint: { "line-color": "#d9ec7c", "line-width": 1.4, "line-opacity": .9 } });
+    map.on("moveend", drawGrid);
+    map.on("click", "tiles-fill", (e) => { if (!S.drawing && !S.gridOn && e.features?.[0]) selectTile(e.features[0].properties.i, false); });
+    map.on("mouseenter", "tiles-fill", () => { if (!S.drawing && !S.gridOn) map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "tiles-fill", () => { if (!S.drawing && !S.gridOn) map.getCanvas().style.cursor = ""; });
     initDraw();
+    initGrid();
     initLayerSwitch();
     // open with Upper Arlington ready to go
     if (ua) { setBox(ua.bbox, ua.name, { fly: false }); if (ua.cached) setTimeout(run, 400); }
@@ -64,7 +77,8 @@ function initMap() {
 }
 const center = (b) => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
 
-function setBox(bbox, name, { fly = true } = {}) {
+function setBox(bbox, name, { fly = true, keepSel = false } = {}) {
+  if (!keepSel && S.sel.size) clearSel({ quiet: true });
   S.box = bbox.map((v) => +(+v).toFixed(5)); S.boxName = name || null;
   const [w, s, e, n] = S.box;
   S.map?.getSource("box")?.setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] } });
@@ -97,7 +111,7 @@ function initDraw() {
     canvas.style.cursor = on ? "crosshair" : "";
     on ? map.dragPan.disable() : map.dragPan.enable();
   };
-  btn.addEventListener("click", () => set(!S.drawing));
+  btn.addEventListener("click", () => { if (S.gridOn) setGrid(false); set(!S.drawing); });
   addEventListener("keydown", (e) => { if (e.key === "Escape" && S.drawing) { start = null; set(false); } });
   const ll = (e) => { const r = canvas.getBoundingClientRect(); return map.unproject([e.clientX - r.left, e.clientY - r.top]); };
   canvas.addEventListener("pointerdown", (e) => { if (!S.drawing) return; start = ll(e); canvas.setPointerCapture(e.pointerId); e.preventDefault(); });
@@ -187,6 +201,7 @@ async function run() {
     const region = await pollJob(job, add);
     S.region = region; S.climate = null; S.match = null; S.selected = null;
     loadRegion(region);
+    snapSel();
     add({ detail: "Measuring greenness and surface temperature" });
     const cj = await api(`api/region/${region.id}/climate`, { method: "POST" });
     S.climate = await pollJob(cj.job, add);
@@ -211,6 +226,7 @@ function tileFeatures() {
   const ref = new Map((c.stats?.refuges || []).map((p, k) => [p.i, k + 1]));
   let mmin = 0, mmax = 1;
   if (S.match) { mmin = S.match.min; mmax = S.match.max; }
+  const inside = selMask();
   return r.tiles.map((t) => {
     const [tl, tr, br, bl] = t.corners;
     const m = S.match ? (S.match.scores[t.i] - mmin) / ((mmax - mmin) || 1) : 0;
@@ -219,7 +235,7 @@ function tileFeatures() {
       geometry: { type: "Polygon", coordinates: [[tl, bl, br, tr, tl]] },
       properties: { i: t.i, cls: t.cls, color: S.classes[t.cls]?.color || "#888", valid: t.valid !== false,
         ndvi: ndvi[t.i] ?? null, lst: lst[t.i] ?? null, m: S.match && S.match.scores[t.i] != null ? m : -1,
-        pri: pri.get(t.i) || 0, ref: ref.get(t.i) || 0 },
+        pri: pri.get(t.i) || 0, ref: ref.get(t.i) || 0, out: inside && !inside[t.i] ? 1 : 0 },
     };
   });
 }
@@ -380,15 +396,17 @@ async function ask() {
   if (!S.region) { toast("Analyse an area first."); return; }
   if (!q) return;
   try {
+    S.lastAsk = { q };
     const r = await api(`api/region/${S.region.id}/search?q=${encodeURIComponent(q)}&k=8`);
-    showMatch(r, `“${q}”`);
+    showMatch(withinSel(r), `“${q}”`);
   } catch (e) { $("#ask-results").innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
 }
 function showMatch(r, label) {
   S.match = r; S.matchLabel = label.replace(/[“”]/g, "");
   $('#layer-switch button[data-layer="match"]').disabled = false;
   refreshTiles(); setMode("match");
-  $("#ask-results").innerHTML = `<div class="sec-title">Best matches for ${esc(label)} <span class="tag model">${term("cosine", "similarity")}</span></div>
+  const within = r.within ? `<div class="area-note">Only inside your ${r.within.cells} picked grid square${r.within.cells === 1 ? "" : "s"} · ${r.within.n} analysed square${r.within.n === 1 ? "" : "s"} searched</div>` : "";
+  $("#ask-results").innerHTML = `<div class="sec-title">Best matches for ${esc(label)} <span class="tag model">${term("cosine", "similarity")}</span></div>${within}
     <div class="list">${r.top.map((t, k) => { const tile = S.region.tiles[t.i]; return `<div class="li" data-i="${t.i}"><img src="api/region/${S.region.id}/tile/${t.i}.png" alt=""><div><div class="t">#${k + 1} · ${esc(S.classes[tile.cls]?.label || tile.cls)}</div><div class="d">${tileClimate(t.i)}</div></div><span class="badge cool">${t.score.toFixed(3)}</span></div>`; }).join("")}</div>`;
   const lst = S.climate?.lst?.tile;
   if (lst) {
@@ -425,12 +443,199 @@ function selectTile(i, fly) {
     <div class="actions"><button class="btn small" id="sim-btn">Find squares like this</button><button class="btn small ghost" id="copy-ll">Copy coordinates</button></div>
   </div>`;
   $("#sim-btn").addEventListener("click", async () => {
-    try { const s = await api(`api/region/${r.id}/similar?i=${i}&k=8`); showMatch(s, `like square #${i}`); switchTab("ask"); }
+    try { S.lastAsk = { i }; const s = await api(`api/region/${r.id}/similar?i=${i}&k=8`); showMatch(withinSel(s, i), `like square #${i}`); switchTab("ask"); }
     catch (e) { toast(e.message); }
   });
   $("#copy-ll").addEventListener("click", () => { navigator.clipboard?.writeText(`${t.center[1].toFixed(5)}, ${t.center[0].toFixed(5)}`); toast("Coordinates copied"); });
   if (!$('[data-pane="heat"]').classList.contains("on")) switchTab("ask");
   drawHeatScatter();
+}
+
+// ------------------------------------------------------------------ grid selection (A)
+// A 640 m grid over the whole map. Inside an analysed area the grid IS the analysed squares (picks snap to them);
+// elsewhere a 640 m planning lattice is drawn, and its picks snap onto real squares once the area is analysed.
+// The picks' extent becomes the study area, and Ask / "Find squares like this" rank only the picked squares.
+// Filtering happens here, on the full score list that both the live server and the static site return, so the
+// ranking is exactly the server's ranking restricted to the selection.
+const TILE_M = 640, R_WGS = 6378137, MAX_GRID_LINES = 320;
+const mercX = (lon) => R_WGS * lon * Math.PI / 180;
+const mercY = (lat) => R_WGS * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+const lonOf = (x) => x / R_WGS * 180 / Math.PI;
+const latOf = (y) => (2 * Math.atan(Math.exp(y / R_WGS)) - Math.PI / 2) * 180 / Math.PI;
+// lattice step in Web Mercator metres that is ~640 m on the ground at this latitude (fixed while cells are picked)
+const stepAt = (lat) => TILE_M / Math.cos(lat * Math.PI / 180);
+function step() { return S.gridStep ?? stepAt(S.map.getCenter().lat); }
+const cellOf = (lon, lat, s = step()) => [Math.floor(mercX(lon) / s), Math.floor(mercY(lat) / s)];
+const keyOf = (c, r) => `${c},${r}`;
+function cellRing(c, r, s = step()) {
+  const w = lonOf(c * s), e = lonOf((c + 1) * s), so = latOf(r * s), n = latOf((r + 1) * s);
+  return [[w, so], [e, so], [e, n], [w, n], [w, so]];
+}
+function drawGrid() {
+  const src = S.map?.getSource("grid"); if (!src) return;
+  const hint = $("#map-hint");
+  if (!S.gridOn) { src.setData({ type: "FeatureCollection", features: [] }); return; }
+  const s = step(), b = S.map.getBounds();
+  const c0 = Math.floor(mercX(b.getWest()) / s), c1 = Math.ceil(mercX(b.getEast()) / s);
+  const r0 = Math.floor(mercY(Math.max(b.getSouth(), -85)) / s), r1 = Math.ceil(mercY(Math.min(b.getNorth(), 85)) / s);
+  if (c1 - c0 + r1 - r0 > MAX_GRID_LINES) {
+    src.setData({ type: "FeatureCollection", features: [] });
+    hint.textContent = "Zoom in to see the 640 m grid"; hint.classList.remove("off");
+    return;
+  }
+  hint.textContent = "Click or drag to pick squares · drag from a picked square to erase · Esc when done";
+  hint.classList.remove("off");
+  const lines = [];
+  const W = lonOf(c0 * s), E = lonOf(c1 * s), So = latOf(r0 * s), N = latOf(r1 * s);
+  // inside the analysed area its own square outlines are the grid, so the planning lattice is clipped out there
+  const rb = regionBounds();
+  const seg = (a0, a1, lo, hi, mk) => {
+    if (!rb || lo == null) return lines.push([mk(a0), mk(a1)]);
+    if (a0 < lo) lines.push([mk(a0), mk(Math.min(a1, lo))]);
+    if (a1 > hi) lines.push([mk(Math.max(a0, hi)), mk(a1)]);
+  };
+  for (let c = c0; c <= c1; c++) { const x = lonOf(c * s), inside = rb && x > rb[0] && x < rb[2];
+    seg(So, N, inside ? rb[1] : null, inside ? rb[3] : null, (y) => [x, y]); }
+  for (let r = r0; r <= r1; r++) { const y = latOf(r * s), inside = rb && y > rb[1] && y < rb[3];
+    seg(W, E, inside ? rb[0] : null, inside ? rb[2] : null, (x) => [x, y]); }
+  src.setData({ type: "Feature", geometry: { type: "MultiLineString", coordinates: lines }, properties: {} });
+}
+function regionBounds() {
+  if (!S.region) return null;
+  const lons = S.region.corners.map((c) => c[0]), lats = S.region.corners.map((c) => c[1]);
+  return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+}
+// a pick's outline: an analysed square's own corners, or a planning cell
+function pickRing(p) {
+  if (p.i != null) {
+    const t = p.rid === S.region?.id ? S.region.tiles[p.i] : null;
+    if (!t) { const [lon, lat] = p.ll, s = step(); const [c, r] = cellOf(lon, lat, s); return cellRing(c, r, s); } // older analysis: show where it was
+    const [tl, tr, br, bl] = t.corners; return [tl, tr, br, bl, tl];
+  }
+  return cellRing(p.c, p.r);
+}
+function drawSel() {
+  S.map?.getSource("gsel")?.setData({ type: "FeatureCollection", features: [...S.sel.values()].map(pickRing).filter(Boolean)
+    .map((ring) => ({ type: "Feature", geometry: { type: "Polygon", coordinates: [ring] }, properties: {} })) });
+}
+function selBox() {
+  let w = Infinity, so = Infinity, e = -Infinity, n = -Infinity;
+  for (const p of S.sel.values()) for (const [x, y] of pickRing(p) || []) { w = Math.min(w, x); e = Math.max(e, x); so = Math.min(so, y); n = Math.max(n, y); }
+  return [w, so, e, n];
+}
+// true/false per square of the loaded region (picked directly, or centre inside a picked planning cell)
+function selMask() {
+  if (!S.sel.size || !S.region) return null;
+  return S.region.tiles.map((t, i) => (S.sel.get(`t:${i}`)?.rid === S.region.id) || S.sel.has(keyOf(...cellOf(t.center[0], t.center[1]))));
+}
+// after an analysis: every pick becomes the analysed square(s) at the same place, so outlines line up exactly.
+// Planning cells take the squares whose centre they contain; earlier squares (from a previous analysis, whose
+// numbering differs) take the new square nearest their old centre, if one is within ~half a square.
+function snapSel() {
+  if (!S.region || !S.sel.size) return;
+  const tiles = S.region.tiles, out = new Map();
+  const near = ([lon, lat]) => {
+    let best = -1, bd = Infinity;
+    const kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110574;
+    tiles.forEach((t, i) => { const d = Math.hypot((t.center[0] - lon) * kx, (t.center[1] - lat) * ky); if (d < bd) { bd = d; best = i; } });
+    return bd <= TILE_M * .5 ? best : -1;
+  };
+  for (const p of S.sel.values()) {
+    if (p.i != null) { const i = p.rid === S.region.id ? p.i : near(p.ll); if (i >= 0) out.set(`t:${i}`, { i, rid: S.region.id, ll: tiles[i].center }); }
+    else tiles.forEach((t, i) => { if (cellOf(t.center[0], t.center[1]).join() === `${p.c},${p.r}`) out.set(`t:${i}`, { i, rid: S.region.id, ll: t.center }); });
+  }
+  S.sel = out; selChanged();
+}
+// restrict a search/similar payload ({scores, top, min, max}) to the picked cells; same ranking rule as the server
+function withinSel(res, exclude = null) {
+  const inside = selMask();
+  if (!inside) return res;
+  const tiles = S.region.tiles, sc = res.scores;
+  const ok = tiles.map((t, i) => inside[i] && t.valid !== false && sc[i] != null && isFinite(sc[i]) && i !== exclude);
+  const idx = tiles.map((t, i) => i).filter((i) => ok[i]).sort((a, b) => sc[b] - sc[a] || a - b);
+  if (!idx.length) throw new Error("None of the analysed squares fall inside your picked grid squares. Pick squares inside the study area, or press “Analyse area”.");
+  const vals = idx.map((i) => sc[i]);
+  const k = Math.max(1, res.top?.length || 8);
+  return { ...res, scores: sc.map((v, i) => (inside[i] ? v : null)), top: idx.slice(0, k).map((i) => ({ i, score: +(+sc[i]).toFixed(3) })),
+    min: Math.min(...vals), max: Math.max(...vals),
+    within: { cells: S.sel.size, n: tiles.filter((t, i) => inside[i] && t.valid !== false).length } };
+}
+function regionCovers(b) {
+  if (!S.region) return false;
+  const lons = S.region.corners.map((c) => c[0]), lats = S.region.corners.map((c) => c[1]);
+  return b[0] >= Math.min(...lons) - 1e-9 && b[2] <= Math.max(...lons) + 1e-9 && b[1] >= Math.min(...lats) - 1e-9 && b[3] <= Math.max(...lats) + 1e-9;
+}
+let reAskT = null;
+function selChanged() {
+  const n = S.sel.size;
+  if (!n) S.gridStep = null;
+  drawSel();
+  $("#grid-sel").hidden = !n;
+  $("#grid-count").textContent = `${n} square${n === 1 ? "" : "s"}`;
+  drawGrid();
+  if (n) {
+    const b = selBox();
+    if (!regionCovers(b)) setBox(b, `${n} picked square${n === 1 ? "" : "s"}`, { fly: false, keepSel: true });
+  }
+  refreshTiles();
+  clearTimeout(reAskT); reAskT = setTimeout(reAsk, 200);
+}
+async function reAsk() {
+  if (!S.region || !S.lastAsk) return;
+  if (S.lastAsk.q != null) { $("#ask-q").value = S.lastAsk.q; await ask(); return; }
+  try { const s = await api(`api/region/${S.region.id}/similar?i=${S.lastAsk.i}&k=8`); showMatch(withinSel(s, S.lastAsk.i), `like square #${S.lastAsk.i}`); }
+  catch (e) { $("#ask-results").innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
+}
+function clearSel({ quiet = false } = {}) {
+  S.sel.clear(); S.gridStep = null; drawSel(); $("#grid-sel").hidden = true;
+  if (!quiet) { refreshTiles(); clearTimeout(reAskT); reAskT = setTimeout(reAsk, 0); }
+}
+function setGrid(on) {
+  S.gridOn = on;
+  const map = S.map, canvas = map.getCanvasContainer();
+  $("#grid-btn").classList.toggle("on", on);
+  canvas.style.cursor = on ? "cell" : "";
+  on ? map.dragPan.disable() : map.dragPan.enable();
+  if (!on) $("#map-hint").classList.add("off");
+  drawGrid();
+}
+function initGrid() {
+  const map = S.map, canvas = map.getCanvasContainer();
+  const maxCells = S.meta?.limits?.max_tiles || 400;
+  $("#grid-btn").addEventListener("click", () => {
+    if (S.drawing) $("#draw-btn").click();
+    if (!S.gridOn && map.getZoom() < 12) map.easeTo({ zoom: 12.5, duration: 700 });
+    setGrid(!S.gridOn);
+  });
+  $("#grid-clear").addEventListener("click", () => clearSel());
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && S.gridOn) setGrid(false); });
+  let painting = null; // "add" | "remove" while the pointer is down
+  // what is under the pointer: an analysed square if there is one, else a planning cell
+  const at = (e) => {
+    const r = canvas.getBoundingClientRect(), pt = [e.clientX - r.left, e.clientY - r.top];
+    const f = S.region && map.queryRenderedFeatures(pt, { layers: ["tiles-fill"] })[0];
+    if (f) { const i = +f.properties.i; return [`t:${i}`, { i, rid: S.region.id, ll: S.region.tiles[i].center }]; }
+    const p = map.unproject(pt), [c, rr] = cellOf(p.lng, p.lat);
+    return [keyOf(c, rr), { c, r: rr }];
+  };
+  const apply = ([k, pick]) => {
+    if (painting === "add" && !S.sel.has(k)) {
+      if (S.sel.size >= maxCells) { toast(`That is the limit of ${maxCells} squares.`); return; }
+      S.sel.set(k, pick);
+    } else if (painting === "remove") S.sel.delete(k);
+    drawSel();
+  };
+  canvas.addEventListener("pointerdown", (e) => {
+    if (!S.gridOn || e.button !== 0) return;
+    if (!S.sel.size) S.gridStep = stepAt(map.getCenter().lat); // freeze the lattice for this selection
+    const hit = at(e);
+    painting = S.sel.has(hit[0]) ? "remove" : "add";
+    apply(hit); canvas.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  canvas.addEventListener("pointermove", (e) => { if (S.gridOn && painting) apply(at(e)); });
+  const end = () => { if (!painting) return; painting = null; selChanged(); };
+  canvas.addEventListener("pointerup", end);
+  canvas.addEventListener("pointercancel", end);
 }
 
 // ------------------------------------------------------------------ compare across cities

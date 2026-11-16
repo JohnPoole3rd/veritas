@@ -169,7 +169,7 @@
     <h2 class="h2 reveal" style="margin-top:14px">An urban heat <em>field notebook</em> for any city.</h2>
     <p class="lede reveal">Draw a box anywhere. Get live satellite heat, greenness and land cover, plus where to plant first.</p>
     <ol class="howto reveal">
-      <li><b>1</b><span><strong>Pick a place.</strong> Click a city under “Study areas”, search one, or press “Draw area” and drag on the map.</span></li>
+      <li><b>1</b><span><strong>Pick a place.</strong> Click a city under “Study areas”, search one, press “Draw area” and drag on the map, or press “Grid” and click or drag across the 640 m squares you care about.</span></li>
       <li><b>2</b><span><strong>Press “Analyse area”.</strong> It downloads fresh satellite photos and reads them (about 20–60 s; saved places are instant).</span></li>
       <li><b>3</b><span><strong>Read the result.</strong> Red = hot. In “Plant first”, orange squares are hot with few trees: plant there. The Heat tab gives the numbers.</span></li>
     </ol>
@@ -194,6 +194,13 @@
           <button class="tool-btn" id="draw-btn" title="Drag on the map to draw a study area">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="3 3"/></svg>Draw area
           </button>
+          <button class="tool-btn" id="grid-btn" title="Show the 640 m grid and click or drag to pick the squares to search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 9.33h16M4 14.67h16M9.33 4v16M14.67 4v16"/></svg>Grid
+          </button>
+          <div class="tool-btn grid-sel" id="grid-sel" hidden>
+            <span id="grid-count">0 squares</span>
+            <button type="button" id="grid-clear" title="Clear the selected squares">Clear</button>
+          </div>
           <label class="tool-btn" title="Which summer to use">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
             <select id="when-sel" aria-label="Imagery year"><option value="">Latest clear pass</option></select>
@@ -240,7 +247,7 @@
           <div class="tabpane" data-pane="heat"><div class="empty">Analyse an area to measure heat and greenness.</div></div>
           <div class="tabpane" data-pane="cover"><div class="empty">Analyse an area to see its land cover.</div></div>
           <div class="tabpane" data-pane="ask">
-            <p class="explain" style="margin-top:0">Search in words, or click a square on the map.</p>
+            <p class="explain" style="margin-top:0">Search in words, or click a square on the map. With squares picked on the <b>Grid</b>, only those squares are ranked.</p>
             <form class="inline-search" id="ask-form" style="margin-top:12px">
               <label class="sr" for="ask-q">Search this area</label>
               <input id="ask-q" placeholder="parking lots and big roofs" autocomplete="off">
