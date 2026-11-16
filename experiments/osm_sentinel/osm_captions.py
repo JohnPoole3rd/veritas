@@ -395,7 +395,9 @@ def _finish_caption(
         counts[density] += 1
         weights[density] = max(weights[density], 1.0)
 
-    present = set(counts)
+    # Keep tie-breaking deterministic across processes: set iteration order
+    # depends on PYTHONHASHSEED.
+    present = sorted(counts)
     area_candidates = [
         p for p in present
         if p in AREA_SUBJECTS and weights[p] >= 0.01
@@ -405,7 +407,7 @@ def _finish_caption(
     elif "dense buildings" in present:
         primary = "dense buildings"
     else:
-        primary = max(counts, key=lambda p: (weights[p], counts[p]))
+        primary = max(present, key=lambda p: (weights[p], counts[p]))
     if primary == "buildings" and building_count >= 25:
         primary = "dense buildings"
 

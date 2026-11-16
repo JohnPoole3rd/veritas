@@ -497,8 +497,6 @@ def test_main_per_region_rng_is_independent_of_other_regions(world, tmp_path):
     assert alone == together and len(alone) == 10
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: region_status 'attempted' ignores a raised --chips-per-region; "
-                                        "see the proposed patch in the agent-5 review")
 def test_main_raising_chips_per_region_resumes_attempted_regions(world):
     world.run(cap=5)
     assert world.check_consistent(5) == {"r_a": 5, "r_b": 5, "r_c": 5}

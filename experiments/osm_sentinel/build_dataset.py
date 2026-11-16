@@ -966,8 +966,12 @@ def main() -> None:
         st = region_status.get(rid, {})
         if per_region[rid] >= cap:
             continue  # quota already in the manifest: no STAC/OSM/scene I/O on resume
-        if st.get("policy") == SCENE_POLICY and st.get("attempted"):
-            continue  # already tried every cell with the current scene policy
+        if (
+            st.get("policy") == SCENE_POLICY
+            and st.get("attempted")
+            and int(st.get("cap", 0)) >= cap
+        ):
+            continue  # already tried every cell with the current scene policy at this cap
         todo.append(region)
     print(f"[resume] {len(regions) - len(todo)} regions complete or already attempted; {len(todo)} to process",
           flush=True)
