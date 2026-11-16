@@ -574,6 +574,17 @@ its fit saw the test rows, so it must not be used for held-out benchmark numbers
 The `.npz` metadata records the row count, regions, countries, encoders, device, and SHA-256 is
 printed after writing.
 
+Publish the tracked deployment copy after verifying the metadata:
+
+```sh
+cp artifacts/alignment/osm_sentinel_dinov2-small_all_data.npz \
+  colab/artifacts/osm_1m_rotation.npz
+sha256sum colab/artifacts/osm_1m_rotation.npz
+```
+
+Update `colab/prepare.py` and the Colab notebook with that SHA-256. Do not report this all-data
+artifact as held-out performance.
+
 ## 7. What to report
 
 The authoritative 64 px run writes:

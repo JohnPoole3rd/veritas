@@ -42,7 +42,7 @@ From `~/agent_chat/share/bench/*.json` on john-pc:
 - **Models compared** (same places, same queries):
   1. **Chance:** the share of matching squares in the area. A random top-10 equals the base rate, which we estimate from the judged pool.
   2. **EuroSAT rotation:** our original model (`artifacts/alignment/procrustes.npz`).
-  3. **OSM-Sentinel 1M rotation:** the product (`colab/artifacts/osm_1m_rotation.npz`, sha `a47275412f7a`).
+  3. **OSM-Sentinel 1M rotation:** the production artifact (`colab/artifacts/osm_1m_rotation.npz`, sha `358c5b94aa58`). The v1 result below was measured with the earlier 829k benchmark rotation (`a47275412f7a`); the production rotation includes all 1M rows and is not a held-out benchmark model.
   4. *(optional)* the 91k rotation, to show whether scale helped.
 - **Land-cover-map baseline** (in-vocabulary queries only): rank squares by the ESA WorldCover share of the matching class. For open-vocabulary queries WorldCover **cannot answer at all**. We show that as "n/a" on purpose, because it is our merit.
 

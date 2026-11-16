@@ -117,12 +117,39 @@ python -m web.build_static      # docs/ (GitHub Pages copy), from the real serve
 python scripts/sync_docs.py     # README + WRITEUP number blocks
 ```
 
+## OSM-Sentinel training system
+
+The **any city** search uses the production OSM-Sentinel rotation, not the EuroSAT rotation:
+
+```text
+colab/artifacts/osm_1m_rotation.npz
+SHA-256 358c5b94aa58708bc73d935c6ae82656c1ce05d51be9bb15e8a67ab88b1f699d
+```
+
+It was fitted on **1,000,000 captioned Sentinel-2 chips** from 331 regions and includes all splits.
+This is the deployment rotation; it is not a held-out benchmark rotation. The training and data
+pipeline lives in [`experiments/osm_sentinel/`](experiments/osm_sentinel/) and is documented in
+[`RUNBOOK.md`](experiments/osm_sentinel/RUNBOOK.md). The production fit command is:
+
+```sh
+python experiments/osm_sentinel/train_rotation.py \
+  --data data/raw/osm_sentinel_1m_640 \
+  --out artifacts/alignment/osm_sentinel_dinov2-small_all_data.npz \
+  --tag all_data --device cuda --dtype fp16 \
+  --batch-size 512 --num-workers 12
+```
+
+After training, publish the checked [`colab/artifacts/osm_1m_rotation.npz`](colab/artifacts/osm_1m_rotation.npz)
+and update the checksum in `colab/prepare.py` and the Colab notebook. `artifacts/alignment/` is a
+working directory and is ignored by git.
+
 ## Repo map
 
 | Path | What |
 |---|---|
 | `src/` | Data, captions, encoders, Procrustes alignment, retrieval, baselines, evaluation |
 | `scripts/` | Runnable pipeline: data → embeddings → rotation → evaluation; `sync_docs.py` |
+| `experiments/osm_sentinel/` | Production OSM-Sentinel data build and all-data rotation training |
 | `artifacts/metrics/` | Every logged result (CSV / JSON) |
 | `artifacts/figures/` | Failure gallery, confusion matrices |
 | `data/local_tiles/` | The 50 Upper Arlington tiles and their labels |

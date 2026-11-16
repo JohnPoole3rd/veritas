@@ -1,6 +1,6 @@
-# Experiment 6 — OSM-captioned Sentinel-2 training
+# OSM-Sentinel training system
 
-**Owner:** J + A experiment branch · **Branch:** `aj/exp-osm-sentinel` · **Status:** implementation + smoke test
+**Status:** production training pipeline · **Production entrypoint:** `train_rotation.py`
 
 **Question:** does training the rotation on real, globally sampled Sentinel-2 chips captioned from
 OpenStreetMap beat EuroSAT template captions, especially outside Upper Arlington?
@@ -123,7 +123,19 @@ same source extract.
 
 ### DINOv2
 
-The experiment uses the same public DINOv2-small encoder as the main project:
+The pipeline uses the same public DINOv2-small encoder as the main project. The production
+all-data rotation is fitted with `train_rotation.py`; `train.py` remains the evaluation/held-out
+snapshot trainer:
+
+```sh
+python experiments/osm_sentinel/train_rotation.py \
+  --data data/raw/osm_sentinel_1m_640 \
+  --out artifacts/alignment/osm_sentinel_dinov2-small_all_data.npz \
+  --tag all_data --device cuda --dtype fp16 \
+  --batch-size 512 --num-workers 12
+```
+
+To reproduce an evaluation snapshot with held-out metrics:
 
 ```sh
 python experiments/osm_sentinel/train.py
@@ -132,7 +144,7 @@ python experiments/osm_sentinel/train.py
 DINOv2 is Apache-2.0 and downloads automatically through `transformers`; no gate, token, or
 manual checkpoint path is needed. Use `--device` and `--dtype` for the hardware path.
 
-The OSM experiment reports:
+The training/evaluation reports:
 
 - held-out **caption→image recall@1/@10** (secondary: exact-chip retrieval is hard because many chips
   share the same caption);
@@ -147,6 +159,10 @@ Outputs for `--tag full_1m_640`:
 - `experiments/osm_sentinel/results_dinov2-small_full_1m_640.json`
 - `artifacts/alignment/osm_sentinel_dinov2-small_full_1m_640.npz` (gitignored)
 - `artifacts/embeddings/osm_sentinel/dinov2-small_full_1m_640_*.npy` (gitignored cache)
+
+The production all-data run writes `artifacts/alignment/osm_sentinel_dinov2-small_all_data.npz`
+(gitignored). Publish it to `colab/artifacts/osm_1m_rotation.npz` only through the release steps in
+the RUNBOOK.
 
 Use a distinct `--tag` per build (for example `full_1m_640`) so the 1M run cannot overwrite the
 77k or old 128 px artifacts.
