@@ -9,6 +9,7 @@ const S = {
   // grid selection (A): picks are analysed squares ("t:i", the server's own grid) or, outside an analysed area,
   // 640 m planning cells ("c,r") on a fixed Web Mercator lattice of step gridStep
   sel: new Map(), gridOn: false, gridStep: null, lastAsk: null,
+  circle: null, radiusOn: false, // radius (A): {lat, lon, r} in metres; fills the grid selection
 };
 const STORE = "pe-compare-v1";
 
@@ -64,12 +65,16 @@ function initMap() {
     map.addLayer({ id: "grid-lines", type: "line", source: "grid", paint: { "line-color": "#eef3e6", "line-opacity": .22, "line-width": .6 } });
     map.addLayer({ id: "gsel-fill", type: "fill", source: "gsel", paint: { "fill-color": "#d9ec7c", "fill-opacity": .16 } });
     map.addLayer({ id: "gsel-line", type: "line", source: "gsel", paint: { "line-color": "#d9ec7c", "line-width": 1.4, "line-opacity": .9 } });
+    map.addSource("circle", { type: "geojson", data: empty });
+    map.addLayer({ id: "circle-line", type: "line", source: "circle", filter: ["==", ["geometry-type"], "Polygon"], paint: { "line-color": "#d9ec7c", "line-width": 2, "line-dasharray": [2, 1.5] } });
+    map.addLayer({ id: "circle-dot", type: "circle", source: "circle", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 4.5, "circle-color": "#d9ec7c", "circle-stroke-color": "#0a120d", "circle-stroke-width": 2 } });
     map.on("moveend", drawGrid);
-    map.on("click", "tiles-fill", (e) => { if (!S.drawing && !S.gridOn && e.features?.[0]) selectTile(e.features[0].properties.i, false); });
+    map.on("click", "tiles-fill", (e) => { if (!S.drawing && !S.gridOn && !S.radiusOn && e.features?.[0]) selectTile(e.features[0].properties.i, false); });
     map.on("mouseenter", "tiles-fill", () => { if (!S.drawing && !S.gridOn) map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "tiles-fill", () => { if (!S.drawing && !S.gridOn) map.getCanvas().style.cursor = ""; });
     initDraw();
     initGrid();
+    initRadius();
     initLayerSwitch();
     // open with Upper Arlington ready to go
     if (ua) { setBox(ua.bbox, ua.name, { fly: false }); if (ua.cached) setTimeout(run, 400); }
@@ -532,6 +537,7 @@ function selMask() {
 // Planning cells take the squares whose centre they contain; earlier squares (from a previous analysis, whose
 // numbering differs) take the new square nearest their old centre, if one is within ~half a square.
 function snapSel() {
+  if (S.circle && S.region) { fillCircle(); return; }
   if (!S.region || !S.sel.size) return;
   const tiles = S.region.tiles, out = new Map();
   const near = ([lon, lat]) => {
@@ -560,10 +566,12 @@ function withinSel(res, exclude = null) {
     min: Math.min(...vals), max: Math.max(...vals),
     within: { cells: S.sel.size, n: tiles.filter((t, i) => inside[i] && t.valid !== false).length } };
 }
-function regionCovers(b) {
+// does the analysed area cover box b? tolM forgives a margin (the server snaps areas to the satellite grid)
+function regionCovers(b, tolM = 0) {
   if (!S.region) return false;
   const lons = S.region.corners.map((c) => c[0]), lats = S.region.corners.map((c) => c[1]);
-  return b[0] >= Math.min(...lons) - 1e-9 && b[2] <= Math.max(...lons) + 1e-9 && b[1] >= Math.min(...lats) - 1e-9 && b[3] <= Math.max(...lats) + 1e-9;
+  const ty = tolM / 110574, tx = tolM / (111320 * Math.cos((b[1] + b[3]) / 2 * Math.PI / 180)) + 1e-9;
+  return b[0] >= Math.min(...lons) - tx && b[2] <= Math.max(...lons) + tx && b[1] >= Math.min(...lats) - ty - 1e-9 && b[3] <= Math.max(...lats) + ty + 1e-9;
 }
 let reAskT = null;
 function selChanged() {
@@ -575,7 +583,9 @@ function selChanged() {
   drawGrid();
   if (n) {
     const b = selBox();
-    if (!regionCovers(b)) setBox(b, `${n} picked square${n === 1 ? "" : "s"}`, { fly: false, keepSel: true });
+    const name = S.circle ? `Within ${kmText(S.circle.r)} of ${S.circle.lat.toFixed(3)}°, ${S.circle.lon.toFixed(3)}°` : `${n} picked square${n === 1 ? "" : "s"}`;
+    const picksAreSquares = [...S.sel.keys()].every((k) => k.startsWith("t:"));
+    if (!(picksAreSquares && regionCovers(b, TILE_M))) setBox(b, name, { fly: false, keepSel: true });
   }
   refreshTiles();
   clearTimeout(reAskT); reAskT = setTimeout(reAsk, 200);
@@ -588,6 +598,7 @@ async function reAsk() {
 }
 function clearSel({ quiet = false } = {}) {
   S.sel.clear(); S.gridStep = null; drawSel(); $("#grid-sel").hidden = true;
+  S.circle = null; drawCircle(); $("#radius-ctl").hidden = true;
   if (!quiet) { refreshTiles(); clearTimeout(reAskT); reAskT = setTimeout(reAsk, 0); }
 }
 function setGrid(on) {
@@ -604,6 +615,7 @@ function initGrid() {
   const maxCells = S.meta?.limits?.max_tiles || 400;
   $("#grid-btn").addEventListener("click", () => {
     if (S.drawing) $("#draw-btn").click();
+    if (S.radiusOn) setRadiusMode(false);
     if (!S.gridOn && map.getZoom() < 12) map.easeTo({ zoom: 12.5, duration: 700 });
     setGrid(!S.gridOn);
   });
@@ -629,6 +641,7 @@ function initGrid() {
     if (!S.gridOn || e.button !== 0) return;
     if (!S.sel.size) S.gridStep = stepAt(map.getCenter().lat); // freeze the lattice for this selection
     const hit = at(e);
+    if (S.circle) { S.circle = null; drawCircle(); $("#radius-ctl").hidden = true; } // hand edits replace the circle
     painting = S.sel.has(hit[0]) ? "remove" : "add";
     apply(hit); canvas.setPointerCapture(e.pointerId); e.preventDefault();
   });
@@ -636,6 +649,92 @@ function initGrid() {
   const end = () => { if (!painting) return; painting = null; selChanged(); };
   canvas.addEventListener("pointerup", end);
   canvas.addEventListener("pointercancel", end);
+}
+
+// ------------------------------------------------------------------ radius (A)
+// A circle anywhere on Earth: every 640 m square whose centre lies within r of the point becomes the selection.
+// Inside an analysed area those are the analysed squares; elsewhere planning cells, whose extent becomes the
+// study area for "Analyse area" (radius up to 6 km keeps it under the 400-square limit).
+const R_EARTH = 6371008.8;
+const kmText = (m) => `${parseFloat((m / 1000).toFixed(2))} km`;
+function distM(lat1, lon1, lat2, lon2) {
+  const p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180, dp = p2 - p1, dl = (lon2 - lon1) * Math.PI / 180;
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return 2 * R_EARTH * Math.asin(Math.sqrt(Math.min(1, h)));
+}
+function circleRing({ lat, lon, r }, n = 96) {
+  const pts = [], d = r / R_EARTH, p1 = lat * Math.PI / 180, l1 = lon * Math.PI / 180;
+  for (let k = 0; k <= n; k++) {
+    const b = 2 * Math.PI * k / n;
+    const p2 = Math.asin(Math.sin(p1) * Math.cos(d) + Math.cos(p1) * Math.sin(d) * Math.cos(b));
+    const l2 = l1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(p1), Math.cos(d) - Math.sin(p1) * Math.sin(p2));
+    pts.push([l2 * 180 / Math.PI, p2 * 180 / Math.PI]);
+  }
+  return pts;
+}
+function drawCircle() {
+  const src = S.map?.getSource("circle"); if (!src) return;
+  src.setData(!S.circle ? { type: "FeatureCollection", features: [] } : { type: "FeatureCollection", features: [
+    { type: "Feature", geometry: { type: "Polygon", coordinates: [circleRing(S.circle)] }, properties: {} },
+    { type: "Feature", geometry: { type: "Point", coordinates: [S.circle.lon, S.circle.lat] }, properties: {} }] });
+}
+// the selection = squares whose centre is inside the circle (analysed squares if the analysed area covers it)
+function fillCircle() {
+  const c = S.circle; if (!c) return;
+  S.sel = new Map();
+  const dy = c.r / 110574, dx = c.r / (111320 * Math.cos(c.lat * Math.PI / 180));
+  const box = [c.lon - dx, c.lat - dy, c.lon + dx, c.lat + dy];
+  if (S.region && regionCovers(box, TILE_M)) {
+    S.region.tiles.forEach((t, i) => { if (distM(c.lat, c.lon, t.center[1], t.center[0]) <= c.r) S.sel.set(`t:${i}`, { i, rid: S.region.id, ll: t.center }); });
+  } else {
+    S.gridStep = stepAt(c.lat);
+    const s = S.gridStep, [c0, r0] = cellOf(box[0], box[1], s), [c1, r1] = cellOf(box[2], box[3], s);
+    for (let cc = c0; cc <= c1; cc++) for (let rr = r0; rr <= r1; rr++) {
+      const lon = lonOf((cc + .5) * s), lat = latOf((rr + .5) * s);
+      if (distM(c.lat, c.lon, lat, lon) <= c.r) S.sel.set(keyOf(cc, rr), { c: cc, r: rr });
+    }
+  }
+  drawCircle();
+  $("#radius-ctl").hidden = false;
+  $("#radius-val").textContent = kmText(c.r);
+  selChanged();
+}
+function setRadiusMode(on) {
+  S.radiusOn = on;
+  $("#radius-btn").classList.toggle("on", on);
+  const canvas = S.map.getCanvasContainer();
+  canvas.style.cursor = on ? "crosshair" : (S.gridOn ? "cell" : "");
+  const hint = $("#map-hint");
+  if (on) { hint.textContent = "Click anywhere to move the circle · set the distance with the slider · Esc when done"; hint.classList.remove("off"); }
+  else if (!S.gridOn) hint.classList.add("off");
+}
+function initRadius() {
+  const map = S.map, slider = $("#radius-km");
+  $("#radius-btn").addEventListener("click", () => {
+    if (S.drawing) $("#draw-btn").click();
+    if (S.gridOn) setGrid(false);
+    if (S.radiusOn) { setRadiusMode(false); return; }
+    setRadiusMode(true);
+    if (!S.circle) {
+      const c = map.getCenter();
+      S.circle = { lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), r: +slider.value * 1000 };
+      fillCircle();
+      const b = selBox();
+      map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: { top: 90, bottom: 110, left: 60, right: 220 }, duration: 900, maxZoom: 13.5 });
+    }
+  });
+  map.on("click", (e) => {
+    if (!S.radiusOn) return;
+    S.circle = { lat: +e.lngLat.lat.toFixed(5), lon: +e.lngLat.lng.toFixed(5), r: +slider.value * 1000 };
+    fillCircle();
+  });
+  slider.addEventListener("input", () => {
+    $("#radius-val").textContent = kmText(+slider.value * 1000);
+    if (!S.circle) return;
+    S.circle = { ...S.circle, r: +slider.value * 1000 };
+    fillCircle();
+  });
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && S.radiusOn) setRadiusMode(false); });
 }
 
 // ------------------------------------------------------------------ compare across cities

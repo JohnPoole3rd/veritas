@@ -228,7 +228,11 @@ class RealBackend:
         self.root = root
         self.config = CONFIG
         art = root / "artifacts"
-        self.params = load_procrustes(art / "alignment" / "procrustes.npz")
+        # PE_ROTATION (A): load another fitted rotation with the same format, e.g. the OSM-Sentinel 1M fit
+        # (colab/artifacts/osm_1m_rotation.npz). Unset = the EuroSAT rotation, exactly as before.
+        rot_path = rotation_path(root)
+        self.params = load_procrustes(rot_path)
+        self.rotation = rotation_info(rot_path, root)
 
         split = json.loads((root / "data" / "splits" / "test.json").read_text())
         X = np.load(art / "embeddings" / "dinov2_test.npy")
@@ -325,6 +329,31 @@ class RealBackend:
         return [(self.class_names[i], float(scores[i])) for i in order]
 
 
+def rotation_path(root: Path = REPO_ROOT) -> Path:
+    """The rotation to load: $PE_ROTATION (absolute, or relative to the repo) or the EuroSAT default."""
+    env = os.environ.get("PE_ROTATION", "").strip()
+    if not env:
+        return root / "artifacts" / "alignment" / "procrustes.npz"
+    p = Path(env)
+    return p if p.is_absolute() else root / p
+
+
+def rotation_info(path: Path, root: Path = REPO_ROOT) -> dict:
+    """Which rotation is loaded: file, sha256 (first 12) and what it was fitted on, from its metadata."""
+    data = path.read_bytes()
+    info = {"file": str(path.relative_to(root)) if path.is_relative_to(root) else str(path),
+            "sha256": hashlib.sha256(data).hexdigest()[:12],
+            "default": path.resolve() == (root / "artifacts" / "alignment" / "procrustes.npz").resolve()}
+    try:
+        meta = json.loads(str(np.load(path)["metadata"]))
+        n = meta.get("n_fit") or meta.get("train_n")
+        info["n_fit"] = int(n) if n is not None else None
+        info["fit_data"] = "EuroSAT" if info["default"] else ("OSM-Sentinel" if meta.get("tag") or meta.get("fit_split") else None)
+    except Exception:
+        info["n_fit"], info["fit_data"] = None, None
+    return info
+
+
 REQUIRED_ARTIFACTS = [
     "artifacts/alignment/procrustes.npz",
     "artifacts/embeddings/dinov2_test.npy",
@@ -335,7 +364,10 @@ REQUIRED_ARTIFACTS = [
 
 
 def load_backend(root: Path = REPO_ROOT, force_mock: bool = False):
-    missing = [p for p in REQUIRED_ARTIFACTS if not (root / p).exists()]
+    required = [p for p in REQUIRED_ARTIFACTS if not (os.environ.get("PE_ROTATION") and p.endswith("procrustes.npz"))]
+    missing = [p for p in required if not (root / p).exists()]
+    if os.environ.get("PE_ROTATION") and not rotation_path(root).exists():
+        missing.append(str(rotation_path(root)))
     if force_mock or missing:
         if missing and not force_mock:
             print(f"[demo] MOCK mode — missing artifacts: {', '.join(missing)}")

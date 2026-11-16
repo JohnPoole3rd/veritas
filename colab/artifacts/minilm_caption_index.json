@@ -1,0 +1,202 @@
+{
+  "0": {
+    "caption_id": "annualcrop_01",
+    "label": "AnnualCrop"
+  },
+  "1": {
+    "caption_id": "annualcrop_02",
+    "label": "AnnualCrop"
+  },
+  "2": {
+    "caption_id": "annualcrop_03",
+    "label": "AnnualCrop"
+  },
+  "3": {
+    "caption_id": "annualcrop_04",
+    "label": "AnnualCrop"
+  },
+  "4": {
+    "caption_id": "annualcrop_05",
+    "label": "AnnualCrop"
+  },
+  "5": {
+    "caption_id": "forest_01",
+    "label": "Forest"
+  },
+  "6": {
+    "caption_id": "forest_02",
+    "label": "Forest"
+  },
+  "7": {
+    "caption_id": "forest_03",
+    "label": "Forest"
+  },
+  "8": {
+    "caption_id": "forest_04",
+    "label": "Forest"
+  },
+  "9": {
+    "caption_id": "forest_05",
+    "label": "Forest"
+  },
+  "10": {
+    "caption_id": "herbaceousvegetation_01",
+    "label": "HerbaceousVegetation"
+  },
+  "11": {
+    "caption_id": "herbaceousvegetation_02",
+    "label": "HerbaceousVegetation"
+  },
+  "12": {
+    "caption_id": "herbaceousvegetation_03",
+    "label": "HerbaceousVegetation"
+  },
+  "13": {
+    "caption_id": "herbaceousvegetation_04",
+    "label": "HerbaceousVegetation"
+  },
+  "14": {
+    "caption_id": "herbaceousvegetation_05",
+    "label": "HerbaceousVegetation"
+  },
+  "15": {
+    "caption_id": "highway_01",
+    "label": "Highway"
+  },
+  "16": {
+    "caption_id": "highway_02",
+    "label": "Highway"
+  },
+  "17": {
+    "caption_id": "highway_03",
+    "label": "Highway"
+  },
+  "18": {
+    "caption_id": "highway_04",
+    "label": "Highway"
+  },
+  "19": {
+    "caption_id": "highway_05",
+    "label": "Highway"
+  },
+  "20": {
+    "caption_id": "industrial_01",
+    "label": "Industrial"
+  },
+  "21": {
+    "caption_id": "industrial_02",
+    "label": "Industrial"
+  },
+  "22": {
+    "caption_id": "industrial_03",
+    "label": "Industrial"
+  },
+  "23": {
+    "caption_id": "industrial_04",
+    "label": "Industrial"
+  },
+  "24": {
+    "caption_id": "industrial_05",
+    "label": "Industrial"
+  },
+  "25": {
+    "caption_id": "pasture_01",
+    "label": "Pasture"
+  },
+  "26": {
+    "caption_id": "pasture_02",
+    "label": "Pasture"
+  },
+  "27": {
+    "caption_id": "pasture_03",
+    "label": "Pasture"
+  },
+  "28": {
+    "caption_id": "pasture_04",
+    "label": "Pasture"
+  },
+  "29": {
+    "caption_id": "pasture_05",
+    "label": "Pasture"
+  },
+  "30": {
+    "caption_id": "permanentcrop_01",
+    "label": "PermanentCrop"
+  },
+  "31": {
+    "caption_id": "permanentcrop_02",
+    "label": "PermanentCrop"
+  },
+  "32": {
+    "caption_id": "permanentcrop_03",
+    "label": "PermanentCrop"
+  },
+  "33": {
+    "caption_id": "permanentcrop_04",
+    "label": "PermanentCrop"
+  },
+  "34": {
+    "caption_id": "permanentcrop_05",
+    "label": "PermanentCrop"
+  },
+  "35": {
+    "caption_id": "residential_01",
+    "label": "Residential"
+  },
+  "36": {
+    "caption_id": "residential_02",
+    "label": "Residential"
+  },
+  "37": {
+    "caption_id": "residential_03",
+    "label": "Residential"
+  },
+  "38": {
+    "caption_id": "residential_04",
+    "label": "Residential"
+  },
+  "39": {
+    "caption_id": "residential_05",
+    "label": "Residential"
+  },
+  "40": {
+    "caption_id": "river_01",
+    "label": "River"
+  },
+  "41": {
+    "caption_id": "river_02",
+    "label": "River"
+  },
+  "42": {
+    "caption_id": "river_03",
+    "label": "River"
+  },
+  "43": {
+    "caption_id": "river_04",
+    "label": "River"
+  },
+  "44": {
+    "caption_id": "river_05",
+    "label": "River"
+  },
+  "45": {
+    "caption_id": "sealake_01",
+    "label": "SeaLake"
+  },
+  "46": {
+    "caption_id": "sealake_02",
+    "label": "SeaLake"
+  },
+  "47": {
+    "caption_id": "sealake_03",
+    "label": "SeaLake"
+  },
+  "48": {
+    "caption_id": "sealake_04",
+    "label": "SeaLake"
+  },
+  "49": {
+    "caption_id": "sealake_05",
+    "label": "SeaLake"
+  }
+}

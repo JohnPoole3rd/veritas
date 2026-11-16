@@ -368,6 +368,12 @@ section { position: relative; }
 .tool-btn:hover:not(.on) { background: rgba(30, 48, 37, .9); }
 .tool-btn select { background: transparent; border: 0; color: inherit; outline: none; cursor: pointer; }
 .tool-btn select option { color: #13251a; }
+/* search radius (A): same frosted pill as the other map tools */
+.radius-ctl { gap: 8px; cursor: default; }
+.radius-ctl[hidden] { display: none; }
+.radius-ctl label { font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; opacity: .75; }
+.radius-ctl input[type="range"] { width: 110px; accent-color: var(--sprout); cursor: pointer; }
+.radius-ctl output { font: 500 12px/1 var(--mono); min-width: 44px; color: var(--sprout); }
 /* grid selection (A): the count + Clear sit in the same frosted pill as the other map tools */
 .grid-sel { gap: 10px; cursor: default; font: 500 12px/1 var(--mono); }
 .grid-sel[hidden] { display: none; }

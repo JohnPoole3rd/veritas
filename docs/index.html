@@ -169,7 +169,7 @@
     <h2 class="h2 reveal" style="margin-top:14px">An urban heat <em>field notebook</em> for any city.</h2>
     <p class="lede reveal">Draw a box anywhere. Get live satellite heat, greenness and land cover, plus where to plant first.</p>
     <ol class="howto reveal">
-      <li><b>1</b><span><strong>Pick a place.</strong> Click a city under “Study areas”, search one, press “Draw area” and drag on the map, or press “Grid” and click or drag across the 640 m squares you care about.</span></li>
+      <li><b>1</b><span><strong>Pick a place.</strong> Click a city under “Study areas”, search one, press “Draw area” and drag on the map, press “Grid” and click or drag across the 640 m squares you care about, or press “Radius” to take every square within a set distance of a point.</span></li>
       <li><b>2</b><span><strong>Press “Analyse area”.</strong> It downloads fresh satellite photos and reads them (about 20–60 s; saved places are instant).</span></li>
       <li><b>3</b><span><strong>Read the result.</strong> Red = hot. In “Plant first”, orange squares are hot with few trees: plant there. The Heat tab gives the numbers.</span></li>
     </ol>
@@ -197,6 +197,14 @@
           <button class="tool-btn" id="grid-btn" title="Show the 640 m grid and click or drag to pick the squares to search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 9.33h16M4 14.67h16M9.33 4v16M14.67 4v16"/></svg>Grid
           </button>
+          <button class="tool-btn" id="radius-btn" title="Search within a distance of a point: places a circle at the map centre, then click anywhere to move it">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>Radius
+          </button>
+          <div class="tool-btn radius-ctl" id="radius-ctl" hidden>
+            <label for="radius-km">within</label>
+            <input type="range" id="radius-km" min="0.5" max="6" step="0.25" value="2">
+            <output id="radius-val" for="radius-km">2 km</output>
+          </div>
           <div class="tool-btn grid-sel" id="grid-sel" hidden>
             <span id="grid-count">0 squares</span>
             <button type="button" id="grid-clear" title="Clear the selected squares">Clear</button>

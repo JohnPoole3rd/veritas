@@ -402,6 +402,7 @@ class Server:
         m["limits"] = {"max_tiles": MAX_TILES, "tile_m": int(geo.TILE_M), "tile_px": geo.TILE_PX}
         m["presets"] = [dict(p, cached=geo.cached_region_for_bbox(p["bbox"]) is not None) for p in PRESETS]
         m["geo_available"] = geo.available()
+        m["rotation"] = getattr(self.backend, "rotation", None)
         return m
 
     # -- jobs ---------------------------------------------------------------
@@ -447,7 +448,11 @@ class Server:
 
     # -- regions ------------------------------------------------------------
     def _suffix(self) -> str:
-        return "" if self.mode == "REAL" else f".{self.mode.lower()}"
+        if self.mode != "REAL":
+            return f".{self.mode.lower()}"
+        rot = getattr(self.backend, "rotation", None) or {}
+        # labels depend on the rotation: a non-default rotation gets its own cache files (A)
+        return "" if rot.get("default", True) else f".rot{rot.get('sha256', 'x')}"
 
     def _region_dir(self, rid: str) -> Path:
         return Path(geo.CACHE_DIR) / rid
