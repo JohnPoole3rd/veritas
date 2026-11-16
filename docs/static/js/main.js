@@ -391,6 +391,7 @@ function renderConfusion(meta) {
 
 // --------------------------------------------------------------- chapter 3: search Upper Arlington
 function initSearch(meta, story) {
+  if (!$("#ua-form")) return; // the Upper Arlington-only search was folded into the Lab (search anywhere)
   const form = $("#ua-form"), input = $("#ua-q"), out = $("#ua-results"), note = $("#ua-note"), pins = $("#ua-pins");
   let gallery = "local";
   const examples = meta?.examples || ["dense forest", "residential neighborhood", "park or grassland", "commercial area", "river corridor"];
@@ -663,7 +664,6 @@ async function boot() {
   initHero(story);
   bindMetrics(meta);
   initMinds(story, meta);
-  initSearch(meta, story);
   initLimits(meta);
   initLab(meta);
   initHeat(meta, story);
