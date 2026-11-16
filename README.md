@@ -7,7 +7,7 @@
 **Search satellite photos in plain English, then see which spots run hottest.**<br>
 Built for the urban-forestry staff of Upper Arlington, Ohio.
 
-**[▶ Try it in your browser](https://johnpoole3rd.github.io/veritas/)** · **[🎬 2-minute video](#video)** · **[📄 Write-up](WRITEUP.md)** · **[Run it yourself](#run-it-yourself)**
+**[▶ Try it in your browser](https://johnpoole3rd.github.io/veritas/)** · **[🎬 2-minute video](#video)** · **[📄 Write-up (PDF)](Platonic_Earth_Writeup.pdf)** · **[Run it yourself](#run-it-yourself)**
 
 Veritas AI International High School Hackathon 2026 · **AI + Climate** track
 
@@ -168,8 +168,10 @@ working directory and is ignored by git.
 **Data**
 - **EuroSAT** (Helber et al., 2019): https://github.com/phelber/EuroSAT
 - **Copernicus Sentinel-2** L2A (ESA), via Earth Search STAC: https://earth-search.aws.element84.com/v1
-- **Landsat 8/9** Collection 2 Level-2 surface temperature (USGS/NASA)
-- **OpenStreetMap** contributors (ODbL), for place search and the city boundary; **ESA WorldCover 2021** (CC-BY 4.0)
+- **Landsat 8/9** Collection 2 Level-2 surface temperature (USGS/NASA), via Microsoft Planetary Computer
+- **OpenStreetMap** contributors (ODbL): captions for our training set, place search and the city boundary, read with pyrosm from Geofabrik, BBBike and other extracts
+- **ESA WorldCover 2021** (CC-BY 4.0): natural land-cover captions and tile selection
+- Local facts: Upper Arlington 2011–2021 Tree Canopy Summary
 - Basemap: **Esri World Imagery**
 
 **Models**
@@ -179,9 +181,9 @@ working directory and is ignored by git.
 
 **Idea:** the Platonic Representation Hypothesis (Huh, Cheung, Wang & Isola, ICML 2024): https://arxiv.org/abs/2405.07987
 
-**Software:** PyTorch, torchvision, Hugging Face Transformers, Sentence-Transformers, scikit-learn, SciPy, NumPy, pandas, FastAPI, Gradio, MapLibre GL, transformers.js, Playwright, Remotion.
+**Software:** PyTorch, torchvision, Hugging Face Transformers, Sentence-Transformers, scikit-learn, SciPy, NumPy, pandas, Matplotlib, rasterio, pystac-client, FastAPI, Gradio, MapLibre GL, transformers.js, Playwright, Remotion. Compute: Google Colab and one RTX 5060 Ti.
 
-**AI tools:** Claude (Anthropic), through Claude Code, helped write code, the website, the video and the documentation. The team chose the project, collected and labelled the local tiles, and checked every result.
+**AI tools:** Claude (Anthropic), through Claude Code, helped write code, the website, the video, the documentation and the write-up. The team chose the project, collected and labelled the local tiles, and checked every result.
 
 **What we added** to the suggested starting project (land-use mapping with EuroSAT and ResNet-18, now our baseline):
 - **our own user and place:** Upper Arlington urban forestry;
