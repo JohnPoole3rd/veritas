@@ -145,6 +145,24 @@ def main() -> None:
         mres["per_query"] = {q: {"p_at_10": round(float(np.mean([p["p_at_10"] for p in v])), 3),
                                  "chance": round(float(np.mean([p["chance"] for p in v])), 3), "regions": len(v)}
                              for q, v in perq.items()}
+    # paired comparison: same query and same place, model A minus model B (region-cluster bootstrap)
+    def paired(a, b, group=None):
+        A = {(p["query"], p["region"]): p["p_at_10"] for p in results["models"][a]["pairs"] if group in (None, p["group"])}
+        B = {(p["query"], p["region"]): p["p_at_10"] for p in results["models"][b]["pairs"] if group in (None, p["group"])}
+        byr = defaultdict(list)
+        for k in sorted(A):
+            byr[k[1]].append(A[k] - B[k])
+        regs = sorted(byr)
+        diff = lambda sel: float(np.mean([x for r in sel for x in byr[r]]))
+        brng = np.random.default_rng(0)
+        boots = [diff(list(brng.choice(regs, size=len(regs), replace=True))) for _ in range(N_BOOT)]
+        lo, hi = np.percentile(boots, [2.5, 97.5])
+        return {"diff": round(diff(regs), 4), "ci95": [round(float(lo), 4), round(float(hi), 4)],
+                "share_of_resamples_le_0": round(float(np.mean(np.array(boots) <= 0)), 4), "pairs": len(A)}
+
+    ours = [n for n in rots if n != "eurosat"][-1]  # the last OSM rotation given (the product)
+    results["paired"] = {f"{ours} - {other}": {g or "all": paired(ours, other, g) for g in (None, "open", "vocab")}
+                         for other in rots if other != ours}
     (out / "search_benchmark_v1.json").write_text(json.dumps(results, indent=1) + "\n")
 
     # markdown table for the write-up
@@ -164,6 +182,16 @@ def main() -> None:
             continue
         lines.append(f"| {q['query']} ({q['group']}, {cells[0]['regions']} regions) | " +
                      " | ".join(f"{c.get('p_at_10', float('nan')):.2f}" for c in cells) + f" | {cells[0]['chance']:.2f} |")
+    lines += ["", "Paired comparison (same query and same place; 95% CI by region bootstrap):", "",
+              "| Comparison | All queries | Open-vocabulary | Land cover |", "|---|---|---|---|"]
+    for name, g in results["paired"].items():
+        lines.append(f"| {name} | " + " | ".join(f"{g[k]['diff']:+.3f} [{g[k]['ci95'][0]:+.3f}, {g[k]['ci95'][1]:+.3f}]"
+                                               for k in ("all", "open", "vocab")) + " |")
+    chance = results["models"][ours]["summary"]
+    lines += ["", f"Chance by group: all {chance['all']['chance']:.3f}, open-vocabulary {chance['open']['chance']:.3f}, "
+              f"land cover {chance['vocab']['chance']:.3f}.",
+              "Caveat: relevance = mapped in OpenStreetMap (mapped is not always visible); the OSM rotations learned from "
+              "OSM captions, so this proxy favours them over the EuroSAT rotation."]
     (out / "search_benchmark_v1.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
 

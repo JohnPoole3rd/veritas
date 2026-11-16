@@ -23582,7 +23582,7 @@
      "query": "houses and residential streets",
      "group": "vocab",
      "region": "ne_riga_latvia",
-     "p_at_10": 0.6,
+     "p_at_10": 0.5,
      "chance": 0.1664,
      "n": 5000,
      "n_rel": 832
@@ -24481,9 +24481,9 @@
    ],
    "summary": {
     "all": {
-     "p_at_10": 0.1126,
+     "p_at_10": 0.1124,
      "ci95": [
-      0.0921,
+      0.0919,
       0.1348
      ],
      "chance": 0.1054,
@@ -24503,10 +24503,10 @@
      "regions": 45
     },
     "vocab": {
-     "p_at_10": 0.1826,
+     "p_at_10": 0.1822,
      "ci95": [
       0.1504,
-      0.2157
+      0.2152
      ],
      "chance": 0.1739,
      "lift": 1.05,
@@ -24591,7 +24591,7 @@
      "regions": 38
     },
     "houses and residential streets": {
-     "p_at_10": 0.3,
+     "p_at_10": 0.298,
      "chance": 0.175,
      "regions": 44
     },
@@ -24605,6 +24605,66 @@
      "chance": 0.174,
      "regions": 45
     }
+   }
+  }
+ },
+ "paired": {
+  "osm_1m - eurosat": {
+   "all": {
+    "diff": 0.0378,
+    "ci95": [
+     0.0189,
+     0.0551
+    ],
+    "share_of_resamples_le_0": 0.0,
+    "pairs": 532
+   },
+   "open": {
+    "diff": 0.0602,
+    "ci95": [
+     0.0379,
+     0.0847
+    ],
+    "share_of_resamples_le_0": 0.0,
+    "pairs": 279
+   },
+   "vocab": {
+    "diff": 0.013,
+    "ci95": [
+     -0.0145,
+     0.041
+    ],
+    "share_of_resamples_le_0": 0.1795,
+    "pairs": 253
+   }
+  },
+  "osm_1m - osm_91k": {
+   "all": {
+    "diff": 0.0314,
+    "ci95": [
+     0.0177,
+     0.0452
+    ],
+    "share_of_resamples_le_0": 0.0,
+    "pairs": 532
+   },
+   "open": {
+    "diff": 0.053,
+    "ci95": [
+     0.0355,
+     0.0712
+    ],
+    "share_of_resamples_le_0": 0.0,
+    "pairs": 279
+   },
+   "vocab": {
+    "diff": 0.0075,
+    "ci95": [
+     -0.0129,
+     0.0273
+    ],
+    "share_of_resamples_le_0": 0.229,
+    "pairs": 253
    }
   }
  }

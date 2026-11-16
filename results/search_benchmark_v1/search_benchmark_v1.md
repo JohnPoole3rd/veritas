@@ -6,7 +6,7 @@ Search benchmark v1: 170,454 squares in 50 held-out regions; 532 (query, region)
 | osm_91k | 0.309 [0.284, 0.335] | 0.149 | 0.485 | 0.105 |
 | osm_1m | 0.340 [0.315, 0.367] | 0.202 | 0.493 | 0.105 |
 | identity (no rotation) | 0.148 [0.125, 0.171] | 0.060 | 0.245 | 0.105 |
-| random rotation | 0.113 [0.092, 0.135] | 0.049 | 0.183 | 0.105 |
+| random rotation | 0.112 [0.092, 0.135] | 0.049 | 0.182 | 0.105 |
 
 | Query | eurosat | osm_91k | osm_1m | identity (no rotation) | random rotation | chance |
 |---|---|---|---|---|---|---|
@@ -29,15 +29,12 @@ Search benchmark v1: 170,454 squares in 50 held-out regions; 532 (query, region)
 | an industrial area (vocab, 38 regions) | 0.28 | 0.48 | 0.49 | 0.09 | 0.03 | 0.05 |
 | a lake or open water (vocab, 45 regions) | 0.49 | 0.45 | 0.44 | 0.26 | 0.17 | 0.17 |
 
-## Paired comparison (same query and same place; 95% CI by region bootstrap, 2000 resamples)
+Paired comparison (same query and same place; 95% CI by region bootstrap):
 
-| Queries | 1M − EuroSAT | 1M − 91k |
-|---|---|---|
-| All (532 query-place pairs) | **+0.038** [+0.019, +0.057] | **+0.031** [+0.017, +0.045] |
-| Open-vocabulary (279) | **+0.060** [+0.036, +0.084] | **+0.053** [+0.035, +0.072] |
-| Land cover (253) | +0.013 [−0.015, +0.041], a tie | +0.008 [−0.011, +0.029], a tie |
+| Comparison | All queries | Open-vocabulary | Land cover |
+|---|---|---|---|
+| osm_1m - eurosat | +0.038 [+0.019, +0.055] | +0.060 [+0.038, +0.085] | +0.013 [-0.015, +0.041] |
+| osm_1m - osm_91k | +0.031 [+0.018, +0.045] | +0.053 [+0.035, +0.071] | +0.007 [-0.013, +0.027] |
 
 Chance by group: all 0.105, open-vocabulary 0.043, land cover 0.174.
-Run on john-pc (RTX 5060 Ti), 2026-11-15 ~22:55 ET; 170,454 test squares embedded at ~1,400 img/s.
-Caveat: relevance = "mapped in OpenStreetMap" (mapped is not always visible), and the OSM rotations learned
-from OSM captions, so this proxy favours them over the EuroSAT rotation. A human-judged check is the next step (BENCHMARK_PLAN.md §2).
+Caveat: relevance = mapped in OpenStreetMap (mapped is not always visible); the OSM rotations learned from OSM captions, so this proxy favours them over the EuroSAT rotation.
