@@ -646,7 +646,9 @@ def _load_features_locked(region_id: str, bbox, cache_dir: Path, require_cache: 
         elif not cropped.exists():
             with _file_lock(cache_dir / ".osm_download.lock"):
                 ensure_region_pbf(key, bbox, cache_dir)
-    return load_region_features(region_id, bbox, cache_dir, require_cache=require_cache)
+    if require_cache:
+        return load_region_features(region_id, bbox, cache_dir, require_cache=True)
+    return load_region_features(region_id, bbox, cache_dir)
 
 
 def prepare_region(region: dict[str, Any], args, cache_dir: Path) -> dict[str, Any]:
@@ -662,8 +664,10 @@ def prepare_region(region: dict[str, Any], args, cache_dir: Path) -> dict[str, A
     if not ranked:
         return {"ranked": [], "timings": t}
     t0 = time.perf_counter()
-    features = _load_features_locked(
-        rid, bbox, cache_dir, require_cache=args.require_osm_cache
+    features = (
+        _load_features_locked(rid, bbox, cache_dir, require_cache=True)
+        if args.require_osm_cache
+        else _load_features_locked(rid, bbox, cache_dir)
     )
     t["osm_load"] += time.perf_counter() - t0
     t0 = time.perf_counter()
