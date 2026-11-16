@@ -324,6 +324,7 @@ def _eval_fit(
     )
     pred = scores.argmax(axis=1)
     result: dict[str, Any] = _metrics(y, pred, classes)
+    result["correct"] = int((pred == y).sum())
     result["per_class"] = {
         cls: {"support": int((y == i).sum()), "accuracy": float((pred[y == i] == i).mean()) if (y == i).any() else None}
         for i, cls in enumerate(classes)
@@ -372,9 +373,18 @@ def _load_ua_eval(config) -> dict[str, Any] | None:
     if not (local.exists() and manifest_path.exists()):
         return None
     manifest = load_local_manifest(manifest_path, check_files=False)
+    qa_path = ROOT / "data/local_tiles/labels_qa.csv"
+    clear = np.ones(len(manifest), dtype=bool)
+    if qa_path.exists():
+        import pandas as pd
+
+        qa = pd.read_csv(qa_path).set_index("tile_id")["ambiguous"].astype(str)
+        ambiguous = manifest.tile_id.map(qa).str.lower().eq("true").to_numpy()
+        clear = ~ambiguous
     return {
         "images": np.load(local),
         "labels": manifest.label.tolist(),
+        "clear": clear,
         "tile_ids": manifest.tile_id.tolist(),
         "n": len(manifest),
     }
@@ -399,13 +409,19 @@ def _run_cached_suites(result: dict[str, Any], config, fit) -> None:
         }
     if ua and eu:
         # Reuse the EuroSAT caption index as the UA label prompts, matching T12.
-        result["b2"] = {
-            "ten_class": _eval_fit(fit, ua["images"], ua["labels"], eu["text"],
-                                   eu["caption_labels"], eu["classes"]),
-            "b4": _eval_fit(fit, ua["images"],
-                            [b4_label(x, "eurosat") for x in ua["labels"]],
-                            b4_text, list(B4_CLASSES), list(B4_CLASSES)),
-        }
+        def ua_eval(mask=None) -> dict[str, Any]:
+            images = ua["images"] if mask is None else ua["images"][mask]
+            labels = ua["labels"] if mask is None else [x for x, keep in zip(ua["labels"], mask) if keep]
+            ten = _eval_fit(fit, images, labels, eu["text"], eu["caption_labels"], eu["classes"])
+            ten["ci95_wilson"] = _wilson(ten["correct"], ten["n"])
+            b4 = _eval_fit(fit, images, [b4_label(x, "eurosat") for x in labels],
+                           b4_text, list(B4_CLASSES), list(B4_CLASSES))
+            return {"ten_class": ten, "b4": b4}
+
+        result["b2"] = ua_eval()
+        clear = ua.get("clear")
+        if clear is not None and bool(np.any(clear)):
+            result["b2_unambiguous"] = ua_eval(clear)
 
 
 def run_benchmark(
@@ -442,9 +458,11 @@ def run_benchmark(
     rows = train.load_rows(data_dir)
     excluded = list(getattr(train, "DEFAULT_EXCLUDE_FIT", ()))
     rows = train.drop_fit_regions(rows, excluded)
-    train_rows = [r for r in rows if r["split"] == "train"]
+    # Protocol: all non-test rows are fit data. The builder may label some rows
+    # "val"; for this benchmark they are ordinary train data, not a tuning split.
+    train_rows = [r for r in rows if r["split"] != "test"]
     if not train_rows:
-        raise SystemExit("no train rows")
+        raise SystemExit("no non-test fit rows")
     b3_rows_by_id = {r["tile_id"]: r for r in train.load_rows(data_dir)}
     b3_meta = _read_manifest(Path(b3_csv))
     b3_rows = [b3_rows_by_id[r["tile_id"]] for r in b3_meta if r["tile_id"] in b3_rows_by_id]
@@ -479,7 +497,8 @@ def run_benchmark(
         "data": str(data_dir),
         "device": device_summary(device_resolved),
         "dtype": dtype,
-        "n_train": len(train_rows),
+        "n_fit": len(train_rows),
+        "fit_split": "all non-test rows (train + builder val)",
         "n_b3": len(b3_rows),
         "b3_rows_in_file": len(b3_meta),
         "b3_coverage": round(len(b3_rows) / max(len(b3_meta), 1), 4),
