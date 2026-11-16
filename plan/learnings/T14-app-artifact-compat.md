@@ -18,7 +18,7 @@ D's `app.py` initially assumed `procrustes.npz` had a `config` key and that `din
 ## Impact
 
 - `app.py` now reads `metadata` and accepts `config` as a legacy alias.
-- It slices `test.json` to the embedding count for stratified subsets.
+- It slices `test.json` to the embedding count for `--limit` prefix runs.
 - It reads `majority.csv` and `test_n` columns.
 - `results/T14.md` now records the integration check.
 

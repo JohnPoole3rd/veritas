@@ -38,7 +38,7 @@ Read `plan/AGENTS.md`, `plan/DECISIONS.md`, and `plan/INTERFACES.md` first.
 - T01–T07 are done. A's full-split rerun provides the headline numbers:
   - text→image search: **0.96 top-1 / 1.00 top-5** over 50 caption queries;
   - image→class: **0.8121 accuracy / 0.7948 macro-F1** over 4,050 test images.
-- J's CPU run used a 512-tile stratified subset and is retained as a smoke test.
+- J's CPU run used the first 512 test tiles and is retained as a smoke test.
 - A's `a/final`, D's `d/t14-gradio`, and D's `d/review-for-j` are merged.
 - D's `app.py` RealBackend is verified with Upper Arlington N=50 and EuroSAT N=512; A's full-split metrics are in the Results tables.
 
@@ -64,7 +64,7 @@ Expected with current artifacts:
 
 ```text
 [demo] REAL mode — Upper Arlington N=50; EuroSAT test N=512 of 4050; transforms from src.alignment
-backend REAL 512 4050 512-tile stratified subset
+backend REAL 512 4050 first 512 of 4050 test tiles (--limit run)
 ```
 
 ## Do not

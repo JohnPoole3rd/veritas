@@ -1,0 +1,400 @@
+region_id,country,biome,split,lat,lon,radius_km,notes
+us_columbus,United States,temperate_suburban,train,40.0270,-83.0630,8,Upper Arlington and Columbus
+us_iowa,United States,temperate_cropland,train,42.0300,-93.6400,10,Iowa corn and soybean fields
+us_colorado,United States,mountain_forest,train,39.5500,-105.4500,10,Front Range foothills
+us_arizona,United States,desert_urban,train,33.4500,-112.0700,10,Phoenix desert edge
+us_california_central,United States,mediterranean_cropland,train,36.7500,-119.8000,12,Central Valley farmland
+us_pacific_northwest,United States,temperate_forest,train,45.5000,-122.6000,12,Portland and Cascades
+us_great_plains,United States,temperate_grassland,train,39.0000,-99.0000,15,Kansas plains
+us_california_coast,United States,mediterranean_coast,train,36.6000,-121.8900,10,Monterey Bay
+us_louisiana_delta,United States,wetland_delta,val,29.9500,-90.1000,10,Mississippi delta
+us_florida_coast,United States,subtropical_coast,val,25.7600,-80.1900,10,Miami and Biscayne Bay
+us_alaska_boreal,United States,boreal_forest,train,64.8400,-147.7200,15,Fairbanks boreal forest
+ca_toronto,Canada,temperate_urban,train,43.6500,-79.3800,10,Toronto
+ca_saskatchewan,Canada,boreal_cropland,train,52.1300,-106.6700,15,Saskatoon farmland
+ca_bc_forest,Canada,temperate_rainforest,train,49.3000,-123.1000,12,BC coast and forest
+ca_alberta_prairie,Canada,temperate_grassland,train,51.0000,-113.5000,15,Alberta prairie
+ca_quebec_boreal,Canada,boreal_forest,val,47.5000,-72.5000,15,Quebec boreal
+ca_nova_scotia_coast,Canada,temperate_coast,train,44.6500,-63.6000,10,Nova Scotia coast
+mx_mexico_city,Mexico,tropical_urban,train,19.4300,-99.1300,10,Mexico City
+mx_yucatan,Mexico,tropical_forest,train,20.9000,-89.5000,12,Yucatan forest
+mx_sonora,Mexico,desert,val,29.1000,-110.9000,12,Sonora desert
+mx_veracruz,Mexico,tropical_coast,train,19.2000,-96.1000,10,Veracruz coast
+cr_tortuguero,Costa Rica,tropical_rainforest,test,10.5400,-83.5000,10,Tortuguero rainforest
+pa_canal,Panama,tropical_rainforest,train,9.1000,-79.7000,10,Panama Canal forest
+cu_havana_coast,Cuba,tropical_coast,test,23.1300,-82.3800,8,Havana coast
+do_punta_cana,Dominican Republic,tropical_coast,val,18.5600,-68.3700,8,Punta Cana coast
+br_amazon,Brazil,tropical_forest,train,-3.4700,-62.2200,15,Central Amazon
+br_sao_paulo,Brazil,tropical_urban,train,-23.5500,-46.6300,10,Sao Paulo
+br_cerrado,Brazil,tropical_savanna,train,-15.8000,-47.9000,15,Cerrado
+br_pantanal,Brazil,tropical_wetland,train,-16.5000,-56.5000,15,Pantanal
+br_atlantic_forest,Brazil,tropical_forest,train,-22.5000,-42.0000,12,Atlantic forest
+br_northeast,Brazil,semiarid_scrub,val,-8.0000,-38.0000,15,Northeast semiarid
+ar_pampas,Argentina,temperate_grassland,train,-34.6000,-58.3800,15,Pampas
+ar_patagonia,Argentina,cold_steppe,train,-45.0000,-70.0000,20,Patagonia
+ar_andes,Argentina,alpine,train,-33.0000,-69.5000,15,Andes foothills
+cl_central_valley,Chile,mediterranean_cropland,val,-33.5000,-70.8000,12,Central Valley
+cl_atacama,Chile,desert,test,-23.5000,-69.0000,20,Atacama
+cl_patagonia,Chile,cold_rainforest,val,-50.0000,-73.0000,20,Patagonia fjords
+pe_amazon,Peru,tropical_forest,test,-4.0000,-73.0000,15,Iquitos Amazon
+pe_lima_coast,Peru,desert_coast,val,-12.0500,-77.0500,10,Lima coast
+pe_andes,Peru,alpine,val,-13.5000,-72.0000,15,Cusco highlands
+co_andes,Colombia,tropical_montane,train,4.7000,-74.1000,12,Bogota and Andes
+co_amazon,Colombia,tropical_forest,train,-1.0000,-73.0000,15,Colombian Amazon
+co_caribbean,Colombia,tropical_coast,train,10.4000,-75.5000,10,Caribbean coast
+ec_andes,Ecuador,tropical_montane,test,-0.2000,-78.5000,12,Quito highlands
+ec_coast,Ecuador,tropical_coast,val,-2.2000,-80.9000,10,Guayaquil coast
+bo_altiplano,Bolivia,alpine,train,-16.5000,-68.1000,15,Altiplano
+bo_amazon,Bolivia,tropical_forest,train,-14.0000,-65.0000,15,Bolivian Amazon
+uy_pampas,Uruguay,temperate_grassland,train,-33.0000,-56.0000,12,Uruguayan pampas
+py_chaco,Paraguay,tropical_dry_forest,train,-22.0000,-60.0000,15,Chaco
+gb_london,United Kingdom,temperate_urban,val,51.5070,-0.1280,10,London
+gb_scotland,United Kingdom,moorland_coast,train,57.1500,-2.0900,12,Aberdeenshire coast and moor
+gb_wales,United Kingdom,upland_pasture,train,52.4000,-3.8000,12,Welsh uplands
+gb_england_farm,United Kingdom,temperate_cropland,train,52.2000,-1.0000,12,English farmland
+ie_pasture,Ireland,temperate_pasture,train,53.3000,-8.0000,12,Ireland pasture
+fr_bordeaux,France,vineyard_forest,train,44.8400,-0.5800,12,Bordeaux vineyards
+fr_paris,France,temperate_urban,train,48.8566,2.3522,10,Paris
+fr_alps,France,alpine,train,45.2000,6.5000,15,French Alps
+fr_brittany,France,temperate_coast,train,48.2000,-4.5000,12,Brittany coast
+fr_camargue,France,wetland_delta,train,43.5000,4.5000,12,Camargue
+nl_rotterdam,Netherlands,port_coast,train,51.9200,4.4800,10,Rotterdam port
+nl_polder,Netherlands,temperate_cropland,train,52.3000,5.3000,12,Polder farmland
+es_madrid,Spain,dryland_urban,train,40.4160,-3.7040,12,Madrid dryland edge
+es_valencia,Spain,mediterranean_coast,train,39.4700,-0.3300,10,Valencia coast
+es_andalusia,Spain,mediterranean_cropland,train,37.4000,-4.5000,15,Andalusian olive country
+es_pyrenees,Spain,alpine,train,42.6000,0.5000,15,Pyrenees
+pt_coast,Portugal,mediterranean_coast,train,38.7000,-9.4000,10,Lisbon coast
+pt_cork_oak,Portugal,mediterranean_forest,train,38.0000,-8.0000,15,Cork oak woodland
+it_po_valley,Italy,temperate_cropland,train,45.1000,9.5000,15,Po Valley
+it_tuscany,Italy,mediterranean_cropland,train,43.3000,11.3000,12,Tuscany
+it_sicily,Italy,mediterranean_coast,val,37.5000,14.0000,12,Sicily
+it_alps,Italy,alpine,train,46.5000,11.5000,15,Italian Alps
+de_berlin,Germany,temperate_urban,train,52.5200,13.4050,10,Berlin
+de_bavaria,Germany,temperate_forest,val,48.5000,11.5000,15,Bavaria
+de_north_sea,Germany,temperate_coast,train,54.0000,8.5000,12,North Sea coast
+pl_farmland,Poland,temperate_cropland,train,52.2000,19.0000,15,Polish farmland
+pl_bialowieza,Poland,temperate_forest,train,52.7000,23.8000,12,Bialowieza forest
+se_forest,Sweden,boreal_forest,train,60.0000,15.0000,15,Swedish forest
+se_coast,Sweden,boreal_coast,train,58.0000,18.0000,12,Stockholm archipelago
+no_fjord,Norway,boreal_fjord,val,61.0000,6.5000,15,Norwegian fjords
+fi_boreal,Finland,boreal_forest,train,63.0000,27.0000,15,Finnish forest and lakes
+dk_coast,Denmark,temperate_coast,train,55.5000,10.0000,10,Danish coast
+is_volcanic,Iceland,volcanic_tundra,test,64.1000,-21.9000,15,Reykjavik volcanic landscape
+gr_islands,Greece,mediterranean_coast,test,37.5000,25.0000,12,Cyclades
+gr_crete,Greece,mediterranean_coast,val,35.3000,25.1000,12,Crete
+tr_istanbul,Turkey,mediterranean_urban,train,41.0100,29.0000,10,Istanbul
+tr_anatolia,Turkey,dryland_steppe,train,39.0000,33.0000,15,Anatolian steppe
+tr_black_sea,Turkey,temperate_coast,train,41.5000,36.0000,12,Black Sea coast
+ua_steppe,Ukraine,steppe_cropland,train,48.5000,35.0000,15,Ukrainian steppe
+ro_carpathian,Romania,temperate_forest,train,45.5000,25.0000,12,Carpathians
+ro_danube_delta,Romania,wetland_delta,train,45.2000,29.0000,12,Danube delta
+hu_plains,Hungary,steppe_cropland,train,47.0000,19.5000,15,Hungarian plains
+cz_forest,Czechia,temperate_forest,train,49.5000,15.0000,12,Czech forest
+at_alps,Austria,alpine,train,47.0000,12.0000,15,Austrian Alps
+ch_alps,Switzerland,alpine,test,46.5000,8.0000,12,Swiss Alps
+hr_coast,Croatia,mediterranean_coast,train,43.5000,16.0000,10,Croatian coast
+rs_farmland,Serbia,temperate_cropland,train,45.0000,20.0000,15,Serbian farmland
+ma_atlas,Morocco,mediterranean_montane,val,31.5000,-7.5000,15,Atlas foothills
+ma_sahara,Morocco,desert,test,30.0000,-5.0000,20,Sahara edge
+eg_nile,Egypt,irrigated_desert,test,30.0400,31.2400,12,Nile Delta
+eg_red_sea,Egypt,desert_coast,val,27.2000,33.8000,15,Red Sea coast
+ke_nairobi,Kenya,savanna_urban,train,-1.2920,36.8220,12,Nairobi and savanna
+ke_coast,Kenya,tropical_coast,train,-4.0000,39.7000,12,Kenyan coast
+tz_serengeti,Tanzania,savanna,test,-2.5000,34.8000,20,Serengeti
+tz_zanzibar,Tanzania,tropical_coast,val,-6.1000,39.2000,10,Zanzibar
+et_highlands,Ethiopia,alpine,train,9.0000,38.7000,15,Ethiopian highlands
+et_rift,Ethiopia,rift_valley,train,8.0000,38.5000,15,Ethiopian Rift
+za_cape_town,South Africa,mediterranean_coast,val,-33.9250,18.4240,10,Cape Town
+za_karoo,South Africa,semiarid_scrub,train,-32.0000,23.0000,20,Karoo
+za_kzn_coast,South Africa,subtropical_coast,train,-29.8000,31.0000,12,KwaZulu-Natal coast
+za_highveld,South Africa,grassland,train,-26.2000,28.0000,15,Highveld
+na_desert,Namibia,desert,test,-22.5000,17.0000,20,Namib desert
+na_coast,Namibia,desert_coast,val,-22.9000,14.5000,15,Skeleton Coast
+bw_okavango,Botswana,tropical_wetland,train,-19.5000,22.5000,15,Okavango Delta
+bw_kalahari,Botswana,savanna,train,-23.0000,22.0000,20,Kalahari
+zm_savanna,Zambia,savanna,train,-15.4000,28.3000,15,Zambian savanna
+mz_coast,Mozambique,tropical_coast,train,-19.8000,34.8000,12,Mozambique coast
+mg_rainforest,Madagascar,tropical_rainforest,test,-18.9000,48.0000,15,Madagascar rainforest
+ng_lagos,Nigeria,tropical_urban,train,6.5000,3.4000,10,Lagos
+ng_niger_delta,Nigeria,mangrove_delta,train,5.0000,6.0000,15,Niger Delta
+gh_coast,Ghana,tropical_coast,train,5.5000,-0.2000,10,Ghana coast
+sn_sahel,Senegal,sahel,train,14.7000,-17.5000,15,Senegal Sahel
+ml_niger,Mali,sahel_river,train,16.0000,-3.0000,20,Niger River
+td_sahel,Chad,sahel,train,15.0000,18.0000,20,Chad Sahel
+sd_nile,Sudan,desert_river,test,15.5000,32.5000,15,Khartoum Nile
+ug_lake,Uganda,tropical_lake,train,0.3000,32.5000,12,Lake Victoria
+rw_highlands,Rwanda,alpine,train,-1.9000,29.9000,10,Rwandan highlands
+cd_congo,DR Congo,tropical_forest,train,-2.5000,23.0000,20,Congo rainforest
+ao_savanna,Angola,savanna,train,-12.0000,17.0000,20,Angolan savanna
+zw_savanna,Zimbabwe,savanna,train,-19.0000,29.0000,15,Zimbabwe savanna
+tn_coast,Tunisia,mediterranean_coast,train,36.8000,10.2000,10,Tunisian coast
+in_delhi,India,monsoon_urban,train,28.6130,77.2090,10,Delhi
+in_kerala,India,tropical_coast,train,9.9700,76.2800,10,Kochi backwaters and coast
+in_punjab,India,monsoon_cropland,train,30.9000,75.8000,15,Punjab farmland
+in_rajasthan,India,desert,train,26.9000,73.0000,20,Thar desert
+in_western_ghats,India,tropical_forest,train,13.0000,75.0000,15,Western Ghats
+in_ganges_delta,India,mangrove_delta,train,22.0000,90.0000,15,Ganges delta
+in_himalayan_foothills,India,alpine,val,30.0000,78.0000,15,Himalayan foothills
+pk_indus,Pakistan,irrigated_cropland,train,30.0000,71.5000,15,Indus valley
+pk_balochistan,Pakistan,desert,train,25.0000,66.0000,20,Balochistan
+bd_delta,Bangladesh,mangrove_delta,train,22.0000,90.0000,12,Ganges-Brahmaputra delta
+bd_coast,Bangladesh,tropical_coast,train,21.8000,90.0000,10,Bay of Bengal coast
+np_himalaya,Nepal,alpine,train,27.7000,85.3000,12,Kathmandu valley
+lk_wet_zone,Sri Lanka,tropical_forest,test,6.9000,80.6000,12,Sri Lankan wet zone
+lk_coast,Sri Lanka,tropical_coast,val,6.0000,80.0000,10,Sri Lankan coast
+cn_shanghai,China,subtropical_urban,train,31.2300,121.4740,12,Shanghai
+cn_inner_mongolia,China,steppe_grassland,train,40.8400,111.7500,15,Hohhot grassland edge
+cn_sichuan,China,subtropical_cropland,train,30.6000,104.0000,15,Sichuan basin
+cn_yunnan,China,subtropical_forest,train,25.0000,102.7000,15,Yunnan
+cn_gobi,China,desert,train,42.0000,105.0000,20,Gobi
+cn_pearl_delta,China,subtropical_urban,train,22.5000,113.0000,10,Pearl River Delta
+cn_hainan,China,tropical_coast,train,19.2000,109.7000,10,Hainan
+cn_tibet,China,alpine,test,29.6500,91.1000,15,Tibetan plateau
+jp_tokyo,Japan,temperate_urban,train,35.6760,139.6500,10,Tokyo
+jp_hokkaido,Japan,boreal_forest,train,43.0600,141.3500,15,Hokkaido
+jp_kyushu,Japan,subtropical_coast,val,31.6000,130.5000,12,Kyushu
+jp_alps,Japan,alpine,train,36.2000,137.6000,15,Japan Alps
+kr_seoul,South Korea,temperate_urban,train,37.5600,126.9800,10,Seoul
+kr_jeju,South Korea,subtropical_coast,train,33.5000,126.5000,10,Jeju
+tw_coast,Taiwan,subtropical_coast,val,23.5000,120.5000,10,Taiwan coast
+ph_manila,Philippines,tropical_urban,test,14.6000,120.9800,10,Manila
+ph_palawan,Philippines,tropical_coast,test,9.8000,118.7000,12,Palawan
+ph_mindanao,Philippines,tropical_forest,test,7.5000,125.0000,15,Mindanao
+vn_mekong,Vietnam,tropical_delta,test,10.0000,105.8000,12,Mekong Delta
+vn_hanoi,Vietnam,tropical_urban,test,21.0300,105.8500,10,Hanoi
+vn_central_coast,Vietnam,tropical_coast,val,16.0000,108.0000,12,Central coast
+th_bangkok,Thailand,tropical_urban,train,13.7500,100.5000,10,Bangkok
+th_isan,Thailand,tropical_cropland,train,15.0000,102.5000,15,Isan
+th_andaman,Thailand,tropical_coast,train,8.0000,98.5000,12,Andaman coast
+kh_tonle_sap,Cambodia,tropical_wetland,train,13.0000,104.0000,12,Tonle Sap
+la_forest,Laos,tropical_forest,train,18.0000,103.5000,15,Laos forest
+mm_delta,Myanmar,tropical_delta,train,17.0000,95.5000,15,Irrawaddy delta
+my_borneo,Malaysia,tropical_forest,train,3.0000,114.0000,20,Borneo
+my_kuala_lumpur,Malaysia,tropical_urban,train,3.1400,101.6900,10,Kuala Lumpur
+id_jakarta,Indonesia,tropical_urban,val,-6.2080,106.8450,12,Jakarta
+id_borneo,Indonesia,tropical_forest,test,-0.5000,114.0000,25,Kalimantan
+id_sumatra,Indonesia,tropical_forest,train,-0.5000,101.5000,20,Sumatra
+id_bali,Indonesia,tropical_coast,train,-8.4000,115.2000,10,Bali
+id_papua,Indonesia,tropical_forest,test,-4.0000,138.0000,25,Papua
+pg_coast,Papua New Guinea,tropical_coast,test,-5.0000,145.0000,20,PNG coast
+au_sydney,Australia,temperate_coast,val,-33.8700,151.2100,12,Sydney
+au_outback,Australia,arid,test,-23.7000,133.8700,25,Alice Springs outback
+au_murray_darling,Australia,mediterranean_cropland,train,-34.0000,142.0000,20,Murray-Darling
+au_queensland,Australia,tropical_forest,train,-17.0000,145.5000,15,Queensland
+au_tasmania,Australia,temperate_forest,train,-42.0000,147.0000,15,Tasmania
+au_perth,Australia,mediterranean_coast,train,-31.9500,115.8600,12,Perth
+au_great_barrier,Australia,tropical_coast,val,-18.0000,147.0000,15,Great Barrier Reef coast
+nz_north,New Zealand,temperate_pasture,test,-38.0000,175.0000,15,North Island
+nz_south,New Zealand,alpine,val,-43.5000,172.6000,15,South Island
+sa_desert,Saudi Arabia,desert,test,24.7000,46.7000,20,Riyadh desert
+ae_coast,United Arab Emirates,desert_coast,train,25.2000,55.3000,12,Dubai coast
+om_mountains,Oman,desert_mountains,test,23.5000,58.0000,15,Oman mountains
+il_coast,Israel,mediterranean_coast,train,32.1000,34.8000,10,Israeli coast
+jo_desert,Jordan,desert,train,31.0000,36.5000,20,Jordan desert
+iq_mesopotamia,Iraq,irrigated_desert,train,33.3000,44.4000,15,Mesopotamia
+ir_desert,Iran,desert,train,32.0000,54.0000,20,Iran desert
+kz_steppe,Kazakhstan,steppe_cropland,train,51.0000,71.0000,20,Kazakh steppe
+uz_irrigated,Uzbekistan,irrigated_desert,train,40.0000,65.0000,20,Uzbekistan irrigated
+mn_steppe,Mongolia,steppe_grassland,test,47.0000,105.0000,20,Mongolian steppe
+mn_gobi,Mongolia,desert,test,43.0000,105.0000,20,Gobi
+ne_chiang_mai_thailand,Thailand,urban_region,train,18.8000,98.9800,60,NE 1:50m populated place: Chiang Mai
+ne_chita_russia,Russia,urban_region,train,52.0550,113.4650,60,NE 1:50m populated place: Chita
+ne_qu_bec_canada,Canada,urban_region,train,46.8400,-71.2456,60,NE 1:50m populated place: Québec
+ne_lilongwe_malawi,Malawi,urban_region,train,-13.9833,33.7833,60,NE 1:50m populated place: Lilongwe
+ne_medina_saudi_arabia,Saudi Arabia,urban_region,train,24.5019,39.5781,60,NE 1:50m populated place: Medina
+ne_novokuznetsk_russia,Russia,urban_region,train,53.7500,87.1150,60,NE 1:50m populated place: Novokuznetsk
+ne_santa_cruz_bolivia,Bolivia,urban_region,train,-17.7520,-63.2279,60,NE 1:50m populated place: Santa Cruz
+ne_lyon_french_repub,French Republic,urban_region,train,45.7720,4.8281,60,NE 1:50m populated place: Lyon
+ne_salta_argentina,Argentina,urban_region,train,-24.7834,-65.4166,60,NE 1:50m populated place: Salta
+ne_donetsk_ukraine,Ukraine,urban_region,train,48.0019,37.8280,60,NE 1:50m populated place: Donetsk
+ne_minneapolis_united_state,United States,urban_region,train,44.9819,-93.2537,60,NE 1:50m populated place: Minneapolis
+ne_samara_russia,Russia,urban_region,train,53.1970,50.1493,60,NE 1:50m populated place: Samara
+ne_pasto_colombia,Colombia,urban_region,train,1.2136,-77.2811,60,NE 1:50m populated place: Pasto
+ne_edinburgh_united_kingd,United Kingdom,urban_region,train,55.9483,-3.2191,60,NE 1:50m populated place: Edinburgh
+ne_nizhny_novgorod_russia,Russia,urban_region,train,56.3350,43.9981,60,NE 1:50m populated place: Nizhny Novgorod
+ne_montevideo_uruguay,Uruguay,urban_region,train,-34.8561,-56.1730,60,NE 1:50m populated place: Montevideo
+ne_barnaul_russia,Russia,urban_region,train,53.3550,83.7450,60,NE 1:50m populated place: Barnaul
+ne_rochester_united_state,United States,urban_region,train,43.1724,-77.6219,60,NE 1:50m populated place: Rochester
+ne_al_ubayyid_sudan,Sudan,urban_region,train,13.1833,30.2167,60,NE 1:50m populated place: Al-Ubayyid
+ne_mexicali_mexico,Mexico,urban_region,train,32.6519,-115.4820,60,NE 1:50m populated place: Mexicali
+ne_aswan_egypt,Egypt,urban_region,train,24.0875,32.8989,60,NE 1:50m populated place: Aswan
+ne_ulyanovsk_russia,Russia,urban_region,train,54.3300,48.4100,60,NE 1:50m populated place: Ulyanovsk
+ne_tiruchirappalli_india,India,urban_region,train,10.8119,78.6880,60,NE 1:50m populated place: Tiruchirappalli
+ne_annaba_algeria,Algeria,urban_region,train,36.9200,7.7600,60,NE 1:50m populated place: Annaba
+ne_chelyabinsk_russia,Russia,urban_region,train,55.1569,61.4367,60,NE 1:50m populated place: Chelyabinsk
+ne_syracuse_united_state,United States,urban_region,train,43.0500,-76.1500,60,NE 1:50m populated place: Syracuse
+ne_pavlodar_kazakhstan,Kazakhstan,urban_region,train,52.3000,76.9500,60,NE 1:50m populated place: Pavlodar
+ne_naha_japan,Japan,urban_region,train,26.2072,127.6730,60,NE 1:50m populated place: Naha
+ne_mandalay_myanmar,Myanmar,urban_region,train,21.9719,96.0831,60,NE 1:50m populated place: Mandalay
+ne_san_francisco_united_state,United States,urban_region,train,37.7692,-122.4172,60,NE 1:50m populated place: San Francisco
+ne_volgograd_russia,Russia,urban_region,train,48.7120,44.4980,60,NE 1:50m populated place: Volgograd
+ne_dhanbad_india,India,urban_region,train,23.8023,86.4180,60,NE 1:50m populated place: Dhanbad
+ne_fez_morocco,Morocco,urban_region,train,34.0565,-5.0023,60,NE 1:50m populated place: Fez
+ne_macei_brazil,Brazil,urban_region,train,-9.6181,-35.7319,60,NE 1:50m populated place: Maceió
+ne_kinshasa_congo_kinsha,Congo (Kinshasa),urban_region,train,-4.3278,15.3130,60,NE 1:50m populated place: Kinshasa
+ne_freetown_sierra_leone,Sierra Leone,urban_region,train,8.4720,-13.2362,60,NE 1:50m populated place: Freetown
+ne_mysuru_india,India,urban_region,train,12.3119,76.6581,60,NE 1:50m populated place: Mysuru
+ne_mwanza_united_repub,United Republic of Tanzania,urban_region,train,-2.5200,32.9300,60,NE 1:50m populated place: Mwanza
+ne_cuttack_india,India,urban_region,train,20.4700,85.8899,60,NE 1:50m populated place: Cuttack
+ne_chongqing_china,China,urban_region,train,29.5669,106.5930,60,NE 1:50m populated place: Chongqing
+ne_indore_india,India,urban_region,train,22.7170,75.8631,60,NE 1:50m populated place: Indore
+ne_constantine_algeria,Algeria,urban_region,train,36.3600,6.5999,60,NE 1:50m populated place: Constantine
+ne_kyiv_ukraine,Ukraine,urban_region,train,50.4353,30.5147,60,NE 1:50m populated place: Kyiv
+ne_krasnodar_russia,Russia,urban_region,train,45.0200,39.0000,60,NE 1:50m populated place: Krasnodar
+ne_allahabad_india,India,urban_region,train,25.4569,81.8381,60,NE 1:50m populated place: Allahabad
+ne_bucharest_romania,Romania,urban_region,train,44.4353,26.0980,60,NE 1:50m populated place: Bucharest
+ne_linyi_china,China,urban_region,train,35.0819,118.3280,60,NE 1:50m populated place: Linyi
+ne_tegucigalpa_honduras,Honduras,urban_region,train,14.1040,-87.2195,60,NE 1:50m populated place: Tegucigalpa
+ne_guilin_china,China,urban_region,train,25.2819,110.2781,60,NE 1:50m populated place: Guilin
+ne_perm_russia,Russia,urban_region,train,58.0019,56.2480,60,NE 1:50m populated place: Perm
+ne_bandjarmasin_indonesia,Indonesia,urban_region,train,-3.3300,114.5801,60,NE 1:50m populated place: Bandjarmasin
+ne_rajkot_india,India,urban_region,train,22.3120,70.7981,60,NE 1:50m populated place: Rajkot
+ne_catania_italy,Italy,urban_region,train,37.5000,15.0800,60,NE 1:50m populated place: Catania
+ne_port_harcourt_nigeria,Nigeria,urban_region,train,4.8119,7.0081,60,NE 1:50m populated place: Port Harcourt
+ne_harare_zimbabwe,Zimbabwe,urban_region,train,-17.8158,31.0428,60,NE 1:50m populated place: Harare
+ne_milwaukee_united_state,United States,urban_region,train,43.0546,-87.9219,60,NE 1:50m populated place: Milwaukee
+ne_samarkand_uzbekistan,Uzbekistan,urban_region,train,39.6700,66.9450,60,NE 1:50m populated place: Samarkand
+ne_s_o_lu_s_brazil,Brazil,urban_region,train,-2.5140,-44.2679,60,NE 1:50m populated place: São Luís
+ne_surabaya_indonesia,Indonesia,urban_region,train,-7.2473,112.7489,60,NE 1:50m populated place: Surabaya
+ne_chihuahua_mexico,Mexico,urban_region,train,28.6469,-106.0869,60,NE 1:50m populated place: Chihuahua
+ne_gwalior_india,India,urban_region,train,26.2319,78.1781,60,NE 1:50m populated place: Gwalior
+ne_valletta_malta,Malta,urban_region,train,35.8997,14.5147,60,NE 1:50m populated place: Valletta
+ne_puebla_mexico,Mexico,urban_region,train,19.0519,-98.2020,60,NE 1:50m populated place: Puebla
+ne_cotonou_benin,Benin,urban_region,train,6.4020,2.5180,60,NE 1:50m populated place: Cotonou
+ne_qaraghandy_kazakhstan,Kazakhstan,urban_region,train,49.8850,73.1150,60,NE 1:50m populated place: Qaraghandy
+ne_vishakhapatnam_india,India,urban_region,train,17.7320,83.3030,60,NE 1:50m populated place: Vishakhapatnam
+ne_jeddah_saudi_arabia,Saudi Arabia,urban_region,train,21.5188,39.2173,60,NE 1:50m populated place: Jeddah
+ne_cuiab_brazil,Brazil,urban_region,train,-15.5677,-56.0869,60,NE 1:50m populated place: Cuiabá
+ne_manchester_united_kingd,United Kingdom,urban_region,train,53.5024,-2.2499,60,NE 1:50m populated place: Manchester
+ne_garoua_cameroon,Cameroon,urban_region,train,9.3000,13.3900,60,NE 1:50m populated place: Garoua
+ne_bujumbura_burundi,Burundi,urban_region,train,-3.3761,29.3600,60,NE 1:50m populated place: Bujumbura
+ne_posadas_argentina,Argentina,urban_region,train,-27.3578,-55.8851,60,NE 1:50m populated place: Posadas
+ne_taraz_kazakhstan,Kazakhstan,urban_region,train,42.9000,71.3650,60,NE 1:50m populated place: Taraz
+ne_manizales_colombia,Colombia,urban_region,train,5.0600,-75.5200,60,NE 1:50m populated place: Manizales
+ne_konya_turkey,Turkey,urban_region,train,37.8770,32.4731,60,NE 1:50m populated place: Konya
+ne_vilnius_lithuania,Lithuania,urban_region,train,54.6834,25.3166,60,NE 1:50m populated place: Vilnius
+ne_luxor_egypt,Egypt,urban_region,train,25.7000,32.6500,60,NE 1:50m populated place: Luxor
+ne_kaduna_nigeria,Nigeria,urban_region,train,10.5220,7.4381,60,NE 1:50m populated place: Kaduna
+ne_sofia_bulgaria,Bulgaria,urban_region,train,42.6853,23.3147,60,NE 1:50m populated place: Sofia
+ne_hyderabad_pakistan,Pakistan,urban_region,train,25.3819,68.3730,60,NE 1:50m populated place: Hyderabad
+ne_agra_india,India,urban_region,train,27.1724,78.0131,60,NE 1:50m populated place: Agra
+ne_hong_kong_china,China,urban_region,train,22.3069,114.1831,60,NE 1:50m populated place: Hong Kong
+ne_vienna_austria,Austria,urban_region,train,48.2020,16.3647,60,NE 1:50m populated place: Vienna
+ne_xichang_china,China,urban_region,train,27.8800,102.3000,60,NE 1:50m populated place: Xichang
+ne_gorontalo_indonesia,Indonesia,urban_region,train,0.5500,123.0700,60,NE 1:50m populated place: Gorontalo
+ne_lanzhou_china,China,urban_region,train,36.0580,103.7901,60,NE 1:50m populated place: Lanzhou
+ne_beijing_china,China,urban_region,train,39.9308,116.3863,60,NE 1:50m populated place: Beijing
+ne_natal_brazil,Brazil,urban_region,train,-5.7781,-35.2420,60,NE 1:50m populated place: Natal
+ne_tuxtla_guti_rrez_mexico,Mexico,urban_region,train,16.7500,-93.1500,60,NE 1:50m populated place: Tuxtla Gutiérrez
+ne_herat_afghanistan,Afghanistan,urban_region,train,34.3300,62.1700,60,NE 1:50m populated place: Herat
+ne_guatemala_city_guatemala,Guatemala,urban_region,train,14.6231,-90.5289,60,NE 1:50m populated place: Guatemala City
+ne_n_djamena_chad,Chad,urban_region,train,12.1150,15.0472,60,NE 1:50m populated place: N'Djamena
+ne_pointe_noire_congo_brazza,Congo (Brazzaville),urban_region,train,-4.7700,11.8800,60,NE 1:50m populated place: Pointe-Noire
+ne_nagoya_japan,Japan,urban_region,train,35.1569,136.9130,60,NE 1:50m populated place: Nagoya
+ne_kashgar_china,China,urban_region,train,39.4763,75.9699,60,NE 1:50m populated place: Kashgar
+ne_tabuk_saudi_arabia,Saudi Arabia,urban_region,train,28.3838,36.5550,60,NE 1:50m populated place: Tabuk
+ne_phnom_penh_cambodia,Cambodia,urban_region,train,11.5520,104.9147,60,NE 1:50m populated place: Phnom Penh
+ne_mbale_uganda,Uganda,urban_region,train,1.0904,34.1700,60,NE 1:50m populated place: Mbale
+ne_qiqihar_china,China,urban_region,train,47.3469,123.9880,60,NE 1:50m populated place: Qiqihar
+ne_kalaburagi_india,India,urban_region,train,17.3500,76.8200,60,NE 1:50m populated place: Kalaburagi
+ne_columbia_united_state,United States,urban_region,train,34.0400,-80.9000,60,NE 1:50m populated place: Columbia
+ne_manama_bahrain,Bahrain,urban_region,train,26.2361,50.5831,60,NE 1:50m populated place: Manama
+ne_tripoli_libya,Libya,urban_region,train,32.8925,13.1800,60,NE 1:50m populated place: Tripoli
+ne_shaoguan_china,China,urban_region,train,24.8000,113.5800,60,NE 1:50m populated place: Shaoguan
+ne_rajshahi_bangladesh,Bangladesh,urban_region,train,24.3769,88.6031,60,NE 1:50m populated place: Rajshahi
+ne_anshan_china,China,urban_region,train,41.1170,122.9381,60,NE 1:50m populated place: Anshan
+ne_douala_cameroon,Cameroon,urban_region,train,4.0624,9.7080,60,NE 1:50m populated place: Douala
+ne_san_juan_united_state,United States,urban_region,train,18.4400,-66.1300,60,NE 1:50m populated place: San Juan
+ne_daqing_china,China,urban_region,train,46.5819,124.9981,60,NE 1:50m populated place: Daqing
+ne_maseru_lesotho,Lesotho,urban_region,train,-29.3167,27.4833,60,NE 1:50m populated place: Maseru
+ne_albuquerque_united_state,United States,urban_region,train,35.1050,-106.6413,60,NE 1:50m populated place: Albuquerque
+ne_ia_i_romania,Romania,urban_region,train,47.1683,27.5749,60,NE 1:50m populated place: Iași
+ne_kharkiv_ukraine,Ukraine,urban_region,train,50.0019,36.2481,60,NE 1:50m populated place: Kharkiv
+ne_bouak_ivory_coast,Ivory Coast,urban_region,train,7.6900,-5.0300,60,NE 1:50m populated place: Bouaké
+ne_sanaa_yemen,Yemen,urban_region,train,15.3567,44.2046,60,NE 1:50m populated place: Sanaa
+ne_zibo_china,China,urban_region,train,36.8019,118.0480,60,NE 1:50m populated place: Zibo
+ne_hyderabad_india,India,urban_region,train,17.4019,78.4780,60,NE 1:50m populated place: Hyderabad
+ne_le_n_mexico,Mexico,urban_region,train,21.1519,-101.7020,60,NE 1:50m populated place: León
+ne_kozhikode_india,India,urban_region,train,11.2524,75.7680,60,NE 1:50m populated place: Kozhikode
+ne_wuhan_china,China,urban_region,train,30.5820,114.2681,60,NE 1:50m populated place: Wuhan
+ne_chi_in_u_moldova,Moldova,urban_region,train,47.0050,28.8577,60,NE 1:50m populated place: Chișinău
+ne_glasgow_united_kingd,United Kingdom,urban_region,train,55.8764,-4.2527,60,NE 1:50m populated place: Glasgow
+ne_alexandria_egypt,Egypt,urban_region,train,31.2020,29.9480,60,NE 1:50m populated place: Alexandria
+ne_cleveland_united_state,United States,urban_region,train,41.4719,-81.6969,60,NE 1:50m populated place: Cleveland
+ne_jilin_china,China,urban_region,train,43.8519,126.5481,60,NE 1:50m populated place: Jilin
+ne_torre_n_mexico,Mexico,urban_region,train,25.5720,-103.4219,60,NE 1:50m populated place: Torreón
+ne_kaohsiung_taiwan,Taiwan,urban_region,train,22.6333,120.2666,60,NE 1:50m populated place: Kaohsiung
+ne_helsinki_finland,Finland,urban_region,train,60.1775,24.9322,60,NE 1:50m populated place: Helsinki
+ne_shantou_china,China,urban_region,train,23.3720,116.6681,60,NE 1:50m populated place: Shantou
+ne_xuzhou_china,China,urban_region,train,34.2820,117.1781,60,NE 1:50m populated place: Xuzhou
+ne_bobo_dioulasso_burkina_faso,Burkina Faso,urban_region,train,11.1800,-4.2900,60,NE 1:50m populated place: Bobo Dioulasso
+ne_canc_n_mexico,Mexico,urban_region,train,21.1700,-86.8300,60,NE 1:50m populated place: Cancún
+ne_blantyre_malawi,Malawi,urban_region,train,-15.7900,34.9899,60,NE 1:50m populated place: Blantyre
+ne_krak_w_poland,Poland,urban_region,train,50.0619,19.9581,60,NE 1:50m populated place: Kraków
+ne_gold_coast_australia,Australia,urban_region,train,-28.0815,153.4482,60,NE 1:50m populated place: Gold Coast
+ne_khabarovsk_russia,Russia,urban_region,train,48.4550,135.1200,60,NE 1:50m populated place: Khabarovsk
+ne_kikwit_congo_kinsha,Congo (Kinshasa),urban_region,train,-5.0300,18.8500,60,NE 1:50m populated place: Kikwit
+ne_bhagalpur_india,India,urban_region,train,25.2300,86.9800,60,NE 1:50m populated place: Bhagalpur
+ne_mazar_i_sharif_afghanistan,Afghanistan,urban_region,train,36.7000,67.1000,60,NE 1:50m populated place: Mazar-i-Sharif
+ne_sholapur_india,India,urban_region,train,17.6724,75.8981,60,NE 1:50m populated place: Sholapur
+ne_mar_del_plata_argentina,Argentina,urban_region,val,-38.0000,-57.5800,60,NE 1:50m populated place: Mar del Plata
+ne_montr_al_canada,Canada,urban_region,val,45.5019,-73.5852,60,NE 1:50m populated place: Montréal
+ne_santa_fe_argentina,Argentina,urban_region,val,-31.6239,-60.6900,60,NE 1:50m populated place: Santa Fe
+ne_guwahati_india,India,urban_region,val,26.1620,91.7680,60,NE 1:50m populated place: Guwahati
+ne_sacramento_united_state,United States,urban_region,val,38.5770,-121.4720,60,NE 1:50m populated place: Sacramento
+ne_bandar_lampung_indonesia,Indonesia,urban_region,val,-5.4281,105.2681,60,NE 1:50m populated place: Bandar Lampung
+ne_sochi_russia,Russia,urban_region,val,43.5900,39.7300,60,NE 1:50m populated place: Sochi
+ne_stockholm_sweden,Sweden,urban_region,val,59.3527,18.0954,60,NE 1:50m populated place: Stockholm
+ne_casablanca_morocco,Morocco,urban_region,val,33.6019,-7.6183,60,NE 1:50m populated place: Casablanca
+ne_bhopal_india,India,urban_region,val,23.2519,77.4080,60,NE 1:50m populated place: Bhopal
+ne_san_salvador_el_salvador,El Salvador,urban_region,val,13.7119,-89.2050,60,NE 1:50m populated place: San Salvador
+ne_nasik_india,India,urban_region,val,20.0024,73.7780,60,NE 1:50m populated place: Nasik
+ne_minsk_belarus,Belarus,urban_region,val,53.9019,27.5647,60,NE 1:50m populated place: Minsk
+ne_east_london_south_africa,South Africa,urban_region,val,-32.9700,27.8700,60,NE 1:50m populated place: East London
+ne_shijiazhuang_china,China,urban_region,val,38.0520,114.4780,60,NE 1:50m populated place: Shijiazhuang
+ne_porto_alegre_brazil,Brazil,urban_region,val,-30.0481,-51.2020,60,NE 1:50m populated place: Porto Alegre
+ne_conakry_guinea,Guinea,urban_region,val,9.5335,-13.6822,60,NE 1:50m populated place: Conakry
+ne_algiers_algeria,Algeria,urban_region,val,36.7650,3.0486,60,NE 1:50m populated place: Algiers
+ne_nouakchott_mauritania,Mauritania,urban_region,val,18.0864,-15.9753,60,NE 1:50m populated place: Nouakchott
+ne_vadodara_india,India,urban_region,val,22.3120,73.1781,60,NE 1:50m populated place: Vadodara
+ne_omsk_russia,Russia,urban_region,val,54.9919,73.3980,60,NE 1:50m populated place: Omsk
+ne_khulna_bangladesh,Bangladesh,urban_region,val,22.8419,89.5581,60,NE 1:50m populated place: Khulna
+ne_zhengzhou_china,China,urban_region,val,34.7569,113.6631,60,NE 1:50m populated place: Zhengzhou
+ne_brazzaville_congo_brazza,Congo (Brazzaville),urban_region,val,-4.2572,15.2827,60,NE 1:50m populated place: Brazzaville
+ne_medell_n_colombia,Colombia,urban_region,val,6.2769,-75.5770,60,NE 1:50m populated place: Medellín
+ne_quetta_pakistan,Pakistan,urban_region,val,30.2219,67.0230,60,NE 1:50m populated place: Quetta
+ne_quetzaltenango_guatemala,Guatemala,urban_region,val,14.8300,-91.5200,60,NE 1:50m populated place: Quetzaltenango
+ne_wuwei_china,China,urban_region,val,37.9280,102.6410,60,NE 1:50m populated place: Wuwei
+ne_ogbomosho_nigeria,Nigeria,urban_region,val,8.1320,4.2380,60,NE 1:50m populated place: Ogbomosho
+ne_kirkuk_iraq,Iraq,urban_region,val,35.4722,44.3923,60,NE 1:50m populated place: Kirkuk
+ne_malang_indonesia,Indonesia,urban_region,test,-7.9780,112.6081,60,NE 1:50m populated place: Malang
+ne_belfast_united_kingd,United Kingdom,urban_region,test,54.6000,-5.9600,60,NE 1:50m populated place: Belfast
+ne_tampa_united_state,United States,urban_region,test,27.9489,-82.4606,60,NE 1:50m populated place: Tampa
+ne_edmonton_canada,Canada,urban_region,test,53.5520,-113.5019,60,NE 1:50m populated place: Edmonton
+ne_gujranwala_pakistan,Pakistan,urban_region,test,32.1624,74.1831,60,NE 1:50m populated place: Gujranwala
+ne_asunci_n_paraguay,Paraguay,urban_region,test,-25.2945,-57.6435,60,NE 1:50m populated place: Asunción
+ne_toulouse_french_repub,French Republic,urban_region,test,43.6219,1.4480,60,NE 1:50m populated place: Toulouse
+ne_winnipeg_canada,Canada,urban_region,test,49.8830,-97.1660,60,NE 1:50m populated place: Winnipeg
+ne_banghazi_libya,Libya,urban_region,test,32.1187,20.0648,60,NE 1:50m populated place: Banghazi
+ne_welkom_south_africa,South Africa,urban_region,test,-27.9700,26.7300,60,NE 1:50m populated place: Welkom
+ne_yaound_cameroon,Cameroon,urban_region,test,3.8686,11.5147,60,NE 1:50m populated place: Yaoundé
+ne_bengaluru_india,India,urban_region,test,12.9719,77.5581,60,NE 1:50m populated place: Bengaluru
+ne_singapore_singapore,Singapore,urban_region,test,1.2950,103.8539,60,NE 1:50m populated place: Singapore
+ne_yekaterinburg_russia,Russia,urban_region,test,56.8520,60.5980,60,NE 1:50m populated place: Yekaterinburg
+ne_suzhou_china,China,urban_region,test,33.6381,116.9769,60,NE 1:50m populated place: Suzhou
+ne_san_luis_potos_mexico,Mexico,urban_region,test,22.1719,-101.0019,60,NE 1:50m populated place: San Luis Potosí
+ne_wonsan_korea_north,"Korea, North",urban_region,test,39.1605,127.4308,60,NE 1:50m populated place: Wonsan
+ne_mianyang_china,China,urban_region,test,31.4719,104.7680,60,NE 1:50m populated place: Mianyang
+ne_cali_colombia,Colombia,urban_region,test,3.4019,-76.5019,60,NE 1:50m populated place: Cali
+ne_bandar_e_abbas_iran,Iran,urban_region,test,27.2041,56.2721,60,NE 1:50m populated place: Bandar-e-Abbas
+ne_kandahar_afghanistan,Afghanistan,urban_region,test,31.6100,65.6949,60,NE 1:50m populated place: Kandahar
+ne_reno_united_state,United States,urban_region,test,39.5300,-119.8200,60,NE 1:50m populated place: Reno
+ne_riga_latvia,Latvia,urban_region,test,56.9500,24.1000,60,NE 1:50m populated place: Riga
+ne_jacksonville_united_state,United States,urban_region,test,30.3320,-81.6719,60,NE 1:50m populated place: Jacksonville
+ne_asmara_eritrea,Eritrea,urban_region,test,15.3333,38.9333,60,NE 1:50m populated place: Asmara
+ne_tehran_iran,Iran,urban_region,test,35.6739,51.4224,60,NE 1:50m populated place: Tehran
+ne_kemerovo_russia,Russia,urban_region,test,55.3400,86.0900,60,NE 1:50m populated place: Kemerovo
+ne_kolhapur_india,India,urban_region,test,16.7000,74.2200,60,NE 1:50m populated place: Kolhapur
+ne_ahvaz_iran,Iran,urban_region,test,31.2819,48.7181,60,NE 1:50m populated place: Ahvaz
+ne_amaravati_india,India,urban_region,test,16.5337,80.5243,60,NE 1:50m populated place: Amaravati

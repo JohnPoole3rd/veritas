@@ -10,10 +10,13 @@ gradio>=4.0
 pyyaml>=6.0
 Pillow>=10.0
 pytest>=8.0
-
-# Optional: Upper Arlington tile collection (A's T10)
+pyrosm>=0.29
+geopandas>=0.14
+pyarrow>=14.0
 rasterio>=1.3
 shapely>=2.0
+
+# OSM-Sentinel STAC scene search / local tile geometry
 pyproj>=3.6
 pystac-client>=0.7
 requests>=2.31

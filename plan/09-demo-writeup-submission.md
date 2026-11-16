@@ -62,7 +62,7 @@ Expected real-mode log:
 
 ```text
 [demo] REAL mode — Upper Arlington N=50; EuroSAT test N=512 of 4050; transforms from src.alignment
-[demo] NOTE — using 512-tile stratified subset
+[demo] NOTE — using first 512 of 4050 test tiles (--limit run)
 ```
 
 If it says `MOCK mode`, the missing artifact list names the blocker.

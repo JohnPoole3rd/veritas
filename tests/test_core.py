@@ -29,6 +29,48 @@ class AlignmentTests(unittest.TestCase):
         similarity = np.sum(rotated * texts, axis=1)
         self.assertGreater(float(similarity.mean()), 0.99)
 
+    def test_procrustes_chunked_fit_matches_one_shot(self):
+        rng = np.random.default_rng(3)
+        X = rng.normal(size=(257, 12)).astype(np.float32)
+        Y = rng.normal(size=(257, 12)).astype(np.float32)
+        one = fit_procrustes(X, Y, chunk_size=257)
+        chunked = fit_procrustes(X, Y, chunk_size=17)
+        np.testing.assert_allclose(chunked["W"], one["W"], atol=1e-5)
+        np.testing.assert_allclose(chunked["mu_x"], one["mu_x"], atol=1e-6)
+        np.testing.assert_allclose(chunked["mu_y"], one["mu_y"], atol=1e-6)
+
+    def test_procrustes_unique_targets_and_blocks_match_dense(self):
+        # y_index (unique caption table) and X row blocks are a storage change only: same
+        # fit, and with shuffle_y the same seed gives the same control fit.
+        rng = np.random.default_rng(5)
+        index = rng.integers(0, 40, size=300)
+        Yu = rng.normal(size=(40, 12)).astype(np.float32)
+        X = rng.normal(size=(300, 12)).astype(np.float32)
+        for shuffle in (False, True):
+            dense = fit_procrustes(X, Yu[index], shuffle_y=shuffle, seed=7, chunk_size=64)
+            grouped = fit_procrustes([X[:111], X[111:]], Yu, y_index=index, shuffle_y=shuffle, seed=7, chunk_size=64)
+            np.testing.assert_allclose(grouped["W"], dense["W"], atol=1e-4)
+            np.testing.assert_allclose(grouped["mu_x"], dense["mu_x"], atol=1e-6)
+            np.testing.assert_allclose(grouped["mu_y"], dense["mu_y"], atol=1e-6)
+        with self.assertRaises(ValueError):
+            fit_procrustes(X[:10], Yu, y_index=index)
+
+    def test_encode_texts_dedupes(self):
+        from src.encoders import encode_texts
+
+        class Fake:
+            calls = []
+
+            def encode(self, texts, **_):
+                self.calls.append(list(texts))
+                return np.array([[len(t), ord(t[0])] for t in texts], dtype=np.float32)
+
+        model = Fake()
+        texts = ["bb", "a", "bb", "ccc", "a"]
+        out = encode_texts(model, texts)
+        self.assertEqual(model.calls, [["bb", "a", "ccc"]])
+        np.testing.assert_array_equal(out, encode_texts(model, texts, dedupe=False))
+
     def test_centering_uses_training_means(self):
         X = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
         Y = np.array([[0.0, 1.0], [2.0, 3.0]], dtype=np.float32)

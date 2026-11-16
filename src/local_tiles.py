@@ -88,7 +88,15 @@ def load_tile_images(df: pd.DataFrame) -> list:
     return [Image.open(ROOT / p).convert("RGB") for p in df.path]
 
 
-def _embed_images(image_model, manifest: pd.DataFrame, input_size: int = 224, device=None):
+def _embed_images(
+    image_model,
+    manifest: pd.DataFrame,
+    input_size: int = 224,
+    device=None,
+    batch_size: int = 32,
+    num_workers: int = 0,
+    dtype: str = "fp32",
+):
     """Return (N, D) DINOv2 embeddings for the manifest tiles. image_model may be:
     - an (N, D) array of precomputed embeddings (INTERFACES §5 `image_embeddings`),
     - a callable list[PIL] -> (N, D) array (tests / custom encoders),
@@ -105,7 +113,14 @@ def _embed_images(image_model, manifest: pd.DataFrame, input_size: int = 224, de
     from src.encoders import extract_image_embeddings
 
     ds = LocalTileDataset(manifest, ROOT, transform=get_transforms(input_size, train=False))
-    return extract_image_embeddings(image_model, ds, batch_size=32, device=device)
+    return extract_image_embeddings(
+        image_model,
+        ds,
+        batch_size=batch_size,
+        device=device,
+        num_workers=num_workers,
+        dtype=dtype,
+    )
 
 
 def _cache_key(manifest: pd.DataFrame, config: dict) -> dict:

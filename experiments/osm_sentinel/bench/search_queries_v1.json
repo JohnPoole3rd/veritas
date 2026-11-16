@@ -1,0 +1,25 @@
+{
+  "version": "search_queries_v1",
+  "frozen": "2026-11-15 22:50 ET, written before any search_benchmark results existed",
+  "relevance": "a returned 640 m square counts as relevant if its OpenStreetMap feature_counts contain any of the listed phrases (what is mapped there)",
+  "queries": [
+    {"query": "parking lots", "group": "open", "phrases": ["parking lot"]},
+    {"query": "a golf course", "group": "open", "phrases": ["golf course"]},
+    {"query": "sports fields", "group": "open", "phrases": ["soccer field", "sports field", "running track"]},
+    {"query": "a railway line", "group": "open", "phrases": ["railway"]},
+    {"query": "a quarry", "group": "open", "phrases": ["quarry"]},
+    {"query": "a cemetery", "group": "open", "phrases": ["cemetery"]},
+    {"query": "an airport", "group": "open", "phrases": ["airport"]},
+    {"query": "a construction site", "group": "open", "phrases": ["construction site"]},
+    {"query": "an orchard", "group": "open", "phrases": ["orchard"]},
+    {"query": "a school", "group": "open", "phrases": ["school", "campus"]},
+    {"query": "a sandy beach", "group": "open", "phrases": ["beach", "sand"]},
+    {"query": "wetland or marsh", "group": "open", "phrases": ["wetland"]},
+    {"query": "dense forest", "group": "vocab", "phrases": ["forest"]},
+    {"query": "a river", "group": "vocab", "phrases": ["river"]},
+    {"query": "farm fields", "group": "vocab", "phrases": ["farmland"]},
+    {"query": "houses and residential streets", "group": "vocab", "phrases": ["residential area", "dense buildings"]},
+    {"query": "an industrial area", "group": "vocab", "phrases": ["industrial area"]},
+    {"query": "a lake or open water", "group": "vocab", "phrases": ["water"]}
+  ]
+}
