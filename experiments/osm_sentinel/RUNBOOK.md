@@ -553,6 +553,27 @@ an identical caption; it will be low by construction. Use `image_to_label` accur
 random-rotation control as the meaningful numbers. Report `caption_to_image` only as a secondary
 metric.
 
+### 6b. Production all-data rotation (no split)
+
+When the final artifact should use every captioned chip rather than a train split, use
+`train_rotation.py`. It fits the same Procrustes map and writes only the portable `.npz`;
+it does not evaluate EuroSAT, Upper Arlington, or any benchmark suite.
+
+```sh
+python experiments/osm_sentinel/train_rotation.py \
+  --data data/raw/osm_sentinel_1m_640 \
+  --out artifacts/alignment/osm_sentinel_dinov2-small_all_data.npz \
+  --tag all_data \
+  --device cuda --dtype fp16 --batch-size 512 --num-workers 12
+```
+
+This includes train, val, and test rows by default. The output is for deployment/inference only:
+its fit saw the test rows, so it must not be used for held-out benchmark numbers. Pass
+`--exclude-region us_columbus` if the rotation must remain out-of-distribution for Upper Arlington.
+
+The `.npz` metadata records the row count, regions, countries, encoders, device, and SHA-256 is
+printed after writing.
+
 ## 7. What to report
 
 The authoritative 64 px run writes:
