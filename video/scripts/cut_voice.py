@@ -16,24 +16,25 @@ src = sys.argv[1]
 caps = {sc["key"]: [c["text"] for c in sc["captions"]] for sc in json.loads((ROOT/"video/src/numbers.json").read_text())["timeline"]}
 # best clean take per scene (seconds in the source recording); lists are spliced with a short pause
 TAKES = {
- "hook":    [(1.92, 7.64)],
- "problem": [(21.69, 29.31)],
- "idea":    [(36.78, 42.18)],
- "search":  [(51.20, 66.24)],
- "heat":    [(109.04, 124.97)],
- "how":     [(202.55, 219.90)],
- "baseline":[(222.57, 229.69)],
- "limits":  [(244.54, 257.10)],
- "next":    [(266.77, 270.66)],
- "end":     [(271.89, 274.57)],
+ "hook":    [(4.30, 9.85)],
+ "problem": [(12.55, 19.42)],
+ "idea":    [(26.90, 31.28)],
+ "search":  [(33.25, 39.12)],
+ "heat":    [(40.70, 54.52)],
+ "how":     [(57.28, 70.14)],
+ "test":    [(80.20, 89.58)],
+ "baseline":[(99.00, 104.78)],
+ "limits":  [(117.50, 127.00)],
+ "next":    [(134.50, 138.22)],
+ "end":     [(139.02, 141.72)],
 }
 raw = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-loglevel", "error", "-i", src, "-ac", "1", "-ar", str(SR),
       "-af", "highpass=f=80,afftdn=nf=-25", "-f", "s16le", "-"], capture_output=True, check=True).stdout
 x = np.frombuffer(raw, "<i2").astype(np.float32) / 32768
 TEMPO = 1.08
 # first spoken words of each caption line after the first (as whisper writes them, lower case, no punctuation)
-ANCHORS = {"problem": ["satellites|satellite"], "search": ["all", "any"], "heat": ["greener", "plant", "search"],
-           "how": ["we line", "on new|our new|on knew"], "limits": ["rivers|river"]}
+ANCHORS = {"problem": ["satellites|satellite"], "search": ["type", "the best"], "heat": ["greener|griner|greater", "plant", "download|down"],
+           "how": ["we", "fit|fitted"], "test": ["about", "for parking|for"], "limits": ["and in"]}
 _asr = []
 def asr():
     if not _asr:

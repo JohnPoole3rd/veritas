@@ -1,0 +1,15 @@
+{
+ "search": {
+  "radius": 8.85,
+  "circle": 10.8,
+  "type": 13.01,
+  "results": 15.16
+ },
+ "lab": {
+  "ndvi": 6.26,
+  "lst": 8.61,
+  "heat": 12.15,
+  "priority": 18.7,
+  "export": 23.75
+ }
+}

@@ -38,6 +38,18 @@ n = {
     "probe": {"query": probe.get("query"), "top": (probe.get("hits") or [{}])[0].get("score")},
     "disclaimer": "Prototype, not a land-use determination.",
 }
+bj = json.loads((ROOT / "results" / "search_benchmark_v1" / "search_benchmark_v1.json").read_text())
+bm = bj["models"]; pq = lambda m, q: pc(bm[m]["per_query"][q]["p_at_10"], 1)
+import numpy as _np
+N_FIT = json.loads(str(_np.load(ROOT / "colab" / "artifacts" / "osm_1m_rotation.npz", allow_pickle=True)["metadata"]))["n_fit"]
+n["bench"] = {"ours": pc(bm["osm_1m"]["summary"]["all"]["p_at_10"], 1), "first": pc(bm["eurosat"]["summary"]["all"]["p_at_10"], 1),
+              "none": pc(bm["identity (no rotation)"]["summary"]["all"]["p_at_10"], 1), "random": pc(bm["random rotation"]["summary"]["all"]["p_at_10"], 1),
+              "chance": pc(bm["osm_1m"]["summary"]["all"]["chance"], 1), "pairs": bm["osm_1m"]["summary"]["all"]["pairs"],
+              "regions": bj["n_regions"], "squares": bj["n_squares"], "k": bj["k"],
+              "parking": pq("osm_1m", "parking lots"), "parking_chance": pc(bm["osm_1m"]["per_query"]["parking lots"]["chance"], 1),
+              "diff": pc(bj["paired"]["osm_1m - eurosat"]["all"]["diff"], 1), "diff_ci": [pc(v, 1) for v in bj["paired"]["osm_1m - eurosat"]["all"]["ci95"]],
+              "weak": [{"q": q, "ours": pq("osm_1m", q), "chance": pc(bm["osm_1m"]["per_query"][q]["chance"], 1)} for q in ("a cemetery", "an orchard")],
+              "n_fit": N_FIT, "fit_words": "one million" if N_FIT == 1_000_000 else f"{N_FIT:,}"}
 out = ROOT / "video" / "src" / "numbers.json"
 out.write_text(json.dumps(n, indent=1))
 print(json.dumps(n))
@@ -69,27 +81,29 @@ n["repo_url"] = "github.com/JohnPoole3rd/veritas"
 # ---------------------------------------------------------------- timeline + captions (seconds within each scene)
 f1 = lambda v: f"{v:.1f}".rstrip("0").rstrip(".")
 sgn = lambda v: ("−" if v < 0 else "+") + f"{abs(v):.2f}"
-H, S, L, Lo = n["heat"], n["search"], n["label"], n["local"]
+H, S, L, Lo, B = n["heat"], n["search"], n["label"], n["local"], n["bench"]
 r0 = lambda v: f"{v:.0f}"
 SCENES = [
     ("hook", 5, [(0, 5, f"In Upper Arlington, Ohio, the least green part of town was {f1(H['tercile'])} degrees hotter than the greenest part.")]),
     ("problem", 8, [(0, 4, "So where should the city plant new trees?"),
-                    (4, 8, "Satellites take a new picture of every street every few days. That's too much to look through.")]),
-    ("idea", 6, [(0, 6, "So we built a way to search satellite photos in plain English, without training a new AI.")]),
-    ("search", 19, [(0, 3.5, "Type “river corridor”."),
-                    (3.5, 9, f"All {n['river_demo']['k']} top results really are the river. We checked them against our own labels." if n['river_demo']['right'] == n['river_demo']['k']
-                     else f"{n['river_demo']['right']} of the top {n['river_demo']['k']} really are the river. We checked them against our own labels."),
-                    (9, 19, "Any words work, like “tall trees near a river”. The number is a match score, not a percent.")]),
-    ("heat", 23, [(0, 6, "The Heat Lab adds two satellite measurements: how green, and how hot."),
-                  (6, 12, f"Greener squares are cooler, by about {abs(H['slope']):.1f} degrees for every step in green."),
-                  (12, 17, "“Plant first” marks hot squares with few trees."),
-                  (17, 23, "Search “parking lot”, see the hottest ones, and download the list.")]),
-    ("how", 19, [(0, 6, "How does it work? One AI turns photos into numbers. Another turns words into numbers."),
-                 (6, 12, "We line the two up with one rotation. No training."),
-                 (12, 19, f"On new photos, the right land type comes first {r0(S['ours'])}% of the time. A random rotation gets {r0(S['random'])}%.")]),
-    ("baseline", 8, [(0, 8, f"A trained ResNet labels photos better: {r0(L['resnet'])}% to our {r0(L['ours'])}%. But it can't search by words.")]),
-    ("limits", 15, [(0, 7, f"In our own town, it's a tie: {r0(Lo['ours'])}% right, versus {r0(Lo['oracle'])}% for always guessing “Residential”."),
-                    (7, 15, f"Rivers: {'zero' if Lo['river_right'] == 0 else Lo['river_right']} out of {'ten' if Lo['river_n'] == 10 else Lo['river_n']} right. From space, a thin river looks like a road.")]),
+                    (4, 8, "Satellites photograph every street every few days. That's too much to look through.")]),
+    ("idea", 6, [(0, 6, "So we built a way to search satellite photos of anywhere on Earth, in plain English.")]),
+    ("search", 10, [(0, 3.5, "Pick a place and set a radius."),
+                    (3.5, 6, "Type “parking lots”."),
+                    (6, 10, "The best-matching squares light up on the map.")]),
+    ("heat", 18, [(0, 5, "The same app adds two satellite measurements: how green, and how hot."),
+                  (5, 10, f"Greener squares are cooler, by about {abs(H['slope']):.1f} degrees for every step in green."),
+                  (10, 15, "“Plant first” marks hot squares with few trees."),
+                  (15, 18, "Download the list.")]),
+    ("how", 15, [(0, 6, "How does it work? One AI turns photos into numbers. Another turns words into numbers."),
+                 (6, 10, "We line the two up with one rotation,"),
+                 (10, 15, f"fitted on {B['fit_words']} satellite photos captioned from OpenStreetMap.")]),
+    ("test", 12, [(0, 4, f"We tested it on {B['regions']} regions held out from training."),
+                  (4, 9, f"About 1 in {round(100 / B['ours'])} top results is right. By chance, it's 1 in {round(100 / B['chance'])}."),
+                  (9, 12, f"For parking lots, it's {round(B['parking'] / 10)} in 10.")]),
+    ("baseline", 8, [(0, 8, f"A million photos helped only a little: {r0(B['ours'])}% right, up from {r0(B['first'])}% with our first rotation.")]),
+    ("limits", 12, [(0, 5, "It still misses a lot. Cemeteries and orchards score near chance."),
+                    (5, 12, f"And in our own town, thin rivers look like roads: {'zero' if Lo['river_right'] == 0 else Lo['river_right']} out of {'ten' if Lo['river_n'] == 10 else Lo['river_n']} right.")]),
     ("next", 7, [(0, 7, "Next: sharper photos, and an AI that can say “I don't know”.")]),
     ("end", 5, [(0, 5, "Platonic Earth. Try it at the link below.")]),
 ]

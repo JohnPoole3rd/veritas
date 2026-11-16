@@ -2,6 +2,11 @@ import React from "react";
 import { AbsoluteFill, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { Bar, Clip, Fade, Kicker, Pop, Tile } from "./parts";
 import { C, F, FPS, N, fmt1 } from "./theme";
+import marks from "./marks.json";
+
+// when caption line i of a scene starts (seconds into the scene) — visuals follow the voice
+const capAt = (key: string, i: number) => (N.timeline.find((t) => t.key === key)?.captions[i]?.from ?? 0);
+const B = N.bench;
 
 const s = (x: number) => Math.round(x * FPS);
 const Big: React.FC<{ children: React.ReactNode; size?: number; color?: string; style?: React.CSSProperties }> = ({ children, size = 104, color = C.ink, style }) => (
@@ -58,7 +63,7 @@ export const Idea: React.FC = () => {
           ))}
         </div>
         <div style={{ position: "absolute", left: 110, top: 300, width: 860 }}>
-          <Pop><Big size={96}>Search satellite photos in <i style={{ color: C.moss }}>plain English.</i></Big></Pop>
+          <Pop><Big size={96}>Search satellite photos of anywhere on Earth, in <i style={{ color: C.moss }}>plain English.</i></Big></Pop>
           <Pop delay={14}>
             <div style={{ display: "flex", gap: 16, marginTop: 44, flexWrap: "wrap" }}>
               {["2 AI models, not retrained", "1 rotation", "0 training"].map((t) => (
@@ -72,23 +77,30 @@ export const Idea: React.FC = () => {
   );
 };
 
-// 4 — live search, real recording
-export const Search: React.FC = () => (
-  <Fade>
-    <Sequence durationInFrames={s(9)}><Clip src="search" from={0.6} fx={0.3} fy={0.6} s0={1.12} s1={1.22} /></Sequence>
-    <Sequence from={s(9)}><Clip src="search" from={9.3} fx={0.3} fy={0.6} s0={1.16} s1={1.24} /></Sequence>
-  </Fade>
-);
+// 4 — Search anywhere: radius, typed query, matches (real recording of the site running the 1M rotation)
+export const Search: React.FC = () => {
+  const c1 = capAt("search", 1), c2 = capAt("search", 2), m = marks.search;
+  return (
+    <Fade>
+      <Sequence durationInFrames={s(c1)}><Clip src="search" from={m.radius - 0.5} fx={0.25} fy={0.35} s0={1.08} s1={1.16} /></Sequence>
+      <Sequence from={s(c1)} durationInFrames={s(c2 - c1)}><Clip src="search" from={m.type - 0.2} fx={0.9} fy={0.3} s0={1.3} s1={1.36} /></Sequence>
+      <Sequence from={s(c2)}><Clip src="search" from={m.results - 0.2} fx={0.3} fy={0.45} s0={1.1} s1={1.2} /></Sequence>
+    </Fade>
+  );
+};
 
-// 5 — the Heat Lab, real recording
-export const Heat: React.FC = () => (
-  <Fade>
-    <Sequence durationInFrames={s(6)}><Clip src="lab" from={3} fx={0.3} fy={0.45} s0={1.05} s1={1.15} /></Sequence>
-    <Sequence from={s(6)} durationInFrames={s(6)}><Clip src="lab" from={5} fx={0.86} fy={0.42} s0={1.45} s1={1.55} /></Sequence>
-    <Sequence from={s(12)} durationInFrames={s(5)}><Clip src="lab" from={12} fx={0.3} fy={0.45} s0={1.1} s1={1.18} /></Sequence>
-    <Sequence from={s(17)}><Clip src="lab" from={17.8} fx={0.78} fy={0.45} s0={1.25} s1={1.35} /></Sequence>
-  </Fade>
-);
+// 5 — heat on the same map, real recording
+export const Heat: React.FC = () => {
+  const c1 = capAt("heat", 1), c2 = capAt("heat", 2), c3 = capAt("heat", 3), m = marks.lab;
+  return (
+    <Fade>
+      <Sequence durationInFrames={s(c1)}><Clip src="lab" from={m.ndvi - 0.4} fx={0.3} fy={0.45} s0={1.05} s1={1.14} /></Sequence>
+      <Sequence from={s(c1)} durationInFrames={s(c2 - c1)}><Clip src="lab" from={m.heat + 0.6} fx={0.86} fy={0.42} s0={1.45} s1={1.55} /></Sequence>
+      <Sequence from={s(c2)} durationInFrames={s(c3 - c2)}><Clip src="lab" from={m.priority + 0.6} fx={0.3} fy={0.5} s0={1.1} s1={1.18} /></Sequence>
+      <Sequence from={s(c3)}><Clip src="lab" from={m.export + 0.4} fx={0.86} fy={0.35} s0={1.3} s1={1.38} /></Sequence>
+    </Fade>
+  );
+};
 
 // 6 — how it works: two encoders, one rotation, then the search result vs controls
 const Box: React.FC<{ title: string; sub: string; color: string }> = ({ title, sub, color }) => (
@@ -112,71 +124,85 @@ const Vec: React.FC<{ color: string; seed: number; delay: number }> = ({ color, 
 export const How: React.FC = () => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const rot = spring({ frame: f - s(6), fps, config: { damping: 18 }, durationInFrames: 40 }) * 360;
-  const showBars = f >= s(12);
-  const o1 = interpolate(f, [s(11.5), s(12)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const c1 = capAt("how", 1), c2 = capAt("how", 2);
+  const rot = spring({ frame: f - s(c1), fps, config: { damping: 18 }, durationInFrames: 40 }) * 360;
   return (
     <Fade>
       <AbsoluteFill style={{ backgroundColor: C.paper }}>
         <Kicker n="03" text="How it works" />
-        {!showBars && (
-          <AbsoluteFill style={{ opacity: o1 }}>
-            <div style={{ position: "absolute", left: 110, top: 230, display: "flex", alignItems: "center", gap: 40 }}>
-              <Pop><Tile id={N.river_tiles[0]} size={150} /></Pop>
-              <Pop delay={6}><Box title="DINOv2" sub="picture AI · Meta" color={C.moss} /></Pop>
-              <Vec color={C.moss} seed={1} delay={14} />
-            </div>
-            <div style={{ position: "absolute", left: 110, top: 560, display: "flex", alignItems: "center", gap: 40 }}>
-              <Pop delay={20}><div style={{ width: 150, fontFamily: F.serif, fontStyle: "italic", fontSize: 40, color: C.ink }}>“river corridor”</div></Pop>
-              <Pop delay={26}><Box title="MiniLM" sub="word AI" color={C.river} /></Pop>
-              <Vec color={C.river} seed={2} delay={34} />
-            </div>
-            {f > s(5.5) && (
-              <Pop delay={s(5.5)} style={{ position: "absolute", left: 1300, top: 300, width: 520, textAlign: "center" }}>
-                <svg width="260" height="260" viewBox="0 0 100 100" style={{ transform: `rotate(${rot}deg)` }}>
-                  <circle cx="50" cy="50" r="40" fill="none" stroke={C.clay} strokeWidth="6" strokeDasharray="200 52" />
-                  <path d="M80 18 L92 30 L76 34 Z" fill={C.clay} />
-                </svg>
-                <div style={{ fontFamily: F.serif, fontSize: 52, color: C.ink, marginTop: 10 }}>one rotation</div>
-                <div style={{ fontFamily: F.mono, fontSize: 26, color: C.muted, marginTop: 6 }}>(Procrustes) · fit on EuroSAT</div>
-              </Pop>
-            )}
-          </AbsoluteFill>
+        <div style={{ position: "absolute", left: 110, top: 230, display: "flex", alignItems: "center", gap: 40 }}>
+          <Pop delay={s(1.2)}><Tile id={N.river_tiles[0]} size={150} /></Pop>
+          <Pop delay={s(1.4)}><Box title="DINOv2" sub="picture AI · Meta" color={C.moss} /></Pop>
+          <Vec color={C.moss} seed={1} delay={s(1.7)} />
+        </div>
+        <div style={{ position: "absolute", left: 110, top: 560, display: "flex", alignItems: "center", gap: 40 }}>
+          <Pop delay={s(3)}><div style={{ width: 150, fontFamily: F.serif, fontStyle: "italic", fontSize: 40, color: C.ink }}>“parking lots”</div></Pop>
+          <Pop delay={s(3.2)}><Box title="MiniLM" sub="word AI" color={C.river} /></Pop>
+          <Vec color={C.river} seed={2} delay={s(3.5)} />
+        </div>
+        {f > s(c1) && (
+          <Pop delay={s(c1)} style={{ position: "absolute", left: 1300, top: 250, width: 520, textAlign: "center" }}>
+            <svg width="260" height="260" viewBox="0 0 100 100" style={{ transform: `rotate(${rot}deg)` }}>
+              <circle cx="50" cy="50" r="40" fill="none" stroke={C.clay} strokeWidth="6" strokeDasharray="200 52" />
+              <path d="M80 18 L92 30 L76 34 Z" fill={C.clay} />
+            </svg>
+            <div style={{ fontFamily: F.serif, fontSize: 52, color: C.ink, marginTop: 10 }}>one rotation</div>
+            <div style={{ fontFamily: F.mono, fontSize: 26, color: C.muted, marginTop: 6 }}>(orthogonal Procrustes) · both AIs frozen</div>
+          </Pop>
         )}
-        {showBars && (
-          <Sequence from={s(12)} layout="none">
-            <div style={{ position: "absolute", left: 110, top: 200 }}>
-              <Pop><Big size={66}>Right land type comes first</Big></Pop>
-              <Pop delay={4}><div style={{ fontFamily: F.mono, fontSize: 26, color: C.muted, marginTop: 10 }}>{N.search.queries} text searches · {N.search.tiles.toLocaleString("en-US")} photos never used for fitting</div></Pop>
-            </div>
-            <div style={{ position: "absolute", left: 0, top: 430, display: "flex", flexDirection: "column", gap: 34 }}>
-              <Bar label="Our rotation" value={N.search.ours} color={C.moss} delay={6} bold />
-              <Bar label="Random rotation" sub="control" value={N.search.random} color={C.ochre} delay={12} />
-              <Bar label="No rotation" sub="control" value={N.search.none} color="#b9b2a0" delay={18} />
-            </div>
-          </Sequence>
+        {f > s(c2) && (
+          <Pop delay={s(c2)} style={{ position: "absolute", left: 1300, top: 660, width: 520, textAlign: "center" }}>
+            <div style={{ fontFamily: F.serif, fontSize: 76, fontWeight: 600, color: C.moss }}>{B.n_fit.toLocaleString("en-US")}</div>
+            <div style={{ fontFamily: F.sans, fontSize: 30, color: C.ink, marginTop: 4 }}>Sentinel-2 photos, captioned from OpenStreetMap</div>
+          </Pop>
         )}
       </AbsoluteFill>
     </Fade>
   );
 };
 
-// 7 — the strong baseline, stated plainly
+// 7 — the product test: text → places on held-out regions
+export const Test: React.FC = () => {
+  const f = useCurrentFrame();
+  const c1 = capAt("test", 1), c2 = capAt("test", 2);
+  return (
+    <Fade>
+      <AbsoluteFill style={{ backgroundColor: C.paper }}>
+        <Kicker n="04" text="Results · search in words" />
+        <div style={{ position: "absolute", left: 110, top: 190 }}>
+          <Pop><Big size={66}>How many of the top {B.k} results are right?</Big></Pop>
+          <Pop delay={4}><div style={{ fontFamily: F.mono, fontSize: 26, color: C.muted, marginTop: 10, maxWidth: 1700 }}>{B.pairs} searches · {B.squares.toLocaleString("en-US")} squares · {B.regions} regions held out from training · “right” = mapped in OpenStreetMap</div></Pop>
+        </div>
+        <div style={{ position: "absolute", left: 0, top: 410, display: "flex", flexDirection: "column", gap: 30 }}>
+          <Bar label="Our rotation" sub="1M photos" value={B.ours} color={C.moss} delay={s(c1)} bold max={50} />
+          <Bar label="No rotation" sub="control" value={B.none} color={C.ochre} delay={s(c1) + 8} max={50} />
+          <Bar label="Chance" value={B.chance} color="#b9b2a0" delay={s(c1) + 16} max={50} />
+        </div>
+        {f > s(c2) && (
+          <Pop delay={s(c2)} style={{ position: "absolute", right: 110, top: 760 }}>
+            <div style={{ fontFamily: F.sans, fontSize: 34, color: C.ink, backgroundColor: C.sprout, padding: "14px 24px", borderRadius: 14 }}>“parking lots”: <b>{B.parking}%</b> right · chance {B.parking_chance}%</div>
+          </Pop>
+        )}
+      </AbsoluteFill>
+    </Fade>
+  );
+};
+
+// 8 — the baseline: our own first rotation
 export const Baseline: React.FC = () => (
   <Fade>
     <AbsoluteFill style={{ backgroundColor: C.paper }}>
-      <Kicker n="04" text="Results · label each photo" />
+      <Kicker n="04" text="Results · versus our first rotation" />
       <div style={{ position: "absolute", left: 110, top: 200 }}>
-        <Pop><Big size={66}>A trained model labels better.</Big></Pop>
-        <Pop delay={4}><div style={{ fontFamily: F.mono, fontSize: 26, color: C.muted, marginTop: 10 }}>{N.label.n.toLocaleString("en-US")} unseen EuroSAT photos · same task for every row</div></Pop>
+        <Pop><Big size={66}>A million photos helped only a little.</Big></Pop>
+        <Pop delay={4}><div style={{ fontFamily: F.mono, fontSize: 26, color: C.muted, marginTop: 10 }}>same {B.pairs} searches, same places · top-{B.k} results that are right</div></Pop>
       </div>
-      <div style={{ position: "absolute", left: 0, top: 420, display: "flex", flexDirection: "column", gap: 30 }}>
-        <Bar label="ResNet-18" sub="trained on the labels" value={N.label.resnet} color={C.river} delay={6} />
-        <Bar label="Our rotation" sub="no training" value={N.label.ours} color={C.moss} delay={12} bold />
-        <Bar label="Always most common" sub="baseline" value={N.label.majority} color="#b9b2a0" delay={18} />
+      <div style={{ position: "absolute", left: 0, top: 440, display: "flex", flexDirection: "column", gap: 34 }}>
+        <Bar label="1M-photo rotation" value={B.ours} color={C.moss} delay={s(1.6)} bold max={50} />
+        <Bar label="First rotation" sub="EuroSAT photos" value={B.first} color={C.river} delay={s(3.2)} max={50} />
       </div>
-      <Pop delay={40} style={{ position: "absolute", right: 110, top: 220 }}>
-        <div style={{ fontFamily: F.sans, fontSize: 32, color: C.ink, backgroundColor: C.sprout, padding: "14px 24px", borderRadius: 14, maxWidth: 520 }}>ResNet can’t take a question in words. Ours can.</div>
+      <Pop delay={s(3.8)} style={{ position: "absolute", right: 110, top: 760 }}>
+        <div style={{ fontFamily: F.sans, fontSize: 32, color: C.ink, backgroundColor: C.sprout, padding: "14px 24px", borderRadius: 14 }}>+{B.diff} points (95% CI {B.diff_ci[0]} to {B.diff_ci[1]})</div>
       </Pop>
     </AbsoluteFill>
   </Fade>
@@ -185,7 +211,8 @@ export const Baseline: React.FC = () => (
 // 8 — honest limits: the local tie and the river failure
 export const Limits: React.FC = () => {
   const f = useCurrentFrame();
-  const part2 = f >= s(7);
+  const c1 = capAt("limits", 1);
+  const part2 = f >= s(c1);
   return (
     <Fade>
       <AbsoluteFill style={{ backgroundColor: C.night }}>
@@ -193,20 +220,21 @@ export const Limits: React.FC = () => {
         {!part2 ? (
           <>
             <div style={{ position: "absolute", left: 110, top: 200 }}>
-              <Pop><Big size={66} color={C.nightInk}>Our own town: <span style={{ color: C.ochre }}>a tie.</span></Big></Pop>
-              <Pop delay={4}><div style={{ fontFamily: F.mono, fontSize: 26, color: C.nightMuted, marginTop: 10 }}>{N.local.n} Upper Arlington photos, labelled by us</div></Pop>
+              <Pop><Big size={66} color={C.nightInk}>Some searches are <span style={{ color: C.ochre }}>near chance.</span></Big></Pop>
+              <Pop delay={4}><div style={{ fontFamily: F.mono, fontSize: 26, color: C.nightMuted, marginTop: 10 }}>top-{B.k} results that are right · held-out regions</div></Pop>
             </div>
-            <div style={{ position: "absolute", left: 0, top: 430, display: "flex", flexDirection: "column", gap: 30 }}>
-              <Bar label="Our rotation" value={N.local.ours} color={C.fern} delay={6} bold dark />
-              <Bar label="ResNet-18" value={N.local.resnet} color={C.river} delay={10} dark />
-              <Bar label="Always “Residential”" sub="baseline" value={N.local.oracle} color="#8a8576" delay={14} dark />
+            <div style={{ position: "absolute", left: 0, top: 410, display: "flex", flexDirection: "column", gap: 22 }}>
+              {B.weak.flatMap((w, i) => [
+                <Bar key={w.q} label={`“${w.q}”`} value={w.ours} color={C.fern} delay={s(1.2) + i * 14} bold dark max={50} />,
+                <Bar key={w.q + "c"} label="chance" value={w.chance} color="#8a8576" delay={s(1.2) + i * 14 + 5} dark max={50} />,
+              ])}
             </div>
           </>
         ) : (
-          <Sequence from={s(7)} layout="none">
+          <Sequence from={s(c1)} layout="none">
             <div style={{ position: "absolute", left: 110, top: 200 }}>
               <Pop><Big size={66} color={C.nightInk}>Rivers: <span style={{ color: "#ff8a5c" }}>{N.local.river_right} of {N.local.river_n}</span> named right.</Big></Pop>
-              <Pop delay={4}><div style={{ fontFamily: F.mono, fontSize: 26, color: C.nightMuted, marginTop: 10 }}>At 10 m per pixel, a thin river looks like a road.</div></Pop>
+              <Pop delay={4}><div style={{ fontFamily: F.mono, fontSize: 26, color: C.nightMuted, marginTop: 10 }}>Upper Arlington, labelled by us · at 10 m per pixel, a thin river looks like a road.</div></Pop>
             </div>
             <div style={{ position: "absolute", left: 110, top: 420, display: "flex", gap: 46 }}>
               {N.river_wrong.slice(0, 5).map((t, i) => (
@@ -254,7 +282,7 @@ export const End: React.FC = () => (
       <Pop delay={12}><div style={{ fontFamily: F.mono, fontSize: 30, color: C.nightMuted, marginTop: 14 }}>{N.repo_url}</div></Pop>
       <Pop delay={20}>
         <div style={{ fontFamily: F.sans, fontSize: 24, color: C.nightMuted, marginTop: 70, maxWidth: 1500, lineHeight: 1.5 }}>
-          {N.disclaimer} Imagery: Copernicus Sentinel-2 (ESA), Landsat (USGS/NASA), Esri basemap. Models: DINOv2 (Meta), all-MiniLM-L6-v2, ResNet-18. Data: EuroSAT.
+          {N.disclaimer} Imagery: Copernicus Sentinel-2 (ESA), Landsat (USGS/NASA), Esri basemap. Models: DINOv2 (Meta), all-MiniLM-L6-v2. Data: © OpenStreetMap contributors, EuroSAT.
           Built with help from AI coding tools (Claude). Veritas AI High School Hackathon 2026 · AI + Climate.
         </div>
       </Pop>

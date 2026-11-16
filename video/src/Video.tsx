@@ -1,10 +1,10 @@
 import React from "react";
 import { AbsoluteFill, Audio, Sequence, Series, interpolate, staticFile } from "remotion";
 import { Captions } from "./parts";
-import { Baseline, End, Heat, Hook, How, Idea, Limits, Next, Problem, Search } from "./Scenes";
+import { Baseline, End, Heat, Hook, How, Idea, Limits, Next, Problem, Search, Test } from "./Scenes";
 import { FPS, N, loadFonts } from "./theme";
 
-const SCENE: Record<string, React.FC> = { hook: Hook, problem: Problem, idea: Idea, search: Search, heat: Heat, how: How, baseline: Baseline, limits: Limits, next: Next, end: End };
+const SCENE: Record<string, React.FC> = { hook: Hook, problem: Problem, idea: Idea, search: Search, heat: Heat, how: How, test: Test, baseline: Baseline, limits: Limits, next: Next, end: End };
 
 // Scene order, lengths and caption text all come from numbers.json (video/scripts/make_numbers.py).
 export const PlatonicEarth: React.FC = () => {

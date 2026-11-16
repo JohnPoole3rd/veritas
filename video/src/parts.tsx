@@ -47,8 +47,8 @@ export const Pop: React.FC<{ delay?: number; children: React.ReactNode; style?: 
 };
 
 /** Horizontal bar chart row. value in percent. */
-export const Bar: React.FC<{ label: string; sub?: string; value: number; color: string; delay: number; bold?: boolean; dark?: boolean; suffix?: string }> = ({
-  label, sub, value, color, delay, bold, dark, suffix = "%",
+export const Bar: React.FC<{ label: string; sub?: string; value: number; color: string; delay: number; bold?: boolean; dark?: boolean; suffix?: string; max?: number }> = ({
+  label, sub, value, color, delay, bold, dark, suffix = "%", max = 100,
 }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -61,7 +61,7 @@ export const Bar: React.FC<{ label: string; sub?: string; value: number; color: 
         {sub && <div style={{ fontFamily: F.mono, fontSize: 24, color: dark ? C.nightMuted : C.muted, marginTop: 4 }}>{sub}</div>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-        <div style={{ height: 64, width: `${(value / 100) * 900 * p}px`, backgroundColor: color, borderRadius: 10 }} />
+        <div style={{ height: 64, width: `${(value / max) * 900 * p}px`, backgroundColor: color, borderRadius: 10 }} />
         <div style={{ fontFamily: F.serif, fontSize: 60, fontWeight: 600, color: ink, fontVariantNumeric: "tabular-nums" }}>
           {(value * p).toFixed(value % 1 ? 1 : 0)}
           {suffix}

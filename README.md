@@ -86,7 +86,7 @@ All numbers below come from logged files in [`artifacts/metrics/`](artifacts/met
 
 ## Video
 
-🎬 **2-minute demo:** [`assets/PlatonicEarth_demo.mov`](assets/PlatonicEarth_demo.mov) (open it on GitHub to play, or download it). It has burned-in captions, so it works muted. Captions file: [`video/captions.srt`](video/captions.srt).
+🎬 **2-minute demo:** [`assets/PlatonicEarth_demo.mp4`](assets/PlatonicEarth_demo.mp4) (open it on GitHub to play, or download it). It has burned-in captions, so it works muted. Captions file: [`video/captions.srt`](video/captions.srt).
 
 ## Try it
 

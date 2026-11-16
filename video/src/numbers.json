@@ -42,6 +42,38 @@
   "top": 0.0455
  },
  "disclaimer": "Prototype, not a land-use determination.",
+ "bench": {
+  "ours": 34.0,
+  "first": 30.2,
+  "none": 14.8,
+  "random": 11.2,
+  "chance": 10.5,
+  "pairs": 532,
+  "regions": 50,
+  "squares": 170454,
+  "k": 10,
+  "parking": 43.3,
+  "parking_chance": 5.9,
+  "diff": 3.8,
+  "diff_ci": [
+   1.9,
+   5.5
+  ],
+  "weak": [
+   {
+    "q": "a cemetery",
+    "ours": 4.6,
+    "chance": 2.3
+   },
+   {
+    "q": "an orchard",
+    "ours": 6.4,
+    "chance": 3.2
+   }
+  ],
+  "n_fit": 1000000,
+  "fit_words": "one million"
+ },
  "dates": {
   "s2": "1 Aug 2025",
   "lst": "23 Jul 2025"
@@ -102,7 +134,7 @@
   {
    "key": "hook",
    "start": 0,
-   "dur": 6.41,
+   "dur": 6.1,
    "voices": [
     {
      "src": "audio/voice_hook_0.wav",
@@ -112,15 +144,15 @@
    "captions": [
     {
      "from": 0.1,
-     "to": 6.41,
+     "to": 6.1,
      "text": "In Upper Arlington, Ohio, the least green part of town was 4.1 degrees hotter than the greenest part."
     }
    ]
   },
   {
    "key": "problem",
-   "start": 6.41,
-   "dur": 9.73,
+   "start": 6.1,
+   "dur": 8.81,
    "voices": [
     {
      "src": "audio/voice_problem_0.wav",
@@ -139,15 +171,15 @@
     },
     {
      "from": 4.1,
-     "to": 9.73,
-     "text": "Satellites take a new picture of every street every few days. That's too much to look through."
+     "to": 8.81,
+     "text": "Satellites photograph every street every few days. That's too much to look through."
     }
    ]
   },
   {
    "key": "idea",
-   "start": 16.14,
-   "dur": 6.11,
+   "start": 14.91,
+   "dur": 5.17,
    "voices": [
     {
      "src": "audio/voice_idea_0.wav",
@@ -157,15 +189,15 @@
    "captions": [
     {
      "from": 0.1,
-     "to": 6.11,
-     "text": "So we built a way to search satellite photos in plain English, without training a new AI."
+     "to": 5.17,
+     "text": "So we built a way to search satellite photos of anywhere on Earth, in plain English."
     }
    ]
   },
   {
    "key": "search",
-   "start": 22.25,
-   "dur": 15.56,
+   "start": 20.08,
+   "dur": 9.08,
    "voices": [
     {
      "src": "audio/voice_search_0.wav",
@@ -177,31 +209,31 @@
     },
     {
      "src": "audio/voice_search_2.wav",
-     "at": 9.3
+     "at": 6.3
     }
    ],
    "captions": [
     {
      "from": 0.1,
      "to": 3.6,
-     "text": "Type “river corridor”."
+     "text": "Pick a place and set a radius."
     },
     {
      "from": 3.6,
-     "to": 9.1,
-     "text": "All 6 top results really are the river. We checked them against our own labels."
+     "to": 6.1,
+     "text": "Type “parking lots”."
     },
     {
-     "from": 9.1,
-     "to": 15.56,
-     "text": "Any words work, like “tall trees near a river”. The number is a match score, not a percent."
+     "from": 6.1,
+     "to": 9.08,
+     "text": "The best-matching squares light up on the map."
     }
    ]
   },
   {
    "key": "heat",
-   "start": 37.81,
-   "dur": 21.48,
+   "start": 29.16,
+   "dur": 17.37,
    "voices": [
     {
      "src": "audio/voice_heat_0.wav",
@@ -209,44 +241,44 @@
     },
     {
      "src": "audio/voice_heat_1.wav",
-     "at": 6.3
+     "at": 5.3
     },
     {
      "src": "audio/voice_heat_2.wav",
-     "at": 12.3
+     "at": 10.3
     },
     {
      "src": "audio/voice_heat_3.wav",
-     "at": 17.3
+     "at": 15.3
     }
    ],
    "captions": [
     {
      "from": 0.1,
-     "to": 6.1,
-     "text": "The Heat Lab adds two satellite measurements: how green, and how hot."
+     "to": 5.1,
+     "text": "The same app adds two satellite measurements: how green, and how hot."
     },
     {
-     "from": 6.1,
-     "to": 12.1,
+     "from": 5.1,
+     "to": 10.1,
      "text": "Greener squares are cooler, by about 1.7 degrees for every step in green."
     },
     {
-     "from": 12.1,
-     "to": 17.1,
+     "from": 10.1,
+     "to": 15.1,
      "text": "“Plant first” marks hot squares with few trees."
     },
     {
-     "from": 17.1,
-     "to": 21.48,
-     "text": "Search “parking lot”, see the hottest ones, and download the list."
+     "from": 15.1,
+     "to": 17.37,
+     "text": "Download the list."
     }
    ]
   },
   {
    "key": "how",
-   "start": 59.29,
-   "dur": 19.7,
+   "start": 46.53,
+   "dur": 15.42,
    "voices": [
     {
      "src": "audio/voice_how_0.wav",
@@ -258,7 +290,7 @@
     },
     {
      "src": "audio/voice_how_2.wav",
-     "at": 12.3
+     "at": 10.3
     }
    ],
    "captions": [
@@ -269,20 +301,56 @@
     },
     {
      "from": 6.1,
-     "to": 12.1,
-     "text": "We line the two up with one rotation. No training."
+     "to": 10.1,
+     "text": "We line the two up with one rotation,"
     },
     {
-     "from": 12.1,
-     "to": 19.7,
-     "text": "On new photos, the right land type comes first 96% of the time. A random rotation gets 15%."
+     "from": 10.1,
+     "to": 15.42,
+     "text": "fitted on one million satellite photos captioned from OpenStreetMap."
+    }
+   ]
+  },
+  {
+   "key": "test",
+   "start": 61.95,
+   "dur": 11.83,
+   "voices": [
+    {
+     "src": "audio/voice_test_0.wav",
+     "at": 0.3
+    },
+    {
+     "src": "audio/voice_test_1.wav",
+     "at": 4.3
+    },
+    {
+     "src": "audio/voice_test_2.wav",
+     "at": 9.3
+    }
+   ],
+   "captions": [
+    {
+     "from": 0.1,
+     "to": 4.1,
+     "text": "We tested it on 50 regions held out from training."
+    },
+    {
+     "from": 4.1,
+     "to": 9.1,
+     "text": "About 1 in 3 top results is right. By chance, it's 1 in 10."
+    },
+    {
+     "from": 9.1,
+     "to": 11.83,
+     "text": "For parking lots, it's 4 in 10."
     }
    ]
   },
   {
    "key": "baseline",
-   "start": 78.99,
-   "dur": 7.26,
+   "start": 73.78,
+   "dur": 6.12,
    "voices": [
     {
      "src": "audio/voice_baseline_0.wav",
@@ -292,15 +360,15 @@
    "captions": [
     {
      "from": 0.1,
-     "to": 7.26,
-     "text": "A trained ResNet labels photos better: 98% to our 81%. But it can't search by words."
+     "to": 6.12,
+     "text": "A million photos helped only a little: 34% right, up from 30% with our first rotation."
     }
    ]
   },
   {
    "key": "limits",
-   "start": 86.25,
-   "dur": 12.85,
+   "start": 79.9,
+   "dur": 10.18,
    "voices": [
     {
      "src": "audio/voice_limits_0.wav",
@@ -308,26 +376,26 @@
     },
     {
      "src": "audio/voice_limits_1.wav",
-     "at": 7.3
+     "at": 5.3
     }
    ],
    "captions": [
     {
      "from": 0.1,
-     "to": 7.1,
-     "text": "In our own town, it's a tie: 64% right, versus 62% for always guessing “Residential”."
+     "to": 5.1,
+     "text": "It still misses a lot. Cemeteries and orchards score near chance."
     },
     {
-     "from": 7.1,
-     "to": 12.85,
-     "text": "Rivers: zero out of ten right. From space, a thin river looks like a road."
+     "from": 5.1,
+     "to": 10.18,
+     "text": "And in our own town, thin rivers look like roads: zero out of ten right."
     }
    ]
   },
   {
    "key": "next",
-   "start": 99.1,
-   "dur": 4.7,
+   "start": 90.08,
+   "dur": 4.32,
    "voices": [
     {
      "src": "audio/voice_next_0.wav",
@@ -337,14 +405,14 @@
    "captions": [
     {
      "from": 0.1,
-     "to": 4.7,
+     "to": 4.32,
      "text": "Next: sharper photos, and an AI that can say “I don't know”."
     }
    ]
   },
   {
    "key": "end",
-   "start": 103.8,
+   "start": 94.4,
    "dur": 5,
    "voices": [
     {
@@ -361,5 +429,5 @@
    ]
   }
  ],
- "total_s": 108.8
+ "total_s": 99.4
 }
